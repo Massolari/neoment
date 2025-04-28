@@ -23,6 +23,7 @@ M.client = nil
 --- @field last_activity? integer The timestamp of the last activity in the room.
 --- @field is_direct? boolean Indicates if the room is a direct chat.
 --- @field is_favorite? boolean Indicates if the room is a favorite.
+--- @field is_lowpriority? boolean Indicates if the room is a low-priority room.
 --- @field typing table<string, string> A table to store typing users, it contains the user IDs of users who are typing in the room.
 --- @field fully_read? string The event ID of the last fully read message in the room.
 --- @field unread_notifications integer The number of unread notifications for this room.

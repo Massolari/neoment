@@ -200,6 +200,9 @@ M.handle = function(room_id, event)
 		if event.content.tags["m.favourite"] then
 			client.get_room(room_id).is_favorite = true
 			return true
+		elseif event.content.tags["m.lowpriority"] then
+			client.get_room(room_id).is_lowpriority = true
+			return true
 		end
 	end
 

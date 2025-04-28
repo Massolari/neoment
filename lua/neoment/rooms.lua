@@ -6,22 +6,24 @@ local matrix = require("neoment.matrix")
 
 local room_list_buffer_name = "neoment://rooms"
 local buffer_id = nil
---- @alias Section "buffers" | "favorites" | "people" | "rooms"
+--- @alias neoment.rooms.Section "buffers" | "favorites" | "people" | "rooms" | "low_priority"
 
---- @type table<Section, boolean>
+--- @type table<neoment.rooms.Section, boolean>
 local room_list_fold_state = {
 	buffers = false,
 	favorites = false,
 	people = false,
 	rooms = false,
+	low_priority = false,
 }
 
---- @type table<Section, string>
+--- @type table<neoment.rooms.Section, string>
 local sections = {
 	buffers = "Buffers",
 	favorites = "Favorites",
 	people = "People",
 	rooms = "Rooms",
+	low_priority = "Low priority",
 }
 local window_width = 50
 
@@ -77,15 +79,23 @@ M.toggle_fold_at_cursor = function()
 
 	local section = nil
 	if M.room_section_lines then
-		if current_line == M.room_section_lines.buffers then
-			section = "buffers"
-		elseif current_line == M.room_section_lines.favorites then
-			section = "favorites"
-		elseif current_line == M.room_section_lines.people then
-			section = "people"
-		elseif current_line == M.room_section_lines.rooms then
-			section = "rooms"
+		for section_name, _ in pairs(M.room_section_lines) do
+			if current_line == M.room_section_lines[section_name] then
+				section = section_name
+				break
+			end
 		end
+		-- if current_line == M.room_section_lines.buffers then
+		-- 	section = "buffers"
+		-- elseif current_line == M.room_section_lines.favorites then
+		-- 	section = "favorites"
+		-- elseif current_line == M.room_section_lines.people then
+		-- 	section = "people"
+		-- elseif current_line == M.room_section_lines.rooms then
+		-- 	section = "rooms"
+		-- elseif current_line == M.room_section_lines.low_priority then
+		-- 	section = "low_priority"
+		-- end
 	end
 
 	if section then
@@ -141,7 +151,7 @@ M.toggle_room_list = function()
 end
 
 --- Get the icon for the section
---- @param section "buffers" | "favorites" | "people" | "rooms" The section name
+--- @param section neoment.rooms.Section The section name
 local function get_section_icon(section)
 	return room_list_fold_state[section] and "" or ""
 end
@@ -172,12 +182,13 @@ M.update_room_list = function()
 
 	api.nvim_set_option_value("modifiable", true, { buf = buffer_id })
 
-	---@type table<Section, table<neoment.matrix.client.Room>>
+	---@type table<neoment.rooms.Section, table<neoment.matrix.client.Room>>
 	local section_rooms = {
 		buffers = {},
 		favorites = {},
 		people = {},
 		rooms = {},
+		low_priority = {},
 	}
 
 	local open_buffers = vim.tbl_filter(function(buf)
@@ -198,6 +209,8 @@ M.update_room_list = function()
 			table.insert(section_rooms.favorites, room)
 		elseif room.is_direct then
 			table.insert(section_rooms.people, room)
+		elseif room.is_lowpriority then
+			table.insert(section_rooms.low_priority, room)
 		else
 			table.insert(section_rooms.rooms, room)
 		end
@@ -217,6 +230,7 @@ M.update_room_list = function()
 	table.sort(section_rooms.favorites, sort_by_activity)
 	table.sort(section_rooms.people, sort_by_activity)
 	table.sort(section_rooms.rooms, sort_by_activity)
+	table.sort(section_rooms.low_priority, sort_by_activity)
 
 	-- Montar a lista
 	local lines = {
@@ -233,14 +247,15 @@ M.update_room_list = function()
 	local extmarks = {}
 	local line_index = 3 -- Linha de índice onde começam as salas (1-based para o cursor)
 
-	--- @type table<Section, number>
+	--- @type table<neoment.rooms.Section, number>
 	local section_lines = {}
-	--- @type table<Section>
+	--- @type table<neoment.rooms.Section>
 	local section_list = {
 		"buffers",
 		"favorites",
 		"people",
 		"rooms",
+		"low_priority",
 	}
 	for index, section in ipairs(section_list) do
 		local icon = get_section_icon(section)
@@ -311,6 +326,13 @@ M.update_room_list = function()
 		"NeomentSectionTitle",
 		{ section_lines.rooms - 1, 0 },
 		{ section_lines.rooms - 1, -1 }
+	)
+	vim.hl.range(
+		buffer_id,
+		ns_id,
+		"NeomentSectionTitle",
+		{ section_lines.low_priority - 1, 0 },
+		{ section_lines.low_priority - 1, -1 }
 	)
 
 	-- Destacar salas abertas, em vez de sala atual
