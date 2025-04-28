@@ -19,7 +19,7 @@ M.client = nil
 --- @field events table<string, neoment.matrix.ClientEventWithoutRoomID> A table to store events associated with the room.
 --- @field pending_events table<string, neoment.matrix.ClientEventWithoutRoomID> A table to store pending events associated with the room.
 --- @field messages table<string, neoment.matrix.client.Message> A table to store messages associated with the room.
---- @field prev_batch? PreviousBatch The previous batch token for the room.
+--- @field prev_batch? neoment.matrix.client.PreviousBatch The previous batch token for the room.
 --- @field last_activity? integer The timestamp of the last activity in the room.
 --- @field is_direct? boolean Indicates if the room is a direct chat.
 --- @field is_favorite? boolean Indicates if the room is a favorite.
@@ -43,7 +43,7 @@ M.client = nil
 --- @class neoment.matrix.client.PreviousBatchToken
 --- @field token string The previous batch token for the room.
 
---- @alias PreviousBatch neoment.matrix.client.PreviousBatchToken|"End"|nil
+--- @alias neoment.matrix.client.PreviousBatch neoment.matrix.client.PreviousBatchToken|"End"|nil
 
 --- @class neoment.matrix.client.MessageImage
 --- @field url string The URL of the image.

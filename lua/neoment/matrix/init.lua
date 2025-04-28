@@ -775,7 +775,7 @@ end
 
 --- Get the previous batch token for a room.
 --- @param room_id string The ID of the room.
---- @return PreviousBatch The previous batch token for the room.
+--- @return neoment.matrix.client.PreviousBatch The previous batch token for the room.
 M.get_room_prev_batch = function(room_id)
 	return client.get_room(room_id).prev_batch
 end

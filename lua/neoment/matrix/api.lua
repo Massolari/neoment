@@ -3,11 +3,11 @@ local M = {}
 local curl = require("plenary.curl")
 local json = vim.json
 local error = require("neoment.error")
---- @alias ErrCode "M_FORBIDDEN" | "M_UNKNOWN_TOKEN" | "M_MISSING_TOKEN" | "M_USER_LOCKED" | "M_USER_SUSPENDED" | "M_BAD_JSON" | "M_NOT_JSON" | "M_NOT_FOUND" | "M_LIMIT_EXCEEDED" | "M_UNRECOGNIZED" | "M_UNKNOWN"
+--- @alias neoment.matrix.api.ErrCode "M_FORBIDDEN" | "M_UNKNOWN_TOKEN" | "M_MISSING_TOKEN" | "M_USER_LOCKED" | "M_USER_SUSPENDED" | "M_BAD_JSON" | "M_NOT_JSON" | "M_NOT_FOUND" | "M_LIMIT_EXCEEDED" | "M_UNRECOGNIZED" | "M_UNKNOWN"
 
 --- @class neoment.matrix.api.Error
 --- @field error string The human-readable error message.
---- @field errcode ErrCode The error code.
+--- @field errcode neoment.matrix.api.ErrCode The error code.
 
 --- @class neoment.matrix.api.RequestOptions
 --- @field headers table<string, string> A table of headers to include in the request.
