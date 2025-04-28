@@ -197,7 +197,6 @@ end
 M.handle = function(room_id, event)
 	-- Handle events without event_id
 	if event.type == "m.tag" then
-		print("Tag event received: " .. vim.inspect(event))
 		if event.content.tags["m.favourite"] then
 			client.get_room(room_id).is_favorite = true
 			return true
