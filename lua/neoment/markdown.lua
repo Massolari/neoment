@@ -37,29 +37,15 @@ local markdown_patterns = {
 	{ pattern = "^%s*>!(.*)", replacement = "<span data-mx-spoiler>%1</span>" },
 }
 
-local function escape_content(text)
+--- Escape HTML entities
+--- @param text string Text to escape
+--- @return string Escaped text
+local function escape_html_content(text)
 	local result = text
 
-	-- Primeiro identifica e preserva as tags HTML
-	local preserved_tags = {}
-	local tag_count = 0
-
-	result = result:gsub("<([^>]+)>", function(tag_content)
-		tag_count = tag_count + 1
-		local placeholder = "{{TAG_PLACEHOLDER_" .. tag_count .. "}}"
-		preserved_tags[placeholder] = "<" .. tag_content .. ">"
-		return placeholder
-	end)
-
-	-- Escapa entidades HTML no conteúdo
 	result = result:gsub("&", "&amp;")
 	result = result:gsub("<", "&lt;")
 	result = result:gsub(">", "&gt;")
-
-	-- Restaura as tags preservadas
-	for placeholder, original_tag in pairs(preserved_tags) do
-		result = result:gsub(placeholder, original_tag)
-	end
 
 	return result
 end
@@ -74,17 +60,6 @@ M.to_html = function(markdown_text)
 
 	local html = markdown_text
 
-	-- Handle blockquotes with specified language
-	html = html:gsub("```(%w+)\n(.-)\n```", function(lang, code)
-		return '<pre><code class="language-' .. lang .. '">' .. code .. "</code></pre>"
-	end)
-
-	-- Handle code blocks without specified language
-	html = html:gsub("```(.-)```", function(code)
-		-- Remover qualquer formatação HTML dentro de blocos de código
-		return "<pre><code>" .. code .. "</code></pre>"
-	end)
-
 	-- Process Markdown blockquotes before other patterns
 	-- Identify consecutive lines of blockquotes to group them into a single blockquote
 	local lines = {}
@@ -94,6 +69,7 @@ M.to_html = function(markdown_text)
 	for line in html:gmatch("([^\n]+)") do
 		if line:match("^%s*>%s([^!]*)") then
 			local content = line:gsub("^%s*>%s*(.*)", "%1")
+			content = escape_html_content(content)
 			if in_blockquote then
 				blockquote_content = blockquote_content .. "\n" .. content
 			else
@@ -106,7 +82,7 @@ M.to_html = function(markdown_text)
 				in_blockquote = false
 				blockquote_content = ""
 			end
-			table.insert(lines, line)
+			table.insert(lines, escape_html_content(line))
 		end
 	end
 
@@ -115,6 +91,17 @@ M.to_html = function(markdown_text)
 	end
 
 	html = table.concat(lines, "\n")
+
+	-- Handle blockquotes with specified language
+	html = html:gsub("```(%w+)\n(.-)\n```", function(lang, code)
+		return '<pre><code class="language-' .. lang .. '">' .. code .. "</code></pre>"
+	end)
+
+	-- Handle code blocks without specified language
+	html = html:gsub("```(.-)```", function(code)
+		-- Remover qualquer formatação HTML dentro de blocos de código
+		return "<pre><code>" .. code .. "</code></pre>"
+	end)
 
 	-- Aplicar outros padrões Markdown
 	for _, pattern in ipairs(markdown_patterns) do
@@ -136,7 +123,7 @@ M.to_html = function(markdown_text)
 	html = html:gsub("\\n", "<br />")
 
 	-- Escape HTML entities
-	html = escape_content(html)
+	-- html = escape_content(html)
 
 	return html
 end
@@ -244,6 +231,12 @@ M.from_html = function(html)
 
 	-- Code blocks without language
 	markdown = markdown:gsub("<pre><code>(.-)</code></pre>", "```\n%1\n```")
+
+	-- Code blocks with language
+	markdown = markdown:gsub([[<code class=["']language%-([^"]+)["']>(.-)</code>]], "```%1\n%2\n```")
+
+	-- Code blocks without language
+	markdown = markdown:gsub("<code>(.-)</code>", "```\n%1\n```")
 
 	-- Clean up any remaining HTML tags
 	markdown = markdown:gsub("<[^>]+>(.-)</[^>]+>", "%1")
