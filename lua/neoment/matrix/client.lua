@@ -139,11 +139,9 @@ end
 M.add_room_message = function(room_id, message)
 	local room = M.get_room(room_id)
 
-	if not room.is_tracked then
-		room.messages = {}
+	if room.is_tracked then
+		room.messages[message.id] = message
 	end
-
-	room.messages[message.id] = message
 
 	return message
 end
