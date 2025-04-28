@@ -195,7 +195,16 @@ end
 --- @param event neoment.matrix.ClientEventWithoutRoomID
 --- @return boolean True if the event was handled, false otherwise
 M.handle = function(room_id, event)
-	if not event or not event.event_id then
+	-- Handle events without event_id
+	if event.type == "m.tag" then
+		print("Tag event received: " .. vim.inspect(event))
+		if event.content.tags["m.favourite"] then
+			client.get_room(room_id).is_favorite = true
+			return true
+		end
+	end
+
+	if not event.event_id then
 		-- Skip events without an ID
 		return false
 	end
@@ -208,12 +217,7 @@ M.handle = function(room_id, event)
 	-- Store the event in the room's events table
 	client.add_room_event(room_id, event)
 
-	if event.type == "m.tag" then
-		if event.content.tags["m.favourite"] then
-			client.get_room(room_id).is_favorite = true
-			return true
-		end
-	elseif event.type == "m.fully_read" then
+	if event.type == "m.fully_read" then
 		-- Update the fully read event ID
 		client.get_room(room_id).fully_read = event.content.event_id
 		return true
