@@ -5,18 +5,9 @@ vim.bo.swapfile = false
 vim.bo.modified = false
 vim.wo.conceallevel = 2
 vim.wo.wrap = true
-
--- Tentar configurar TreeSitter se disponível
-pcall(function()
-	if vim.treesitter and vim.treesitter.start then
-		vim.treesitter.start(buffer_id, "markdown")
-	end
-end)
-
--- Configurações visuais adicionais
-vim.wo.foldmethod = "manual" -- Sem dobramento automático
-vim.wo.cursorline = true -- Realçar linha atual
-vim.wo.signcolumn = "no" -- Sem coluna de sinais
+vim.wo.foldmethod = "manual"
+vim.wo.cursorline = true
+vim.wo.signcolumn = "no"
 
 local old_number = vim.wo.number
 local old_relativenumber = vim.wo.relativenumber

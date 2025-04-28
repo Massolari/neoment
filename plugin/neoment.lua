@@ -65,3 +65,11 @@ vim.api.nvim_create_user_command("NeomentLogout", function()
 end, {
 	desc = "Logout from the Matrix server and clear session data",
 })
+
+vim.api.nvim_create_autocmd("FileType", {
+	group = vim.api.nvim_create_augroup("neoment_room", {}),
+	pattern = "neoment_room",
+	callback = function(args)
+		vim.treesitter.start(args.buf, "markdown")
+	end,
+})
