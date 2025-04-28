@@ -594,22 +594,28 @@ M.load_more_messages = function(buffer_id)
 		timeout = false,
 	})
 	matrix.load_more_messages(room_id, function(response)
-		error.match(response, function()
-			vim.notify("Messages loaded", vim.log.levels.INFO, {
-				-- For snacks
-				id = notification and notification.id,
-				-- For nvim-notify
-				replace = notification,
-				timeout = 3000,
-			})
-
+		local notify = error.match(response, function()
 			vim.schedule(function()
 				M.update_buffer(buffer_id or 0)
 			end)
-			return nil
+			return {
+				message = "Messages loaded",
+				level = vim.log.levels.INFO,
+			}
 		end, function(err)
-			vim.notify("Error loading more messages: " .. err.error, vim.log.levels.ERROR)
+			return {
+				message = "Error loading more messages: " .. err.error,
+				level = vim.log.levels.ERROR,
+			}
 		end)
+
+		vim.notify(notify.message, notify.level, {
+			-- For snacks
+			id = notification and notification.id,
+			-- For nvim-notify
+			replace = notification,
+			timeout = 3000,
+		})
 	end)
 
 	return true
