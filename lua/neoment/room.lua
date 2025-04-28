@@ -453,12 +453,12 @@ M.update_buffer = function(buffer_id)
 		M.mark_read(buffer_id)
 	end
 
-	-- local winbar = matrix.get_room_name(room_id)
-	-- local topic = matrix.get_room_topic(room_id)
-	-- if topic ~= "" then
-	-- 	winbar = winbar .. " - " .. topic
-	-- end
-	-- vim.wo.winbar = winbar
+	local winbar = matrix.get_room_name(room_id)
+	local topic = matrix.get_room_topic(room_id)
+	if topic ~= "" then
+		winbar = winbar .. " - " .. topic
+	end
+	vim.wo.winbar = winbar
 
 	local lines = messages_to_lines(buffer_id)
 
