@@ -419,7 +419,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 
 	for _, image in ipairs(images) do
 		local placement = Snacks.image.placement.new(buffer_id, image.url, {
-			pos = { image.line, 30 },
+			pos = { image.line, 33 },
 			height = image.height,
 			width = image.width,
 			inline = true,
