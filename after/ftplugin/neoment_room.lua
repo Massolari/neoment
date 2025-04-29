@@ -6,16 +6,17 @@ vim.bo.modified = false
 vim.wo.conceallevel = 2
 vim.wo.wrap = true
 vim.wo.foldmethod = "manual"
-vim.wo.cursorline = true
 vim.wo.signcolumn = "no"
 
 local old_number = vim.wo.number
 local old_relativenumber = vim.wo.relativenumber
+local old_cursorline = vim.wo.cursorline
 vim.api.nvim_create_autocmd("BufLeave", {
 	buffer = buffer_id,
 	callback = function()
 		vim.wo.number = old_number
 		vim.wo.relativenumber = old_relativenumber
+		vim.wo.cursorline = old_cursorline
 	end,
 })
 vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
@@ -24,6 +25,7 @@ vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
 		vim.wo.number = false
 		vim.wo.relativenumber = false
 		vim.wo.conceallevel = 2
+		vim.wo.cursorline = true
 		require("neoment.room").mark_read(buffer_id)
 	end,
 })
