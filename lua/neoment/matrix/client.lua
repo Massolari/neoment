@@ -27,6 +27,7 @@ M.client = nil
 --- @field typing table<string, string> A table to store typing users, it contains the user IDs of users who are typing in the room.
 --- @field fully_read? string The event ID of the last fully read message in the room.
 --- @field unread_notifications integer The number of unread notifications for this room.
+--- @field unread_highlights integer The number of unread highlights for this room.
 
 --- @class neoment.matrix.client.Message
 --- @field id string The ID of the event.
@@ -84,6 +85,7 @@ local function create_new_room(room_id)
 		members = {},
 		typing = {},
 		unread_notifications = 0,
+		unread_highlights = 0,
 		is_tracked = false,
 	}
 

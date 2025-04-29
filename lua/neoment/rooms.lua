@@ -155,8 +155,10 @@ local function get_room_line(room)
 	if last_activity and last_activity > 0 then
 		local time = os.date("%H:%M", math.floor(last_activity / 1000))
 		display = display .. " [" .. time .. "]"
-		if room.unread_notifications and room.unread_notifications > 0 then
-			display = display .. " (" .. room.unread_notifications .. ")"
+		if room.unread_highlights and room.unread_highlights > 0 then
+			display = display .. " 🔔"
+		elseif room.unread_notifications and room.unread_notifications > 0 then
+			display = display .. " ⏺"
 		end
 	end
 
@@ -271,7 +273,8 @@ M.update_room_list = function()
 					line = line_index,
 					room_id = room.id,
 					is_buffer = section == "buffers",
-					has_unread = room.unread_notifications and room.unread_notifications > 0,
+					has_unread = (room.unread_notifications and room.unread_notifications > 0)
+						or (room.unread_highlights and room.unread_highlights > 0),
 				})
 				line_index = line_index + 1
 			end

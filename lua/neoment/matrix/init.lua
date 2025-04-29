@@ -315,6 +315,7 @@ local function handle_sync_joined_rooms(joined_rooms)
 
 		if room_data.unread_notifications then
 			client.get_room(room_id).unread_notifications = room_data.unread_notifications.notification_count
+			client.get_room(room_id).unread_highlights = room_data.unread_notifications.highlight_count
 		end
 
 		if room_updated then
@@ -562,6 +563,7 @@ M.fetch_display_name = function(user_id, callback)
 				client.client.display_names[user_id] = data.displayname
 				return data.displayname
 			end
+			client.client.display_names[user_id] = user_id
 			return user_id
 		end)
 
