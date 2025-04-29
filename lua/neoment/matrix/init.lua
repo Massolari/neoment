@@ -761,6 +761,59 @@ M.set_room_topic = function(room_id, topic)
 	client.get_room(room_id).topic = topic
 end
 
+--- Get the members of a room.
+--- @param room_id string The ID of the room.
+--- @return table<string, string> The members of the room. The keys are user IDs and the values are display names.
+M.get_room_members = function(room_id)
+	return vim.tbl_map(function(id)
+		return client.client.display_names[id] or id
+	end, client.get_room(room_id).members)
+end
+
+--- Get the other members of a room.
+--- @param room_id string The ID of the room.
+--- @return table<string, string> The other members of the room. The keys are user IDs and the values are display names.
+M.get_room_other_members = function(room_id)
+	local members = M.get_room_members(room_id)
+	local user_id = M.get_user_id()
+
+	if user_id then
+		members[user_id] = nil
+	end
+
+	return members
+end
+
+--- @class neoment.matrix.JoinedMembersResponse
+--- @field joined table<string, neoment.matrix.JoinedMember> The joined members of the room.
+
+--- @class neoment.matrix.JoinedMember
+--- @field display_name string The display name of the member.
+--- @field avatar_url string The avatar URL of the member.
+
+--- Fetch the joined members of a room.
+--- @param room_id string The ID of the room.
+--- @param callback fun(data: neoment.Error<table<string, neoment.matrix.JoinedMember>, neoment.matrix.api.Error>): any The callback function to handle the response. The response will be a table of user IDs and their display names.
+M.fetch_joined_members = function(room_id, callback)
+	api.get(client.client.homeserver .. "/_matrix/client/v3/rooms/" .. room_id .. "/joined_members", function(response)
+		local result = error.map(response, function(d)
+			--- @type neoment.matrix.JoinedMembersResponse
+			local data = d
+			for id, member in pairs(data.joined) do
+				client.client.display_names[id] = member.display_name or id
+				client.get_room(room_id).members[id] = id
+			end
+			return data.joined
+		end) --[[@as neoment.Error<table<string, neoment.matrix.JoinedMember>, neoment.matrix.api.Error>]]
+
+		callback(result)
+	end, {
+		headers = {
+			Authorization = "Bearer " .. client.client.access_token,
+		},
+	})
+end
+
 --- Get the last activity timestamp in a room.
 --- @param room_id string The ID of the room.
 --- @return integer? The last activity timestamp in the room.

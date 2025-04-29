@@ -36,10 +36,6 @@ local user_highlight_groups = {
 -- Cache for user highlight groups
 local room_user_highlights = {}
 
---- List of users that we're fetching display names for
---- @type table<string, boolean>
-local fetching_display_names = {}
-
 --- Mapping of lines to messages
 --- @type table<number, neoment.room.LineMessage>
 local line_to_message = {}
@@ -74,6 +70,11 @@ M.show_room = function(room_id)
 
 	matrix.set_room_tracked(room_id, true)
 	M.load_more_messages(buffer_id)
+	matrix.fetch_joined_members(room_id, function()
+		vim.schedule(function()
+			M.update_buffer(buffer_id)
+		end)
+	end)
 	return buffer_id
 end
 
@@ -158,16 +159,6 @@ local function messages_to_lines(buffer_id)
 
 		-- Get a friendly name for the sender
 		local sender_name = matrix.get_display_name(message.sender)
-		if not matrix.has_display_name(message.sender) and not fetching_display_names[sender_name] then
-			fetching_display_names[message.sender] = true
-
-			matrix.fetch_display_name(message.sender, function()
-				fetching_display_names[message.sender] = nil
-				vim.schedule(function()
-					M.update_buffer(buffer_id)
-				end)
-			end)
-		end
 
 		-- Check if the content exists
 		local content = message.content or ""
@@ -514,6 +505,7 @@ M.prompt_message = function(relation)
 	-- Store room_id and parent buffer in buffer variables
 	vim.b[input_buf].room_id = room_id
 	vim.b[input_buf].room_win = room_win
+	vim.b[input_buf].members = matrix.get_room_other_members(room_id)
 
 	local lines = {}
 
@@ -531,6 +523,7 @@ M.prompt_message = function(relation)
 
 	vim.api.nvim_buf_set_name(input_buf, buffer_name)
 	vim.api.nvim_set_option_value("filetype", "neoment_compose.markdown", { buf = input_buf })
+	vim.api.nvim_set_option_value("omnifunc", "v:lua.neoment_compose_omnifunc", { buf = input_buf })
 
 	-- Open split at bottom
 	vim.cmd("botright 10split")

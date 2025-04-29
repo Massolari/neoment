@@ -73,3 +73,46 @@ vim.api.nvim_create_autocmd("FileType", {
 		vim.treesitter.start(args.buf, "markdown")
 	end,
 })
+
+--- Omnifunc for the compose buffer
+--- It provides completion for the members of the room
+--- @param findstart integer
+--- @param base string
+--- @return integer|table|nil
+function _G.neoment_compose_omnifunc(findstart, base)
+	if findstart == 1 then
+		local line = vim.api.nvim_get_current_line()
+		local col = vim.fn.col(".")
+
+		--- @type integer|nil, integer|nil
+		local start, finish = 0, 0
+		while true do
+			start, finish = string.find(line, "@[%w%.:_%-]*", start + 1)
+			if start and col >= start and col <= finish + 1 then
+				return start - 1
+			elseif not start then
+				break
+			end
+		end
+
+		return -2
+	else
+		local buf = vim.api.nvim_get_current_buf()
+		local res = {}
+		local members = vim.b[buf].members or {}
+
+		for id, name in pairs(members) do
+			local lower_name = string.lower(name)
+			if string.match(id, base) or string.match("@" .. lower_name, string.lower(base)) then
+				table.insert(res, {
+					word = id,
+					abbr = name,
+					menu = id,
+					icase = 1,
+				})
+			end
+		end
+
+		return res
+	end
+end
