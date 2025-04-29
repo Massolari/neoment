@@ -54,11 +54,15 @@ local function login()
 
 	matrix.login(username, password, function(data)
 		if error.is_error(data) then
-			vim.notify("Error logging in: " .. data.error.error, vim.log.levels.ERROR)
+    		vim.schedule(function()
+				vim.notify("Error logging in: " .. data.error.error, vim.log.levels.ERROR)
+			end)
 			return
 		end
 
-		vim.notify("Login successful as " .. matrix.client.user_id, vim.log.levels.INFO)
+    	vim.schedule(function()
+			vim.notify("Login successful as " .. matrix.client.user_id, vim.log.levels.INFO)
+		end)
 
 		-- Save the session if configured
 		if vim.g.neoment.save_session then
