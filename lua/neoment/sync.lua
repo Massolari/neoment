@@ -115,6 +115,10 @@ end
 --- Stop the synchronization process.
 M.stop = function()
 	keep_syncing = false
+	if status.kind == "syncing" then
+		status.kind = "stopped"
+	end
+	vim.notify("Synchronization stopped", vim.log.levels.INFO)
 end
 
 --- Get the current status of the synchronization process.
