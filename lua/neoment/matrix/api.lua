@@ -37,6 +37,9 @@ end
 M.get = function(endpoint, callback, opts)
 	opts = opts or {}
 	curl.get(endpoint, {
+		on_error = function(err)
+			callback(error.error({ error = "Failed to make GET request", err = err }))
+		end,
 		headers = vim.tbl_extend("force", {
 			["Content-Type"] = "application/json",
 		}, opts.headers or {}),
@@ -54,6 +57,9 @@ end
 M.get_sync = function(endpoint, opts)
 	opts = opts or {}
 	local response = curl.get(endpoint, {
+		on_error = function(err)
+			return error.error({ error = "Failed to make GET request", err = err })
+		end,
 		headers = vim.tbl_extend("force", {
 			["Content-Type"] = "application/json",
 		}, opts.headers or {}),
@@ -71,6 +77,9 @@ end
 M.post = function(endpoint, body, callback, opts)
 	opts = opts or {}
 	curl.post(endpoint, {
+		on_error = function(err)
+			callback(error.error({ error = "Failed to make POST request", err = err }))
+		end,
 		body = json.encode(body),
 		headers = vim.tbl_extend("force", {
 			["Content-Type"] = "application/json",
@@ -90,6 +99,9 @@ end
 M.put = function(endpoint, body, callback, opts)
 	opts = opts or {}
 	curl.put(endpoint, {
+		on_error = function(err)
+			callback(error.error({ error = "Failed to make PUT request", err = err }))
+		end,
 		body = json.encode(body),
 		headers = vim.tbl_extend("force", {
 			["Content-Type"] = "application/json",
