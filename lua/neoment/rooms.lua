@@ -3,6 +3,7 @@ local M = {}
 local api = vim.api
 local sync = require("neoment.sync")
 local matrix = require("neoment.matrix")
+local util = require("neoment.util")
 
 local room_list_buffer_name = "neoment://rooms"
 local buffer_id = nil
@@ -30,10 +31,11 @@ local window_width = 50
 --- Format the last synchronization time
 --- @return string Formatted last synchronization time
 local function format_last_sync_time()
-	if not sync.last_sync then
+	local sync_status = sync.get_status()
+	if sync_status.kind == "never" then
 		return "No sync yet"
 	end
-	return tostring(os.date("%H:%M:%S", sync.last_sync))
+	return tostring(os.date("%H:%M:%S", sync_status.last_sync))
 end
 
 --- Join a room by its ID
@@ -85,29 +87,16 @@ M.toggle_fold_at_cursor = function()
 				break
 			end
 		end
-		-- if current_line == M.room_section_lines.buffers then
-		-- 	section = "buffers"
-		-- elseif current_line == M.room_section_lines.favorites then
-		-- 	section = "favorites"
-		-- elseif current_line == M.room_section_lines.people then
-		-- 	section = "people"
-		-- elseif current_line == M.room_section_lines.rooms then
-		-- 	section = "rooms"
-		-- elseif current_line == M.room_section_lines.low_priority then
-		-- 	section = "low_priority"
-		-- end
 	end
 
 	if section then
 		room_list_fold_state[section] = not room_list_fold_state[section]
 
 		-- Atualizar o símbolo de expansão no próprio buffer
-		api.nvim_set_option_value("modifiable", true, { buf = buffer_id })
 		local current_line_text = api.nvim_buf_get_lines(0, current_line - 1, current_line, false)[1]
 		local new_symbol = room_list_fold_state[section] and "" or ""
 		local new_line = new_symbol .. current_line_text:sub(2)
-		api.nvim_buf_set_lines(0, current_line - 1, current_line, false, { new_line })
-		api.nvim_set_option_value("modifiable", false, { buf = buffer_id })
+		util.buffer_write(0, { new_line }, current_line - 1, current_line)
 
 		M.update_room_list()
 	else
@@ -180,7 +169,14 @@ M.update_room_list = function()
 		return
 	end
 
-	api.nvim_set_option_value("modifiable", true, { buf = buffer_id })
+	local sync_status = sync.get_status()
+	if sync_status.kind == "never" then
+		util.buffer_write(buffer_id, { "No sync yet" }, 0, -1)
+		return
+	elseif sync_status.kind == "syncing" and sync_status.last_sync == nil then
+		util.buffer_write(buffer_id, { "Syncing..." }, 0, -1)
+		return
+	end
 
 	---@type table<neoment.rooms.Section, table<neoment.matrix.client.Room>>
 	local section_rooms = {
@@ -288,7 +284,8 @@ M.update_room_list = function()
 	end
 
 	-- Definir as linhas no buffer
-	api.nvim_buf_set_lines(buffer_id, 0, -1, false, lines)
+	-- api.nvim_buf_set_lines(buffer_id, 0, -1, false, lines)
+	util.buffer_write(buffer_id, lines, 0, -1)
 
 	-- Armazenar metadados das salas
 	M.room_list_extmarks = extmarks
@@ -350,9 +347,6 @@ M.update_room_list = function()
 			})
 		end
 	end
-
-	api.nvim_set_option_value("modifiable", false, { buf = buffer_id })
-	api.nvim_set_option_value("modified", false, { buf = buffer_id })
 end
 
 --- Select a room from the list using a picker

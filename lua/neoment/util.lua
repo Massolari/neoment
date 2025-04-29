@@ -66,4 +66,16 @@ M.mxc_to_url = function(homeserver, mxc_uri)
 	return string.format("%s/_matrix/client/v1/media/download/%s", homeserver, mxc_id)
 end
 
+--- Write to a non-modifiable buffer
+--- @param buf number The buffer number
+--- @param lines table The lines to write
+--- @param start number The starting line number
+--- @param end_line number The ending line number
+M.buffer_write = function(buf, lines, start, end_line)
+	vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
+	vim.api.nvim_buf_set_lines(buf, start, end_line, false, lines)
+	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
+	vim.api.nvim_set_option_value("modified", false, { buf = buf })
+end
+
 return M
