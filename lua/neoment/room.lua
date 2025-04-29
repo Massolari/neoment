@@ -64,6 +64,7 @@ M.show_room = function(room_id)
 	api.nvim_buf_set_name(buffer_id, buffer_name)
 	vim.b[buffer_id].room_id = room_id
 	api.nvim_set_option_value("filetype", "neoment_room", { buf = buffer_id })
+	api.nvim_set_option_value("buftype", "nofile", { buf = buffer_id })
 	api.nvim_buf_set_lines(buffer_id, 0, -1, false, { string.rep(" ", 28) .. " │ Loading..." })
 
 	api.nvim_set_current_buf(buffer_id)

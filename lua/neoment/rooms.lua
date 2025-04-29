@@ -109,6 +109,7 @@ local function create_room_list()
 	buffer_id = api.nvim_create_buf(false, false) -- listed=false, scratch=false
 	api.nvim_buf_set_name(buffer_id, room_list_buffer_name)
 	api.nvim_set_option_value("filetype", "neoment_rooms", { buf = buffer_id })
+	api.nvim_set_option_value("buftype", "nofile", { buf = buffer_id })
 	api.nvim_set_current_buf(buffer_id)
 
 	M.update_room_list()
