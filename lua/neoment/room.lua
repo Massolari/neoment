@@ -520,11 +520,7 @@ M.prompt_message = function(relation)
 	if relation then
 		vim.b[input_buf].relation = relation
 		if relation.relation == "reply" then
-			buffer_name = string.format(
-				"neoment://Replying to %s on %s",
-				matrix.get_display_name(relation.message.sender),
-				room_name
-			)
+			buffer_name = string.format("neoment://Replying to %s", matrix.get_display_name(relation.message.sender))
 		elseif relation.relation == "replace" then
 			buffer_name = string.format("neoment://Editing message on %s", room_name)
 			for line in relation.message.content:gmatch("[^\n]+") do
