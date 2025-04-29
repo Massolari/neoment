@@ -597,6 +597,11 @@ M.load_more_messages = function(buffer_id)
 		local notify = error.match(response, function()
 			vim.schedule(function()
 				M.update_buffer(buffer_id or 0)
+				if prev_batch == nil and room_buffer == api.nvim_get_current_buf() then
+					-- Jump to the last message
+					local last_line = api.nvim_buf_line_count(room_buffer)
+					api.nvim_win_set_cursor(0, { last_line, 0 })
+				end
 			end)
 			return {
 				message = "Messages loaded",
