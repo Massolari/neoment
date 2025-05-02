@@ -29,6 +29,11 @@ local user_highlight_groups = {
 	"@text.title",
 }
 
+-- Constants
+
+local SENDER_NAME_LENGTH = 19
+local TIME_FORMAT = "%H:%M:%S"
+
 --- @class neoment.room.MessageRelation
 --- @field message neoment.matrix.client.Message The message to reply to
 --- @field relation "reply"|"replace" The relation to the message
@@ -160,7 +165,7 @@ local function messages_to_lines(buffer_id)
 		---@type neoment.matrix.client.Message
 		local message = msg
 
-		local time = os.date("%H:%M:%S", math.floor(message.timestamp / 1000))
+		local time = os.date(TIME_FORMAT, math.floor(message.timestamp / 1000))
 
 		-- Get a friendly name for the sender
 		local sender_name = matrix.get_display_name(message.sender)
@@ -174,8 +179,8 @@ local function messages_to_lines(buffer_id)
 		end
 
 		-- Take the 20 first characters of the content
-		sender_name = sender_name:sub(1, 19)
-		local header = time .. " " .. util.pad_left(sender_name, 19) .. " │"
+		sender_name = sender_name:sub(1, SENDER_NAME_LENGTH)
+		local header = time .. " " .. util.pad_left(sender_name, SENDER_NAME_LENGTH) .. " │"
 
 		local content_lines = {}
 		-- Handle replies
@@ -285,6 +290,16 @@ local function messages_to_lines(buffer_id)
 	return lines
 end
 
+--- Add edit text to a message
+--- @param buffer_id number The ID of the buffer to add the edit text to
+--- @param ns_id number The namespace ID for the highlights
+--- @param line_index number The index of the line to add the edit text to
+local function add_edit_text(buffer_id, ns_id, line_index)
+	api.nvim_buf_set_extmark(buffer_id, ns_id, line_index - 1, 0, {
+		virt_text = { { "(edited)", "Comment" } },
+	})
+end
+
 --- Apply highlights to the lines in the buffer
 --- @param buffer_id number The ID of the buffer to apply highlights to
 --- @param room_id string The ID of the room to apply highlights to
@@ -309,6 +324,8 @@ local function apply_highlights(buffer_id, room_id, lines)
 		if bar_start then
 			vim.hl.range(buffer_id, ns_id, "FloatBorder", { index - 1, bar_start - 1 }, { index - 1, bar_start })
 		end
+		local time_end = string.len(TIME_FORMAT) -- Time ends after 8 characters
+		local name_end = bar_start - 1 -- Name ends before the vertical bar
 
 		local quote_start = string.find(line, "┃")
 		if quote_start then
@@ -328,11 +345,22 @@ local function apply_highlights(buffer_id, room_id, lines)
 			end
 		end
 
-		-- Apply user highlights for the sender's name
 		---@type neoment.room.LineMessage
 		local message = line_to_message[index]
 		if message then
 			if message.is_header then
+				-- Show a virtual text when the message was edited
+				if message.was_edited then
+					-- Count how many lines this message has
+					local _, newline_replaced = message.content:gsub("\n", "")
+					local message_lines = newline_replaced + 1
+
+					-- Add the edit text in the last line of this message
+					local last_line = index + message_lines - 1
+					add_edit_text(buffer_id, ns_id, last_line)
+				end
+
+				-- Apply user highlights for the sender's name
 				local user_id = message.sender
 				local highlight_group = get_user_highlight(room_id, user_id)
 
@@ -349,21 +377,8 @@ local function apply_highlights(buffer_id, room_id, lines)
 					api.nvim_set_hl(0, hl_group, hl)
 				end
 
-				-- Highlight the sender's name with the assigned group
-				local time_end = 8 -- Time ends after 8 characters
-				local name_end = bar_start - 1 -- Name ends before the vertical bar
 				-- Apply highlight to the user's name
 				vim.hl.range(buffer_id, ns_id, hl_group, { index - 1, time_end }, { index - 1, name_end })
-
-				-- Show a virtual text when the message was edited
-				if message.was_edited then
-					local edit_text = " (edited)"
-					local edit_start = name_end + 2 -- after the vertical bar
-					api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, edit_start, {
-						virt_text = { { edit_text, "Comment" } },
-						-- hl_mode = "combine",
-					})
-				end
 
 				if message.image and Snacks then
 					table.insert(images, {
