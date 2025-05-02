@@ -40,6 +40,10 @@ local room_user_highlights = {}
 --- @type table<number, neoment.room.LineMessage>
 local line_to_message = {}
 
+--- Snacks image placements
+--- @type table<string, table<snacks.image.Placement>> A table mapping room IDs to image placements
+local image_placements = {}
+
 local api = vim.api
 
 --- Show the buffer for a specific room
@@ -288,6 +292,13 @@ end
 local function apply_highlights(buffer_id, room_id, lines)
 	local ns_id = api.nvim_create_namespace("neoment_highlight")
 
+	-- Clear previous images
+	for _, p in pairs(image_placements[room_id] or {}) do
+		--- @type snacks.image.Placement
+		local placement = p
+		placement:close()
+	end
+
 	local images = {}
 
 	for index, l in ipairs(lines) do
@@ -417,6 +428,10 @@ local function apply_highlights(buffer_id, room_id, lines)
 			inline = true,
 			type = "image",
 		})
+		if not image_placements[room_id] then
+			image_placements[room_id] = {}
+		end
+		table.insert(image_placements[room_id], placement)
 
 		vim.schedule(function()
 			placement:show()
