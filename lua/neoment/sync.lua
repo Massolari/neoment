@@ -6,6 +6,7 @@ local error = require("neoment.error")
 
 --- @type neoment.sync.Status
 local status = { kind = "never" }
+local error_count = 0
 
 local keep_syncing = true
 
@@ -98,7 +99,17 @@ M.start = function(client, on_done, options)
 
 			return new_status
 		end, function(err)
-			vim.notify("Error syncing: " .. err.error, vim.log.levels.ERROR)
+			if error_count < 3 then
+				error_count = error_count + 1
+				vim.notify("Error syncing: " .. err.error .. "\nRetrying...", vim.log.levels.ERROR)
+				vim.defer_fn(function()
+					M.start(client, on_done, options)
+				end, 1000)
+			else
+				vim.notify("Error syncing: " .. err.error, vim.log.levels.ERROR)
+			end
+
+			--- @type neoment.sync.Status
 			return {
 				kind = "stopped",
 				last_sync = status.last_sync,
