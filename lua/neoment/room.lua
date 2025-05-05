@@ -367,18 +367,16 @@ local function apply_highlights(buffer_id, room_id, lines)
 		---@type neoment.room.LineMessage
 		local message = get_buffer_data(buffer_id).line_to_message[index]
 		if message then
-			if message.is_header then
-				-- Show a virtual text when the message was edited
-				if message.was_edited then
-					-- Count how many lines this message has
-					local _, newline_replaced = message.content:gsub("\n", "")
-					local message_lines = newline_replaced + 1
-
-					-- Add the edit text in the last line of this message
-					local last_line = index + message_lines - 1
-					add_edit_text(buffer_id, last_line)
+			-- Show a virtual text when the message was edited
+			if message.was_edited then
+				-- Add the edit text in the last line of this message
+				local next_message = get_buffer_data(buffer_id).line_to_message[index + 1]
+				if not next_message or next_message.id ~= message.id then
+					add_edit_text(buffer_id, index)
 				end
+			end
 
+			if message.is_header then
 				-- Apply user highlights for the sender's name
 				local user_id = message.sender
 				local highlight_group = get_user_highlight(room_id, user_id)
