@@ -5,6 +5,9 @@ local util = require("neoment.util")
 local matrix = require("neoment.matrix")
 local error = require("neoment.error")
 
+local api = vim.api
+
+-- Constants
 -- Highlight groups for the members of the room
 local user_highlight_groups = {
 	"@function",
@@ -29,27 +32,43 @@ local user_highlight_groups = {
 	"@text.title",
 }
 
--- Constants
-
 local SENDER_NAME_LENGTH = 19
 local TIME_FORMAT = "%H:%M:%S"
+local ns_id = api.nvim_create_namespace("neoment_highlight")
 
 --- @class neoment.room.MessageRelation
 --- @field message neoment.matrix.client.Message The message to reply to
 --- @field relation "reply"|"replace" The relation to the message
 
--- Cache for user highlight groups
+--- Cache for user highlight groups
+--- @type table<string, table<string, string>> A room ID to a table of user IDs and their assigned highlight groups
 local room_user_highlights = {}
 
---- Mapping of lines to messages
---- @type table<number, neoment.room.LineMessage>
-local line_to_message = {}
+--- Buffer data
+--- @type table<number, BufferData>
+local buffer_data = {}
 
---- Snacks image placements
---- @type table<string, table<snacks.image.Placement>> A table mapping room IDs to image placements
-local image_placements = {}
+--- @class BufferData
+--- @field line_to_message table<number, neoment.room.LineMessage> The mapping of lines to messages
+--- @field image_placements table<string, table<snacks.image.Placement>> The image placements in the room
+--- @field extmarks_data table<number, ExtmarkData> The extmarks data for the room
 
-local api = vim.api
+--- @class ExtmarkData
+--- @field reaction_users? table<string, string[]> The users who reacted to the message
+
+--- Get the buffer data for a specific buffer
+--- @param buffer_id number The ID of the buffer to get the data for
+--- @return BufferData The buffer data for the specified buffer
+local function get_buffer_data(buffer_id)
+	if not buffer_data[buffer_id] then
+		buffer_data[buffer_id] = {
+			line_to_message = {},
+			image_placements = {},
+			extmarks_data = {},
+		}
+	end
+	return buffer_data[buffer_id]
+end
 
 --- Show the buffer for a specific room
 --- @param room_id string The ID of the room to create a chat buffer for
@@ -157,7 +176,8 @@ end
 local function messages_to_lines(buffer_id)
 	local room_id = vim.b[buffer_id].room_id
 	local lines = {}
-	line_to_message = {}
+	get_buffer_data(buffer_id).line_to_message = {}
+	local line_to_message = get_buffer_data(buffer_id).line_to_message
 	local line_index = 1
 	local messages = matrix.get_room_messages(room_id)
 	local last_read = matrix.get_room_last_read_message(room_id)
@@ -292,9 +312,8 @@ end
 
 --- Add edit text to a message
 --- @param buffer_id number The ID of the buffer to add the edit text to
---- @param ns_id number The namespace ID for the highlights
 --- @param line_index number The index of the line to add the edit text to
-local function add_edit_text(buffer_id, ns_id, line_index)
+local function add_edit_text(buffer_id, line_index)
 	api.nvim_buf_set_extmark(buffer_id, ns_id, line_index - 1, 0, {
 		virt_text = { { "(edited)", "Comment" } },
 	})
@@ -305,10 +324,10 @@ end
 --- @param room_id string The ID of the room to apply highlights to
 --- @param lines table The lines to apply highlights to
 local function apply_highlights(buffer_id, room_id, lines)
-	local ns_id = api.nvim_create_namespace("neoment_highlight")
-
+	api.nvim_buf_clear_namespace(buffer_id, ns_id, 0, -1)
+	get_buffer_data(buffer_id).extmarks_data = {}
 	-- Clear previous images
-	for _, p in pairs(image_placements[room_id] or {}) do
+	for _, p in pairs(get_buffer_data(buffer_id).image_placements) do
 		--- @type snacks.image.Placement
 		local placement = p
 		placement:close()
@@ -346,7 +365,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 		end
 
 		---@type neoment.room.LineMessage
-		local message = line_to_message[index]
+		local message = get_buffer_data(buffer_id).line_to_message[index]
 		if message then
 			if message.is_header then
 				-- Show a virtual text when the message was edited
@@ -357,7 +376,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 
 					-- Add the edit text in the last line of this message
 					local last_line = index + message_lines - 1
-					add_edit_text(buffer_id, ns_id, last_line)
+					add_edit_text(buffer_id, last_line)
 				end
 
 				-- Apply user highlights for the sender's name
@@ -400,32 +419,38 @@ local function apply_highlights(buffer_id, room_id, lines)
 				end
 			end
 
+			-- Reactions
 			if message.is_reaction then
 				local reaction_start = line:find("")
 				while reaction_start do
 					local reaction_end = line:find("", reaction_start)
+					local content = line:sub(reaction_start + 3, reaction_end - 1)
+					local reaction_users = message.reactions[content]
 					if reaction_end then
-						vim.hl.range(
-							buffer_id,
-							ns_id,
-							"NeomentReactionBorder",
-							{ index - 1, reaction_start - 1 },
-							{ index - 1, reaction_start }
-						)
-						vim.hl.range(
-							buffer_id,
-							ns_id,
-							"NeomentReactionContent",
-							{ index - 1, reaction_start },
-							{ index - 1, reaction_end - 1 }
-						)
-						vim.hl.range(
-							buffer_id,
-							ns_id,
-							"NeomentReactionBorder",
-							{ index - 1, reaction_end - 1 },
-							{ index - 1, reaction_end }
-						)
+						local left_border_id =
+							vim.api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, reaction_start - 1, {
+								end_col = reaction_start,
+								hl_group = "NeomentReactionBorder",
+							})
+						local content_id = vim.api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, reaction_start, {
+							end_col = reaction_end - 1,
+							hl_group = "NeomentReactionContent",
+						})
+						local right_border_id =
+							vim.api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, reaction_end - 1, {
+								end_col = reaction_end,
+								hl_group = "NeomentReactionBorder",
+							})
+						local extmarks_data = get_buffer_data(buffer_id).extmarks_data
+						extmarks_data[left_border_id] = {
+							reaction_users = reaction_users,
+						}
+						extmarks_data[content_id] = {
+							reaction_users = reaction_users,
+						}
+						extmarks_data[right_border_id] = {
+							reaction_users = reaction_users,
+						}
 						reaction_start = line:find("", reaction_end)
 					else
 						break
@@ -443,10 +468,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 			inline = true,
 			type = "image",
 		})
-		if not image_placements[room_id] then
-			image_placements[room_id] = {}
-		end
-		table.insert(image_placements[room_id], placement)
+		table.insert(get_buffer_data(buffer_id).image_placements, placement)
 
 		vim.schedule(function()
 			placement:show()
@@ -684,7 +706,8 @@ end
 --- @return neoment.Error<neoment.room.LineMessage, {}> The message under the cursor or an error
 local function get_message_under_cursor()
 	local line_number = vim.api.nvim_win_get_cursor(0)[1]
-	local message = line_to_message[line_number]
+	local buffer_id = vim.api.nvim_get_current_buf()
+	local message = get_buffer_data(buffer_id).line_to_message[line_number]
 
 	if not message then
 		vim.notify("No message under the cursor", vim.log.levels.ERROR)
@@ -777,6 +800,47 @@ M.redact_message = function()
 
 		return nil
 	end)
+end
+
+--- Handle the cursor hold event
+--- Depending on the context, it will show a float window with information
+--- @param buffer_id number The ID of the buffer to handle the cursor hold event for
+M.handle_cursor_hold = function(buffer_id)
+	local pos = vim.api.nvim_win_get_cursor(0)
+	local extmark = vim.api.nvim_buf_get_extmarks(
+		buffer_id,
+		ns_id,
+		{ pos[1] - 1, pos[2] },
+		{ pos[1] - 1, pos[2] },
+		{ details = true, overlap = true }
+	)[1]
+	if not extmark then
+		return
+	end
+
+	local extmark_id = extmark[1]
+	local data = get_buffer_data(buffer_id).extmarks_data[extmark_id]
+	if not data then
+		return
+	end
+
+	local reaction_users = data.reaction_users
+	if reaction_users then
+		-- Create a float window with the reaction users
+		local lines = {}
+		local max_length = 0
+		for _, user in ipairs(reaction_users) do
+			local display_name = matrix.get_display_name(user)
+			table.insert(lines, display_name)
+			max_length = math.max(max_length, vim.fn.strdisplaywidth(display_name))
+		end
+		local height = math.min(5, #lines)
+
+		util.open_float(lines, {
+			width = max_length,
+			height = height,
+		})
+	end
 end
 
 return M

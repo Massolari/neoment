@@ -43,6 +43,13 @@ vim.api.nvim_create_autocmd("BufDelete", {
 	end,
 })
 
+vim.api.nvim_create_autocmd("CursorHold", {
+	buffer = buffer_id,
+	callback = function()
+		require("neoment.room").handle_cursor_hold(buffer_id)
+	end,
+})
+
 -- Mappings
 
 local opts = { noremap = true, silent = true, buffer = buffer_id }

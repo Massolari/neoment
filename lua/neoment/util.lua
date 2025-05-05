@@ -1,5 +1,7 @@
 local M = {}
 
+local float_augroup = vim.api.nvim_create_augroup("neoment_float", {})
+
 --- Add padding to the left of a string
 --- @param str string The string to pad
 --- @param length number The desired length of the string after padding
@@ -76,6 +78,43 @@ M.buffer_write = function(buf, lines, start, end_line)
 	vim.api.nvim_buf_set_lines(buf, start, end_line, false, lines)
 	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
 	vim.api.nvim_set_option_value("modified", false, { buf = buf })
+end
+
+--- Open a float window
+--- @param lines table The lines to display in the float window
+--- @param opts vim.api.keyset.win_config The options for the float window
+--- @return number, number The buffer number of the float window and the window number
+M.open_float = function(lines, opts)
+	local bufnr = vim.api.nvim_create_buf(false, true)
+	local width = opts.width or 80
+	local height = opts.height or 20
+
+	vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+	vim.api.nvim_set_option_value("filetype", "neoment_float", { buf = bufnr })
+
+	local win = vim.api.nvim_open_win(
+		bufnr,
+		false,
+		vim.tbl_extend("force", {
+			style = "minimal",
+			relative = "cursor",
+			width = width,
+			height = height,
+			row = 1,
+			col = 0,
+		}, opts)
+	)
+
+	local augroup = vim.api.nvim_create_augroup("neoment_float_" .. win, {})
+	vim.api.nvim_create_autocmd("CursorMoved", {
+		group = augroup,
+		callback = function()
+			vim.api.nvim_buf_delete(bufnr, { force = true })
+			vim.api.nvim_del_augroup_by_id(augroup)
+		end,
+	})
+
+	return bufnr, win
 end
 
 return M
