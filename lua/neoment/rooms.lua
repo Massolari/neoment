@@ -364,7 +364,7 @@ M.pick = function()
 	end
 
 	vim.ui.select(room_names, {
-		prompt = "Selecione uma sala:",
+		prompt = "Rooms",
 	}, function(choice, idx)
 		if choice then
 			join_room(room_ids[idx])
