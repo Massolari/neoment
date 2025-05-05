@@ -776,8 +776,39 @@ M.react_message = function()
 			if not choice then
 				return
 			end
+			local chosen_emoji = choice.insertText
 			local current_buf = vim.api.nvim_get_current_buf()
-			matrix.send_reaction(vim.b[current_buf].room_id, message.id, choice.insertText, function(response)
+			local room_id = vim.b[current_buf].room_id
+
+			-- Get the reactions for the message
+			local reactions = message.reactions[chosen_emoji]
+
+			if reactions then
+				-- If the user already made the same reaction, remove it
+				--- @type neoment.matrix.client.MessageReaction|nil
+				local already_reacted = vim.iter(reactions):find(function(r)
+					--- @type neoment.matrix.client.MessageReaction
+					local reaction = r
+					return reaction.sender == matrix.get_user_id()
+				end)
+
+				if already_reacted then
+					matrix.redact_event(room_id, already_reacted.event_id, nil, function(response)
+						error.match(response, function()
+							vim.schedule(function()
+								M.update_buffer(current_buf)
+							end)
+							return nil
+						end, function(err)
+							vim.notify("Error removing reaction: " .. err.error, vim.log.levels.ERROR)
+							return nil
+						end)
+					end)
+					return
+				end
+			end
+
+			matrix.send_reaction(room_id, message.id, chosen_emoji, function(response)
 				error.map(response, function()
 					return vim.schedule(function()
 						M.update_buffer(current_buf)

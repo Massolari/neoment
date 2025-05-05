@@ -487,7 +487,7 @@ end
 --- @param reason? string The reason for redacting the event.
 --- @param callback fun(data: neoment.Error<string, neoment.matrix.api.Error>): any The callback function to handle the response. The response will be the event ID of the redaction.
 M.redact_event = function(room_id, event_id, reason, callback)
-	local body = {}
+	local body = { reason = "" }
 	if reason then
 		body.reason = reason
 	end
