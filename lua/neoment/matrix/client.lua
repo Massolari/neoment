@@ -39,7 +39,7 @@ M.client = nil
 --- @field was_redacted boolean Indicates if the message was redacted.
 --- @field mentions table<string> A table to store mentions in the message, it contains the user IDs of users mentioned in the message.
 --- @field replying_to? neoment.matrix.client.Message The message being replied to, if available.
---- @field reactions table<string, table<string>> A table to store reactions to the message, it contains the reaction strings as keys and the user IDs of users who reacted as values.
+--- @field reactions table<string, table<neoment.matrix.client.MessageReaction>> A table to store reactions to the message, it contains the reaction strings as keys and the user IDs of users who reacted as values.
 --- @field image? neoment.matrix.client.MessageImage The URL of the image, if the message contains an image.
 
 --- @class neoment.matrix.client.PreviousBatchToken
@@ -51,6 +51,10 @@ M.client = nil
 --- @field url string The URL of the image.
 --- @field height integer? The height of the image.
 --- @field width integer? The width of the image.
+
+--- @class neoment.matrix.client.MessageReaction
+--- @field event_id string The ID of the event associated with the reaction.
+--- @field sender string The ID of the user who sent the reaction.
 
 --- Create a new MatrixClient instance.
 --- @param homeserver string The URL of the Matrix server.

@@ -170,8 +170,10 @@ local function handle_redaction(room_id, event)
 			local message = client.get_room(room_id).messages[message_id]
 			if message and message.reactions[reaction] then
 				local reaction_list = message.reactions[reaction]
-				for i, user_id in ipairs(reaction_list) do
-					if user_id == event.sender then
+				for i, r in ipairs(reaction_list) do
+					--- @type neoment.matrix.client.MessageReaction
+					local reaction_data = r
+					if reaction_data.event_id == event_redacted.event_id then
 						table.remove(reaction_list, i)
 						break
 					end
@@ -271,7 +273,10 @@ M.handle = function(room_id, event)
 			local message = client.get_room(room_id).messages[event_id]
 			if message then
 				local current_reactions = message.reactions[reaction] or {}
-				table.insert(current_reactions, event.sender)
+				table.insert(current_reactions, {
+					event_id = event.event_id,
+					sender = event.sender,
+				})
 				message.reactions[reaction] = current_reactions
 				return true
 			else

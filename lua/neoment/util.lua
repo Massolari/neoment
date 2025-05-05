@@ -1,7 +1,5 @@
 local M = {}
 
-local float_augroup = vim.api.nvim_create_augroup("neoment_float", {})
-
 --- Add padding to the left of a string
 --- @param str string The string to pad
 --- @param length number The desired length of the string after padding

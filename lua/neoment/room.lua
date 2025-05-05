@@ -422,22 +422,38 @@ local function apply_highlights(buffer_id, room_id, lines)
 				local reaction_start = line:find("")
 				while reaction_start do
 					local reaction_end = line:find("", reaction_start)
-					local content = line:sub(reaction_start + 3, reaction_end - 1)
-					local reaction_users = message.reactions[content]
 					if reaction_end then
+						-- Check if the user sent this reaction
+						-- We need to ge the emoji to get the reaction users
+						local content = line:sub(reaction_start + 3, reaction_start + 6)
+						local message_reactions = message.reactions[content] or {}
+						--- @type table<string>
+						local reaction_users = vim.tbl_map(function(r)
+							--- @type neoment.matrix.client.MessageReaction
+							local reaction = r
+							return reaction.sender
+						end, message_reactions)
+						local border_hl = "NeomentReactionBorder"
+						local content_hl = "NeomentReactionContent"
+						local user_sent = vim.tbl_contains(reaction_users, matrix.get_user_id())
+						-- If the user sent the reaction, we need to change the highlight group
+						if user_sent then
+							border_hl = "NeomentReactionUserBorder"
+							content_hl = "NeomentReactionUserContent"
+						end
 						local left_border_id =
 							vim.api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, reaction_start - 1, {
 								end_col = reaction_start,
-								hl_group = "NeomentReactionBorder",
+								hl_group = border_hl,
 							})
 						local content_id = vim.api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, reaction_start, {
 							end_col = reaction_end - 1,
-							hl_group = "NeomentReactionContent",
+							hl_group = content_hl,
 						})
 						local right_border_id =
 							vim.api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, reaction_end - 1, {
 								end_col = reaction_end,
-								hl_group = "NeomentReactionBorder",
+								hl_group = border_hl,
 							})
 						local extmarks_data = get_buffer_data(buffer_id).extmarks_data
 						extmarks_data[left_border_id] = {
@@ -823,7 +839,7 @@ M.handle_cursor_hold = function(buffer_id)
 	end
 
 	local reaction_users = data.reaction_users
-	if reaction_users then
+	if reaction_users and #reaction_users > 0 then
 		-- Create a float window with the reaction users
 		local lines = {}
 		local max_length = 0

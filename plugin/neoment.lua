@@ -12,6 +12,8 @@ vim.cmd([[
     highlight default link NeomentMentionUser @comment.error
     highlight default link NeomentReactionContent ColorColumn
     highlight default link NeomentReactionBorder ColorColumn
+    highlight default link NeomentReactionUserContent IncSearch
+    highlight default link NeomentReactionUserBorder IncSearch
 ]])
 
 -- Apply bold to NeomentBufferRoom
@@ -22,14 +24,16 @@ if hl_buffer_room_undead then
 	vim.api.nvim_set_hl(0, "NeomentBufferRoomUnread", hl_buffer_room_undead)
 end
 
--- Change the foreground with the background on NeomentReactionBorder
-local hl_reaction_border = vim.api.nvim_get_hl(0, { name = "NeomentReactionBorder", link = false })
-if hl_reaction_border then
-	local new_fg = hl_reaction_border.bg
-	hl_reaction_border.bg = hl_reaction_border.fg
-	hl_reaction_border.fg = new_fg
-	--- @diagnostic disable-next-line: param-type-mismatch
-	vim.api.nvim_set_hl(0, "NeomentReactionBorder", hl_reaction_border)
+-- Change the foreground with the background on NeomentReactionBorder and NeomentReactionUserBorder
+for _, hl_name in ipairs({ "NeomentReactionUserBorder", "NeomentReactionBorder" }) do
+	local hl = vim.api.nvim_get_hl(0, { name = hl_name, link = false })
+	if hl then
+		local new_fg = hl.bg
+		hl.bg = hl.fg
+		hl.fg = new_fg
+		--- @diagnostic disable-next-line: param-type-mismatch
+		vim.api.nvim_set_hl(0, hl_name, hl)
+	end
 end
 
 -- Criar comandos
