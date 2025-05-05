@@ -99,6 +99,7 @@ function _G.neoment_compose_omnifunc(findstart, base)
 	else
 		local buf = vim.api.nvim_get_current_buf()
 		local res = {}
+		--- @type table<string, string>
 		local members = vim.b[buf].members or {}
 
 		for id, name in pairs(members) do

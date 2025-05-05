@@ -766,7 +766,11 @@ end
 --- @return table<string, string> The members of the room. The keys are user IDs and the values are display names.
 M.get_room_members = function(room_id)
 	return vim.tbl_map(function(id)
-		return client.client.display_names[id] or id
+		local displayname = client.client.display_names[id]
+		if not displayname or displayname == vim.NIL then
+			return id
+		end
+		return displayname
 	end, client.get_room(room_id).members)
 end
 
