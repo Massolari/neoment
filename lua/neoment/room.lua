@@ -145,6 +145,8 @@ end
 M.close = function(buffer_id, room_id)
 	matrix.set_room_tracked(room_id, false)
 
+	buffer_data[buffer_id] = nil
+
 	if not api.nvim_buf_is_loaded(buffer_id) then
 		return false
 	end
