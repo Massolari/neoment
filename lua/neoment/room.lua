@@ -50,8 +50,14 @@ local buffer_data = {}
 
 --- @class BufferData
 --- @field line_to_message table<number, neoment.room.LineMessage> The mapping of lines to messages
---- @field image_placements table<string, table<snacks.image.Placement>> The image placements in the room
+--- @field image_placements table<neoment.room.ImagePlacement> The image placements in the room
 --- @field extmarks_data table<number, ExtmarkData> The extmarks data for the room
+
+--- @class neoment.room.ImagePlacement
+--- @field placement snacks.image.Placement The image placement object
+--- @field height number The image height
+--- @field width number The image width
+--- @field zoom boolean Whether the image is zoomed or not
 
 --- @class ExtmarkData
 --- @field reaction_users? table<string, string[]> The users who reacted to the message
@@ -68,6 +74,31 @@ local function get_buffer_data(buffer_id)
 		}
 	end
 	return buffer_data[buffer_id]
+end
+
+--- Get the image dimensions
+--- @param image_width number The width of the image
+--- @param image_height number The height of the image
+--- @param zoom boolean Whether to zoom the image or not
+--- @return {width: number, height: number} The dimensions of the image
+local function get_image_dimensions(image_width, image_height, zoom)
+	local win_width = vim.api.nvim_win_get_width(0)
+	local win_height = vim.api.nvim_win_get_height(0)
+
+	local width = image_width
+	local height = image_height
+
+	if zoom then
+		width = math.min(image_width, win_width)
+		height = math.min(image_height, win_height)
+	else
+		height = math.min(image_height, win_height * 0.2)
+	end
+
+	return {
+		width = width,
+		height = height,
+	}
 end
 
 --- Show the buffer for a specific room
@@ -328,10 +359,11 @@ local function apply_highlights(buffer_id, room_id, lines)
 	get_buffer_data(buffer_id).extmarks_data = {}
 	-- Clear previous images
 	for _, p in pairs(get_buffer_data(buffer_id).image_placements) do
-		--- @type snacks.image.Placement
+		--- @type neoment.room.ImagePlacement
 		local placement = p
-		placement:close()
+		placement.placement:close()
 	end
+	get_buffer_data(buffer_id).image_placements = {}
 
 	local images = {}
 
@@ -477,14 +509,23 @@ local function apply_highlights(buffer_id, room_id, lines)
 	end
 
 	for _, image in ipairs(images) do
+		local dimensions = get_image_dimensions(image.width, image.height, false)
+
 		local placement = Snacks.image.placement.new(buffer_id, image.url, {
 			pos = { image.line, 33 },
-			height = image.height,
-			width = image.width,
+			height = dimensions.height,
+			width = dimensions.width,
 			inline = true,
 			type = "image",
 		})
-		table.insert(get_buffer_data(buffer_id).image_placements, placement)
+		--- @type neoment.room.ImagePlacement
+		local image_placement = {
+			placement = placement,
+			height = image.height,
+			width = image.width,
+			zoom = false,
+		}
+		table.insert(get_buffer_data(buffer_id).image_placements, image_placement)
 
 		vim.schedule(function()
 			placement:show()
@@ -888,6 +929,26 @@ M.handle_cursor_hold = function(buffer_id)
 			height = height,
 		})
 	end
+end
+
+--- Toggle the zoom of the image under the cursor
+M.toggle_image_zoom = function()
+	local buffer_id = vim.api.nvim_get_current_buf()
+	local line_number = vim.api.nvim_win_get_cursor(0)[1]
+	local image_placements = get_buffer_data(buffer_id).image_placements
+	for _, p in ipairs(image_placements) do
+		--- @type neoment.room.ImagePlacement
+		local placement = p
+		if placement.placement.opts.pos[1] == line_number then
+			placement.zoom = not placement.zoom
+			local dimensions = get_image_dimensions(placement.width, placement.height, placement.zoom)
+			placement.placement.opts.height = dimensions.height
+			placement.placement.opts.width = dimensions.width
+			placement.placement:update()
+			return
+		end
+	end
+	vim.notify("No image on this line", vim.log.levels.ERROR)
 end
 
 return M
