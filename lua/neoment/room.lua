@@ -425,7 +425,9 @@ local function apply_highlights(buffer_id, room_id, lines)
 					if reaction_end then
 						-- Check if the user sent this reaction
 						-- We need to ge the emoji to get the reaction users
-						local content = line:sub(reaction_start + 3, reaction_start + 6)
+						local content = line:sub(reaction_start + 3, reaction_end - 1)
+						-- Remove spaces and digits from the content
+						content = content:gsub("[%s%d]+", "")
 						local message_reactions = message.reactions[content] or {}
 						--- @type table<string>
 						local reaction_users = vim.tbl_map(function(r)
