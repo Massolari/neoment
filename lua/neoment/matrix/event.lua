@@ -233,15 +233,19 @@ M.handle = function(room_id, event)
 		client.get_room(room_id).name = event.content.name
 		return true
 	elseif event.type == "m.room.canonical_alias" then
-		local alias = event.content.alias
-		if not alias and event.content.alt_aliases then
-			alias = event.content.alt_aliases[1]
-		end
+		local room = client.get_room(room_id)
+		-- We only want to update the name with the alias if it is not already set
+		if room.name == room.id then
+			local alias = event.content.alias
+			if not alias and event.content.alt_aliases then
+				alias = event.content.alt_aliases[1]
+			end
 
-		if alias then
-			client.get_room(room_id).name = event.content.alias
+			if alias then
+				client.get_room(room_id).name = event.content.alias
+			end
+			return true
 		end
-		return true
 	elseif event.type == "m.room.topic" then
 		client.get_room(room_id).topic = event.content.topic
 		return true
