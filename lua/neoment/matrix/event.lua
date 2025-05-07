@@ -296,6 +296,35 @@ M.handle = function(room_id, event)
 	return false
 end
 
+--- Handle invited room events
+--- @param room_id string The room ID
+--- @param event neoment.matrix.StrippedStateEvent The event to process
+--- @return boolean True if the event was handled, false otherwise
+M.handle_invited = function(room_id, event)
+	if event.type == "m.room.name" then
+		client.get_invited_room(room_id).name = event.content.name
+		return true
+	elseif event.type == "m.room.canonical_alias" then
+		local alias = event.content.alias
+		if not alias and event.content.alt_aliases then
+			alias = event.content.alt_aliases[1]
+		end
+
+		if alias then
+			client.get_invited_room(room_id).name = event.content.alias
+		end
+		return true
+	elseif event.type == "m.room.topic" then
+		client.get_invited_room(room_id).topic = event.content.topic
+		return true
+	elseif event.type == "m.room.member" and event.content.membership == "join" then
+		client.get_invited_room(room_id).members[event.state_key] = event.content.displayname or event.state_key
+		return true
+	end
+
+	return false
+end
+
 --- Handle multiple events
 --- @param room_id string The room ID
 --- @param events table A table of events to handle

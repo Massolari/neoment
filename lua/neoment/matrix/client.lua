@@ -4,6 +4,7 @@ local M = {}
 ---@field homeserver string The URL of the Matrix server.
 ---@field device_id string The ID of the device.
 ---@field private rooms table<string, neoment.matrix.client.Room> A table to store rooms, mapped as room ID to room information.
+---@field private invited_rooms table<string, neoment.matrix.client.InvitedRoom> A table to store invited rooms, mapped as room ID to room information.
 ---@field user_id? string The ID of the user.
 ---@field access_token? string The access token for authentication.
 ---@field sync_token? string The token to supply in the since param of the next /sync request. (next_batch)
@@ -28,6 +29,12 @@ M.client = nil
 --- @field fully_read? string The event ID of the last fully read message in the room.
 --- @field unread_notifications integer The number of unread notifications for this room.
 --- @field unread_highlights integer The number of unread highlights for this room.
+
+--- @class neoment.matrix.client.InvitedRoom
+--- @field id string The ID of the room.
+--- @field name string The name of the room.
+--- @field topic string The topic of the room.
+--- @field members table<string, string> A table to store members of the room, mapped as user ID to display name.
 
 --- @class neoment.matrix.client.Message
 --- @field id string The ID of the event.
@@ -68,6 +75,7 @@ M.new = function(homeserver, access_token)
 		homeserver = homeserver,
 		device_id = "neovim-matrix-client",
 		rooms = {},
+		invited_rooms = {},
 		access_token = access_token,
 		display_names = {},
 	}
@@ -96,6 +104,20 @@ local function create_new_room(room_id)
 	return M.client.rooms[room_id]
 end
 
+--- Create a invited room
+--- @param room_id string The ID of the room
+--- @return neoment.matrix.client.InvitedRoom The created invited room object
+local function create_invited_room(room_id)
+	M.client.invited_rooms[room_id] = {
+		id = room_id,
+		name = room_id,
+		topic = "",
+		members = {},
+	}
+
+	return M.client.invited_rooms[room_id]
+end
+
 --- Get a room by its ID.
 --- @param room_id string The ID of the room.
 --- @return neoment.matrix.client.Room The room object if found, nil otherwise.
@@ -105,6 +127,17 @@ M.get_room = function(room_id)
 	end
 
 	return M.client.rooms[room_id]
+end
+
+--- Get a invited room by its ID.
+--- @param room_id string The ID of the room.
+--- @return neoment.matrix.client.InvitedRoom The invited room object
+M.get_invited_room = function(room_id)
+	if not M.client.invited_rooms[room_id] then
+		create_invited_room(room_id)
+	end
+
+	return M.client.invited_rooms[room_id]
 end
 
 --- Get the list of messages in a room.
@@ -138,6 +171,13 @@ M.set_room = function(room_id, data)
 	M.client.rooms[room_id] = data
 end
 
+--- Set data for a invited room.
+--- @param room_id string The ID of the room.
+--- @param data neoment.matrix.client.InvitedRoom The data to set for the room.
+M.set_invited_room = function(room_id, data)
+	M.client.invited_rooms[room_id] = data
+end
+
 --- Add a message to a room.
 --- @param room_id string The ID of the room.
 --- @param message neoment.matrix.client.Message The message to add to the room.
@@ -156,6 +196,12 @@ end
 --- @return table<string, neoment.matrix.client.Room> A table containing all the rooms.
 M.get_rooms = function()
 	return M.client.rooms
+end
+
+--- Get the invited rooms
+--- @return table<string, neoment.matrix.client.InvitedRoom> A table containing all the invited rooms.
+M.get_invited_rooms = function()
+	return M.client.invited_rooms
 end
 
 --- Get a message by its ID.
@@ -208,6 +254,13 @@ M.set_room_tracked = function(room_id, is_tracked)
 
 	room.is_tracked = is_tracked
 	return room
+end
+
+--- Check if it is a invited room
+--- @param room_id string The ID of the room.
+--- @return boolean True if the room is invited, false otherwise.
+M.is_invited_room = function(room_id)
+	return M.client.invited_rooms[room_id] ~= nil
 end
 
 return M

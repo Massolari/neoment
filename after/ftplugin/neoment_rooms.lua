@@ -52,7 +52,7 @@ local function set_opts_desc(desc)
 	return vim.tbl_extend("force", opts, { desc = desc })
 end
 vim.keymap.set("n", "<CR>", function()
-	require("neoment.rooms").join_selected_room()
+	require("neoment.rooms").open_selected_room()
 end, opts)
 vim.keymap.set("n", "<Tab>", function()
 	require("neoment.rooms").toggle_fold_at_cursor()

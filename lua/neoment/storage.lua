@@ -72,6 +72,7 @@ end
 function M.save_session()
 	local cache_to_save = {
 		rooms = {},
+		invited_rooms = matrix.get_invited_rooms(),
 		sync_token = matrix.client.sync_token,
 	}
 
@@ -125,6 +126,11 @@ function M.restore_session()
 		if cache.rooms then
 			for room_id, room_data in pairs(cache.rooms) do
 				matrix.set_room(room_id, room_data)
+			end
+		end
+		if cache.invited_rooms then
+			for room_id, room_data in pairs(cache.invited_rooms) do
+				matrix.set_invited_room(room_id, room_data)
 			end
 		end
 	end

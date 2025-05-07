@@ -710,7 +710,7 @@ M.load_more_messages = function(buffer_id)
 			}
 		end, function(err)
 			return {
-				message = "Error loading more messages: " .. err.error,
+				message = "Error loading more messages: " .. (err.error or "Unknown error"),
 				level = vim.log.levels.ERROR,
 			}
 		end)

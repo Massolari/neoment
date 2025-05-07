@@ -71,7 +71,7 @@ end
 --- Make a POST request to the Matrix API.
 --- @generic A : table
 --- @param endpoint string The API endpoint to send the request to.
---- @param body table The request body to send.
+--- @param body? table The request body to send.
 --- @param callback fun(data: neoment.Error<A, neoment.matrix.api.Error>): any The callback function to handle the response.
 --- @param opts? neoment.matrix.api.RequestOptions Optional parameters for the request.
 M.post = function(endpoint, body, callback, opts)
@@ -80,7 +80,7 @@ M.post = function(endpoint, body, callback, opts)
 		on_error = function(err)
 			callback(error.error({ error = "Failed to make POST request", err = err }))
 		end,
-		body = json.encode(body),
+		body = body and json.encode(body) or nil,
 		headers = vim.tbl_extend("force", {
 			["Content-Type"] = "application/json",
 		}, opts.headers or {}),
@@ -93,7 +93,7 @@ end
 --- Make a PUT request to the Matrix API.
 --- @generic A : table
 --- @param endpoint string The API endpoint to send the request to.
---- @param body table The request body to send.
+--- @param body? table The request body to send.
 --- @param callback fun(data: neoment.Error<A, neoment.matrix.api.Error>): any The callback function to handle the response.
 --- @param opts? neoment.matrix.api.RequestOptions Optional parameters for the request.
 M.put = function(endpoint, body, callback, opts)
@@ -102,7 +102,7 @@ M.put = function(endpoint, body, callback, opts)
 		on_error = function(err)
 			callback(error.error({ error = "Failed to make PUT request", err = err }))
 		end,
-		body = json.encode(body),
+		body = body and json.encode(body) or nil,
 		headers = vim.tbl_extend("force", {
 			["Content-Type"] = "application/json",
 		}, opts.headers or {}),

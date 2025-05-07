@@ -4,13 +4,15 @@ local api = vim.api
 local sync = require("neoment.sync")
 local matrix = require("neoment.matrix")
 local util = require("neoment.util")
+local error = require("neoment.error")
 
 local room_list_buffer_name = "neoment://rooms"
 local buffer_id = nil
---- @alias neoment.rooms.Section "buffers" | "favorites" | "people" | "rooms" | "low_priority"
+--- @alias neoment.rooms.Section "invited" | "buffers" | "favorites" | "people" | "rooms" | "low_priority"
 
 --- @type table<neoment.rooms.Section, boolean>
 local room_list_fold_state = {
+	invited = false,
 	buffers = false,
 	favorites = false,
 	people = false,
@@ -20,6 +22,7 @@ local room_list_fold_state = {
 
 --- @type table<neoment.rooms.Section, string>
 local sections = {
+	invited = "Invited",
 	buffers = "Buffers",
 	favorites = "Favorites",
 	people = "People",
@@ -39,7 +42,7 @@ local function format_last_sync_time()
 end
 
 --- Join a room by its ID
-local function join_room(room_id)
+local function open_room(room_id)
 	-- If the current buffer is the room list buffer
 	local current_buf = api.nvim_get_current_buf()
 	if current_buf == buffer_id then
@@ -56,8 +59,47 @@ local function join_room(room_id)
 	require("neoment.room").show_room(room_id)
 end
 
+--- Handle invited rooms
+--- @param room_id string The ID of the room
+local function handle_invited_room(room_id)
+	local room_name = matrix.get_room_display_name(room_id)
+
+	local answer = vim.fn.confirm(
+		"You have been invited to join the room: " .. room_name,
+		"&Join\n&Reject\n&Cancel",
+		1,
+		"Question"
+	)
+
+	if answer == 0 or answer == 3 then
+		return
+	end
+
+	if answer == 1 then
+		matrix.join_room(room_id, function(response)
+			error.match(response, function()
+				vim.schedule(function()
+					open_room(room_id)
+				end)
+				return nil
+			end, function(err)
+				vim.notify("Error joining room: " .. err.error, vim.log.levels.ERROR)
+			end)
+		end)
+		return
+	end
+	matrix.leave_room(room_id, function(response)
+		error.match(response, function()
+			vim.notify("Left room: " .. room_name, vim.log.levels.INFO)
+			return nil
+		end, function(err)
+			vim.notify("Error leaving room: " .. err.error, vim.log.levels.ERROR)
+		end)
+	end)
+end
+
 --- Join the selected room
-M.join_selected_room = function()
+M.open_selected_room = function()
 	local cursor = api.nvim_win_get_cursor(0)
 	local current_line = cursor[1] -- 1-based, current line where the cursor is
 
@@ -65,7 +107,11 @@ M.join_selected_room = function()
 	if M.room_list_extmarks then
 		for _, mark in ipairs(M.room_list_extmarks) do
 			if mark.line == current_line then
-				join_room(mark.room_id)
+				if mark.is_invited then
+					handle_invited_room(mark.room_id)
+					return
+				end
+				open_room(mark.room_id)
 				return
 			end
 		end
@@ -147,11 +193,11 @@ local function get_section_icon(section)
 end
 
 --- Get the line for a room
---- @param room neoment.matrix.client.Room The room object
+--- @param room neoment.matrix.client.Room|neoment.matrix.client.InvitedRoom The room object
 --- @return string The formatted line for the room
 local function get_room_line(room)
 	local last_activity = matrix.get_room_last_activity(room.id)
-	local display = matrix.get_room_name(room.id)
+	local display = matrix.get_room_display_name(room.id)
 
 	if last_activity and last_activity > 0 then
 		local time = os.date("%H:%M", math.floor(last_activity / 1000))
@@ -183,6 +229,7 @@ M.update_room_list = function()
 
 	---@type table<neoment.rooms.Section, table<neoment.matrix.client.Room>>
 	local section_rooms = {
+		invited = {},
 		buffers = {},
 		favorites = {},
 		people = {},
@@ -193,6 +240,10 @@ M.update_room_list = function()
 	local open_buffers = vim.tbl_filter(function(buf)
 		return api.nvim_buf_is_loaded(buf)
 	end, api.nvim_list_bufs())
+
+	for _, room in pairs(matrix.get_invited_rooms()) do
+		table.insert(section_rooms.invited, room)
+	end
 
 	-- Categorize rooms
 	for id, room in pairs(matrix.get_rooms()) do
@@ -224,7 +275,7 @@ M.update_room_list = function()
 		return (a.last_activity or 0) > (b.last_activity or 0)
 	end
 
-	-- Ordenar por atividade recente (do mais recente para o mais antigo)
+	-- Sort by activity (most recent first)
 	table.sort(section_rooms.buffers, sort_by_activity)
 	table.sort(section_rooms.favorites, sort_by_activity)
 	table.sort(section_rooms.people, sort_by_activity)
@@ -240,22 +291,31 @@ M.update_room_list = function()
 	--- @field line number
 	--- @field room_id string
 	--- @field is_buffer boolean
+	--- @field is_invited boolean
 	--- @field has_unread boolean
 
 	--- @type table<neoment.rooms.RoomMark>
 	local extmarks = {}
-	local line_index = 3 -- Linha de índice onde começam as salas (1-based para o cursor)
+	local line_index = 3 -- Starting from the 3rd line
 
 	--- @type table<neoment.rooms.Section, number>
 	local section_lines = {}
 	--- @type table<neoment.rooms.Section>
 	local section_list = {
-		"buffers",
 		"favorites",
 		"people",
 		"rooms",
 		"low_priority",
 	}
+
+	if #section_rooms.buffers > 0 then
+		table.insert(section_list, 1, "buffers")
+	end
+
+	if #section_rooms.invited > 0 then
+		table.insert(section_list, 1, "invited")
+	end
+
 	for index, section in ipairs(section_list) do
 		local icon = get_section_icon(section)
 		table.insert(lines, string.format("%s %s (%d)", icon, sections[section], #section_rooms[section]))
@@ -270,13 +330,16 @@ M.update_room_list = function()
 				local display = get_room_line(room)
 
 				table.insert(lines, "  " .. display)
-				table.insert(extmarks, {
+				--- @type neoment.rooms.RoomMark
+				local extmark = {
 					line = line_index,
 					room_id = room.id,
 					is_buffer = section == "buffers",
+					is_invited = section == "invited",
 					has_unread = (room.unread_notifications and room.unread_notifications > 0)
 						or (room.unread_highlights and room.unread_highlights > 0),
-				})
+				}
+				table.insert(extmarks, extmark)
 				line_index = line_index + 1
 			end
 		end
@@ -287,56 +350,23 @@ M.update_room_list = function()
 		end
 	end
 
-	-- Definir as linhas no buffer
-	-- api.nvim_buf_set_lines(buffer_id, 0, -1, false, lines)
 	util.buffer_write(buffer_id, lines, 0, -1)
 
-	-- Armazenar metadados das salas
 	M.room_list_extmarks = extmarks
 	M.room_section_lines = section_lines
 
-	-- Destacar títulos das seções
 	local ns_id = api.nvim_create_namespace("neoment_room_list")
 	api.nvim_buf_clear_namespace(buffer_id, ns_id, 0, -1)
 
 	vim.hl.range(buffer_id, ns_id, "Title", { 0, 0 }, { 0, -1 })
-	vim.hl.range(
-		buffer_id,
-		ns_id,
-		"NeomentSectionTitle",
-		{ section_lines.buffers - 1, 0 },
-		{ section_lines.buffers - 1, -1 }
-	)
-	vim.hl.range(
-		buffer_id,
-		ns_id,
-		"NeomentSectionTitle",
-		{ section_lines.favorites - 1, 0 },
-		{ section_lines.favorites - 1, -1 }
-	)
-	vim.hl.range(
-		buffer_id,
-		ns_id,
-		"NeomentSectionTitle",
-		{ section_lines.people - 1, 0 },
-		{ section_lines.people - 1, -1 }
-	)
-	vim.hl.range(
-		buffer_id,
-		ns_id,
-		"NeomentSectionTitle",
-		{ section_lines.rooms - 1, 0 },
-		{ section_lines.rooms - 1, -1 }
-	)
-	vim.hl.range(
-		buffer_id,
-		ns_id,
-		"NeomentSectionTitle",
-		{ section_lines.low_priority - 1, 0 },
-		{ section_lines.low_priority - 1, -1 }
-	)
 
-	-- Destacar salas abertas, em vez de sala atual
+	-- Highlight the section titles
+	for _, section in ipairs(section_list) do
+		local line = section_lines[section]
+		vim.hl.range(buffer_id, ns_id, "NeomentSectionTitle", { line - 1, 0 }, { line - 1, -1 })
+	end
+
+	-- Highlight the room lines
 	for _, m in ipairs(extmarks) do
 		--- @type neoment.rooms.RoomMark
 		local mark = m
@@ -367,7 +397,7 @@ M.pick = function()
 		prompt = "Rooms",
 	}, function(choice, idx)
 		if choice then
-			join_room(room_ids[idx])
+			open_room(room_ids[idx])
 		end
 	end)
 end

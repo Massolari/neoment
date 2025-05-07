@@ -242,12 +242,44 @@ local function handle_sync_account_data(account_data)
 end
 
 --- Handle joined rooms from the sync response.
+--- @param invite_rooms table<string, neoment.matrix.InvitedRoom> The rooms that the user has been invited to
+--- @return table<string> The list of updated rooms
+local function handle_sync_invited_rooms(invite_rooms)
+	local updated_rooms = {}
+
+	for room_id, room_data in pairs(invite_rooms or {}) do
+		-- Call `get_invited_room` to ensure the room is created if it doesn't exist
+		client.get_invited_room(room_id)
+
+		local room_updated = false
+
+		-- Process timeline events
+		if room_data.invite_state then
+			for _, e in ipairs(room_data.invite_state.events) do
+				--- @type neoment.matrix.StrippedStateEvent
+				local event_ = e
+				if event.handle_invited(room_id, event_) then
+					room_updated = true
+				end
+			end
+		end
+
+		if room_updated then
+			table.insert(updated_rooms, room_id)
+		end
+	end
+	return updated_rooms
+end
+
+--- Handle joined rooms from the sync response.
 --- @param joined_rooms table<string, neoment.matrix.JoinedRoom> The rooms that the user has joined
 --- @return table<string> The list of updated rooms
 local function handle_sync_joined_rooms(joined_rooms)
 	local updated_rooms = {}
 
 	for room_id, room_data in pairs(joined_rooms or {}) do
+		-- Call `get_room` to ensure the room is created if it doesn't exist
+		client.get_room(room_id)
 		local room_updated = false
 
 		-- Process account data events
@@ -359,6 +391,11 @@ M.sync = function(options, callback)
 				client.client.sync_token = sync_data.next_batch
 
 				local updated_rooms = {}
+
+				if sync_data.rooms and sync_data.rooms.invite then
+					local new_updated_rooms = handle_sync_invited_rooms(sync_data.rooms.invite)
+					updated_rooms = vim.iter({ updated_rooms, new_updated_rooms }):flatten():totable()
+				end
 
 				if sync_data.rooms and sync_data.rooms.join then
 					local new_updated_rooms = handle_sync_joined_rooms(sync_data.rooms.join)
@@ -611,10 +648,10 @@ M.load_more_messages = function(room_id, on_done)
 					client.get_room(room_id).prev_batch = "End"
 				end
 
-				local state_events = data.state and data.state.events or {}
 				local chunk_events = data.chunk or {}
-				local events = vim.iter({ chunk_events, state_events }):flatten():totable()
-				if #events > 0 then
+				if #chunk_events > 0 then
+					local state_events = data.state and data.state.events or {}
+					local events = vim.iter({ chunk_events, state_events }):flatten():totable()
 					event.handle_multiple(room_id, events)
 				elseif data["end"] then
 					M.load_more_messages(room_id, on_done)
@@ -622,14 +659,14 @@ M.load_more_messages = function(room_id, on_done)
 				end
 
 				return error.ok({})
-			end) --[[@as neoment.Error<nil, neoment.matrix.api.Error>]]
+			end) --[[@as neoment.Error<{}, neoment.matrix.api.Error>]]
 
 			error.match(result, function()
 				on_done(error.ok(nil))
 				return nil
 			end, function(err)
 				if err.error ~= "empty chunk" then
-					on_done(err)
+					on_done(error.error(err))
 				end
 			end)
 		end),
@@ -726,10 +763,50 @@ M.set_room_read_marker = function(room_id, markers, callback)
 	})
 end
 
+--- Join a room by ID.
+--- @param room_id string The ID of the room to join.
+--- @param callback fun(data: neoment.Error<string, neoment.matrix.api.Error>): any The callback function to handle the response. The response will be the room ID of the joined room.
+M.join_room = function(room_id, callback)
+	api.post(client.client.homeserver .. "/_matrix/client/v3/rooms/" .. room_id .. "/join", nil, function(response)
+		local result = error.map(response, function(data)
+			client.get_invited_rooms()[room_id] = nil
+			return data.room_id
+		end) --[[@as neoment.Error<string, neoment.matrix.api.Error>]]
+
+		callback(result)
+	end, {
+		headers = {
+			Authorization = "Bearer " .. client.client.access_token,
+		},
+	})
+end
+
+--- Leave a room by ID.
+--- @param room_id string The ID of the room to leave.
+--- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any The callback function to handle the response. The response will be the room ID of the left room.
+M.leave_room = function(room_id, callback)
+	api.post(client.client.homeserver .. "/_matrix/client/v3/rooms/" .. room_id .. "/leave", nil, function(response)
+		local result = error.map(response, function()
+			-- If the room is invited, remove it from the list of invited rooms
+			client.get_invited_rooms()[room_id] = nil
+			return nil
+		end) --[[@as neoment.Error<nil, neoment.matrix.api.Error>]]
+
+		callback(result)
+	end, {
+		headers = {
+			Authorization = "Bearer " .. client.client.access_token,
+		},
+	})
+end
+
 --- Get the name of the room.
 --- @param room_id string The ID of the room.
 --- @return string The name of the room.
 M.get_room_name = function(room_id)
+	if client.get_invited_rooms()[room_id] then
+		return client.get_invited_room(room_id).name
+	end
 	return client.get_room(room_id).name
 end
 
@@ -846,11 +923,76 @@ M.get_typing_users = function(room_id)
 	return client.get_room(room_id).typing
 end
 
+--- Get a display name for a room from the members
+--- @param members table<string, string> The members of the room.
+--- @return string The display name of the room.
+local function get_room_display_name_from_members(members)
+	-- Names of the members, excluding the logged user
+	local names = {}
+	local count = 0
+	for id, name in pairs(members) do
+		if id ~= M.get_user_id() then
+			table.insert(names, name)
+			count = count + 1
+		end
+		-- We don't need more than 2 names
+		if count == 2 then
+			break
+		end
+	end
+
+	local displayname = util.join(names, ", ")
+
+	-- If there are more than 2 members, add the count of remaining members
+	if vim.tbl_count(members) > count + 1 then
+		local remaining = vim.tbl_count(members) - count
+		displayname = string.format("%s and %d others", displayname, remaining)
+	end
+
+	return displayname
+end
+
+--- Get a display name for a invited room
+--- @param room neoment.matrix.client.Room|neoment.matrix.client.InvitedRoom The ID of the room.
+--- @return string The display name of the room.
+local function get_invited_room_display_name(room)
+	if room.name ~= room.id then
+		return room.name
+	end
+
+	local displayname = get_room_display_name_from_members(room.members)
+
+	if displayname == "" then
+		displayname = "Empty room"
+	end
+
+	return displayname
+end
+
+--- Get a display name for a room or a invited room
+--- @param room_id string The ID of the room.
+--- @return string The display name of the room.
+M.get_room_display_name = function(room_id)
+	--- @type neoment.matrix.client.Room|neoment.matrix.client.InvitedRoom
+	local room
+	-- Check if it's a invited room
+	if client.is_invited_room(room_id) then
+		room = client.get_invited_room(room_id)
+	else
+		room = client.get_room(room_id)
+	end
+
+	return get_invited_room_display_name(room)
+end
+
 --- @type neoment.matrix.client.Client
 M.client = nil
 M.get_room = client.get_room
+M.get_invited_room = client.get_invited_room
 M.get_rooms = client.get_rooms
+M.get_invited_rooms = client.get_invited_rooms
 M.set_room = client.set_room
+M.set_invited_room = client.set_invited_room
 M.set_room_tracked = client.set_room_tracked
 M.get_room_messages = client.get_room_messages
 M.get_room_last_message = client.get_room_last_message
