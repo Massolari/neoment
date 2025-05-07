@@ -127,7 +127,7 @@ M.toggle_room_list = function()
 		end
 	end
 
-	vim.cmd("vsplit")
+	vim.cmd("topleft vsplit")
 	local new_win = api.nvim_get_current_win()
 	api.nvim_win_set_width(new_win, window_width)
 
