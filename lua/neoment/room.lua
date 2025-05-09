@@ -669,8 +669,15 @@ M.prompt_message = function(relation)
 	vim.api.nvim_win_set_buf(0, input_buf)
 	vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, lines)
 
-	-- Start in insert mode
-	vim.cmd("startinsert")
+	if relation and relation.relation == "replace" then
+		-- Go to the end of the message (last line and last column)
+		local last_line = vim.api.nvim_buf_line_count(input_buf)
+		local last_col = vim.fn.strdisplaywidth(lines[#lines])
+		vim.api.nvim_win_set_cursor(0, { last_line, last_col })
+	else
+		-- Start in insert mode
+		vim.cmd("startinsert")
+	end
 end
 
 --- Function to send message and close the compose buffer
