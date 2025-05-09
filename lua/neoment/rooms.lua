@@ -56,7 +56,7 @@ local function open_room(room_id)
 		vim.cmd("wincmd l")
 	end
 
-	require("neoment.room").show_room(room_id)
+	require("neoment.room").open_room(room_id)
 end
 
 --- Handle invited rooms

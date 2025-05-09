@@ -104,7 +104,7 @@ end
 --- Show the buffer for a specific room
 --- @param room_id string The ID of the room to create a chat buffer for
 --- @return number The ID of the created buffer
-M.show_room = function(room_id)
+M.open_room = function(room_id)
 	-- Check if the buffer already exists
 	local bufs = api.nvim_list_bufs()
 	for _, buf in ipairs(bufs) do
@@ -198,10 +198,19 @@ M.update_room = function(room_id)
 	end
 end
 
+--- Get a separator line with a text
+--- @param text string The text to display
+--- @return string The separator line with the text
+local function get_separator_line(text)
+	local line = string.rep("─", 20)
+	return string.rep(" ", 28) .. " ├" .. line .. text .. line
+end
+
 ---@class neoment.room.LineMessage : neoment.matrix.client.Message
 ---@field is_header boolean Whether the line is a header or not
----@field is_last_read boolean Whether the line is the last read message or not
----@field is_reaction boolean Whether the line is a reaction or not
+---@field is_last_read? boolean Whether the line is the last read message or not
+---@field is_reaction? boolean Whether the line is a reaction or not
+---@field is_date? boolean Whether the line is the date or not
 
 --- Generate the lines from the room messages
 --- @param buffer_id number The ID of the buffer to update
@@ -214,10 +223,24 @@ local function messages_to_lines(buffer_id)
 	local line_index = 1
 	local messages = matrix.get_room_messages(room_id)
 	local last_read = matrix.get_room_last_read_message(room_id)
+	local last_date = nil
 	for index, msg in ipairs(messages) do
 		---@type neoment.matrix.client.Message
 		local message = msg
 
+		-- Weekday month day, year
+		local display_date = os.date("%A %B %d, %Y", math.floor(message.timestamp / 1000))
+		if last_date ~= display_date then
+			last_date = display_date
+			local text = " " .. last_date .. " "
+			local line = get_separator_line(text)
+			table.insert(lines, line)
+			line_to_message[line_index] = vim.tbl_extend("force", message, {
+				is_header = true,
+				is_date = true,
+			})
+			line_index = line_index + 1
+		end
 		local time = os.date(TIME_FORMAT, math.floor(message.timestamp / 1000))
 
 		-- Get a friendly name for the sender
@@ -317,8 +340,8 @@ local function messages_to_lines(buffer_id)
 			})
 			line_index = line_index + 1
 			local text = "  New messages  "
-			local line = string.rep("─", 20)
-			table.insert(lines, string.rep(" ", 28) .. " ├" .. line .. text .. line)
+			local line = get_separator_line(text)
+			table.insert(lines, line)
 		end
 	end
 
@@ -441,6 +464,10 @@ local function apply_highlights(buffer_id, room_id, lines)
 				-- Check if the message is the last read message and not the last message
 				if message.is_last_read then
 					vim.hl.range(buffer_id, ns_id, "Title", { index - 1, message_start }, { index - 1, -1 })
+				end
+
+				if message.is_date then
+					vim.hl.range(buffer_id, ns_id, "FloatBorder", { index - 1, message_start }, { index - 1, -1 })
 				end
 			end
 
