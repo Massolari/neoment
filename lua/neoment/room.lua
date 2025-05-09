@@ -244,13 +244,6 @@ local function messages_to_lines(buffer_id)
 				reply_content = markdown.from_html(reply_to.formatted_content)
 			end
 			local reply_sender = matrix.get_display_name(reply_to.sender)
-			if reply_sender == reply_to.sender then
-				matrix.fetch_display_name(reply_to.sender, function()
-					vim.schedule(function()
-						M.update_buffer(buffer_id)
-					end)
-				end)
-			end
 
 			reply_content = reply_content:gsub("%z", "") -- Remove null characters
 

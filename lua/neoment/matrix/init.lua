@@ -590,24 +590,6 @@ M.get_display_name_or_fetch = function(user_id)
 	return fetch_display_name(user_id)
 end
 
---- Fetch the display name of a user
---- @param user_id string The ID of the user.
---- @param callback fun(data: neoment.Error<string, neoment.matrix.api.Error>): any The callback function to handle the response.
-M.fetch_display_name = function(user_id, callback)
-	api.get(client.client.homeserver .. "/_matrix/client/v3/profile/" .. user_id .. "/displayname", function(response)
-		local result = error.map(response, function(data)
-			if data.displayname then
-				client.client.display_names[user_id] = data.displayname
-				return data.displayname
-			end
-			client.client.display_names[user_id] = user_id
-			return user_id
-		end)
-
-		callback(result)
-	end)
-end
-
 -- Room
 
 --- Loads more messages from a room.
@@ -881,7 +863,9 @@ M.fetch_joined_members = function(room_id, callback)
 			--- @type neoment.matrix.JoinedMembersResponse
 			local data = d
 			for id, member in pairs(data.joined) do
-				client.client.display_names[id] = member.display_name or id
+				if member.display_name and member.display_name ~= vim.NIL then
+					client.client.display_names[id] = member.display_name
+				end
 				client.get_room(room_id).members[id] = id
 			end
 			return data.joined
