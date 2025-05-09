@@ -34,6 +34,7 @@ local user_highlight_groups = {
 
 local SENDER_NAME_LENGTH = 19
 local TIME_FORMAT = "%H:%M:%S"
+local SEPARATOR_LENGTH = 60
 local ns_id = api.nvim_create_namespace("neoment_highlight")
 
 --- @class neoment.room.MessageRelation
@@ -202,8 +203,13 @@ end
 --- @param text string The text to display
 --- @return string The separator line with the text
 local function get_separator_line(text)
-	local line = string.rep("─", 20)
-	return string.rep(" ", 28) .. " ├" .. line .. text .. line
+	local text_length = vim.fn.strdisplaywidth(text)
+	local line_length = (SEPARATOR_LENGTH - text_length - 2) / 2
+	local line1_length = math.floor(line_length)
+	local line2_length = math.ceil(line_length)
+	local line1 = string.rep("─", line1_length)
+	local line2 = string.rep("─", line2_length)
+	return string.rep(" ", 28) .. " ├" .. line1 .. text .. line2
 end
 
 ---@class neoment.room.LineMessage : neoment.matrix.client.Message
