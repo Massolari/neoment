@@ -730,7 +730,7 @@ M.load_more_messages = function(buffer_id)
 	matrix.load_more_messages(room_id, function(response)
 		local notify = error.match(response, function()
 			vim.schedule(function()
-				M.update_buffer(buffer_id or 0)
+				M.update_buffer(room_buffer)
 				if prev_batch == nil and room_buffer == api.nvim_get_current_buf() then
 					-- Jump to the last message
 					local last_line = api.nvim_buf_line_count(room_buffer)
