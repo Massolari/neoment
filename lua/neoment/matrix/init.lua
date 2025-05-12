@@ -618,7 +618,7 @@ M.load_more_messages = function(room_id, on_done)
 		client.client.homeserver
 			.. "/_matrix/client/v3/rooms/"
 			.. room_id
-			.. "/messages?limit=50&dir=b&from="
+			.. "/messages?limit=20&dir=b&from="
 			.. prev_batch_query,
 		vim.schedule_wrap(function(response)
 			local result = error.try(response, function(data)
