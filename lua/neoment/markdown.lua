@@ -176,7 +176,7 @@ M.from_html = function(html)
 	end)
 
 	-- Convert HTML blockquote to markdown
-	markdown = markdown:gsub("<blockquote>(.-)</blockquote>", function(content)
+	markdown = markdown:gsub("<blockquote.->(.-)</blockquote>", function(content)
 		-- Adiciona o caractere '>' em cada linha da citação
 		local quoted = ""
 		for line in content:gmatch("([^\n]+)") do
