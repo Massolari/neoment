@@ -138,6 +138,7 @@ M.from_html = function(html)
 
 	-- Replace
 	markdown = markdown:gsub("&#39;", "'")
+	markdown = markdown:gsub("&#x27;", "'")
 	markdown = markdown:gsub("&#27;", '"')
 
 	-- Replace common HTML entities
@@ -211,7 +212,16 @@ M.from_html = function(html)
 	markdown = markdown:gsub("<em>(.-)</em>", "_%1_")
 	markdown = markdown:gsub("<i>(.-)</i>", "_%1_")
 
-	-- Code
+	-- Code blocks with language
+	markdown = markdown:gsub([[<pre><code class=["']language%-([^"']+)["']>(.-)</code></pre>]], "```%1\n%2\n```\n")
+
+	-- Code blocks without language
+	markdown = markdown:gsub("<pre><code>(.-)</code></pre>", "```\n%1\n```\n")
+
+	-- Code blocks with language
+	markdown = markdown:gsub([[<code class=["']language%-([^"]+)["']>(.-)</code>]], "```%1\n%2\n```\n")
+
+	-- Code blocks without language
 	markdown = markdown:gsub("<code>(.-)</code>", "`%1`")
 
 	-- Headers
@@ -225,18 +235,6 @@ M.from_html = function(html)
 	-- Lists
 	markdown = markdown:gsub("<li>(.-)</li>", "- %1")
 	markdown = markdown:gsub("<ul>(.-)</ul>", "%1")
-
-	-- Code blocks with language
-	markdown = markdown:gsub([[<pre><code class=["']language%-([^"']+)["']>(.-)</code></pre>]], "```%1\n%2\n```")
-
-	-- Code blocks without language
-	markdown = markdown:gsub("<pre><code>(.-)</code></pre>", "```\n%1\n```")
-
-	-- Code blocks with language
-	markdown = markdown:gsub([[<code class=["']language%-([^"]+)["']>(.-)</code>]], "```%1\n%2\n```")
-
-	-- Code blocks without language
-	markdown = markdown:gsub("<code>(.-)</code>", "```\n%1\n```")
 
 	-- Clean up any remaining HTML tags
 	markdown = markdown:gsub("<[^>]+>(.-)</[^>]+>", "%1")
