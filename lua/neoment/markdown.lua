@@ -227,7 +227,7 @@ M.from_html = function(html)
 	markdown = markdown:gsub("<ul>(.-)</ul>", "%1")
 
 	-- Code blocks with language
-	markdown = markdown:gsub('<pre><code class="language%-([^"]+)">(.-)</code></pre>', "```%1\n%2\n```")
+	markdown = markdown:gsub([[<pre><code class=["']language%-([^"']+)["']>(.-)</code></pre>]], "```%1\n%2\n```")
 
 	-- Code blocks without language
 	markdown = markdown:gsub("<pre><code>(.-)</code></pre>", "```\n%1\n```")
