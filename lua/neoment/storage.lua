@@ -1,6 +1,8 @@
 local M = {}
 local json = vim.json
 local matrix = require("neoment.matrix")
+local error = require("neoment.error")
+local curl = require("plenary.curl")
 
 --- Path to the data directory
 local data_path = vim.fn.stdpath("data") .. "/neoment/data.json"
@@ -189,6 +191,50 @@ function M.clear_cache()
 
 	vim.notify("Neoment cache removed (" .. size_kb .. "KB)", vim.log.levels.INFO)
 	return true
+end
+
+--- Write a temporary file
+--- @param name string The name of the file
+--- @param url string The URL to fetch the file from
+--- @return neoment.Error<string, string> The path to the temporary file or an error message
+M.fetch_to_temp = function(name, url)
+	vim.validate("name", name, "string")
+	vim.validate("url", url, "string")
+
+	-- Create temporary directory if it doesn't exist
+	local temp_dir = "/tmp/neoment"
+	if vim.fn.isdirectory(temp_dir) == 0 then
+		vim.fn.mkdir(temp_dir, "p")
+	end
+
+	-- Sanitize the name to ensure it's a valid filename
+	name = name:gsub("[^%w%.%-_]", "_")
+
+	-- Create the full path for the temporary file
+	local temp_path = temp_dir .. "/" .. name
+
+	-- Check if the file already exists
+	if vim.fn.filereadable(temp_path) == 1 then
+		return error.ok(temp_path)
+	end
+
+	local response = curl.get(url, {
+		output = temp_path,
+		timeout = 30000, -- 30 seconds timeout
+		on_error = function(err)
+			return error.error("Failed to download file: " .. (err.message or "Unknown error"))
+		end,
+	})
+
+	if response.exit ~= 0 then
+		return error.error("Failed to download file: curl exited with code " .. response.exit)
+	end
+
+	if vim.fn.filereadable(temp_path) == 0 then
+		return error.error("Failed to save downloaded file")
+	end
+
+	return error.ok(temp_path)
 end
 
 return M

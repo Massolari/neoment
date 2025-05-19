@@ -4,6 +4,7 @@ local markdown = require("neoment.markdown")
 local util = require("neoment.util")
 local matrix = require("neoment.matrix")
 local error = require("neoment.error")
+local storage = require("neoment.storage")
 
 local api = vim.api
 
@@ -86,11 +87,10 @@ local function get_image_dimensions(image_width, image_height, zoom)
 	local win_width = vim.api.nvim_win_get_width(0)
 	local win_height = vim.api.nvim_win_get_height(0)
 
-	local width = image_width
+	local width = math.min(image_width, win_width)
 	local height = image_height
 
 	if zoom then
-		width = math.min(image_width, win_width)
 		height = math.min(image_height, win_height)
 	else
 		height = math.min(image_height, win_height * 0.2)
@@ -241,7 +241,13 @@ local function messages_to_lines(buffer_id)
 			local text = " " .. last_date .. " "
 			local line = get_separator_line(text)
 			table.insert(lines, line)
-			line_to_message[line_index] = vim.tbl_extend("force", message, {
+			---@type neoment.matrix.client.Message
+			local date_message = vim.tbl_extend("force", message, {})
+			date_message.attachment = nil
+			date_message.reactions = {}
+			date_message.was_edited = false
+			date_message.replying_to = nil
+			line_to_message[line_index] = vim.tbl_extend("force", date_message, {
 				is_header = true,
 				is_date = true,
 			})
@@ -258,6 +264,47 @@ local function messages_to_lines(buffer_id)
 		-- If there's a formatted content, convert it to markdown
 		if message.formatted_content then
 			content = markdown.from_html(message.formatted_content)
+		end
+
+		-- Format the content if it contains an attachment
+		if message.attachment then
+			-- The filename to show inside the bubble
+			local filename = ""
+			-- The caption that will be shown below the bubble
+			local caption = "\n" .. content
+			if message.attachment.filename then
+				filename = string.format(": %s", message.attachment.filename)
+				if message.attachment.filename == content then
+					caption = ""
+				end
+			elseif util.is_filename(message.attachment.mimetype, content) then
+				filename = string.format(": %s", content)
+				caption = ""
+			end
+
+			if message.attachment.type == "image" then
+				content = string.format("󰋩  Image%s%s", filename, caption)
+			elseif message.attachment.type == "file" then
+				content =
+					string.format("󰈙  File: %s │ %s", content, util.format_bytes(message.attachment.size))
+			elseif message.attachment.type == "audio" then
+				content = string.format(
+					"  Audio: %s │ %s │ %s",
+					content,
+					util.format_milliseconds(message.attachment.duration),
+					util.format_bytes(message.attachment.size)
+				)
+			elseif message.attachment.type == "location" then
+				content = string.format("󰍎  Location", content)
+			elseif message.attachment.type == "video" then
+				content = string.format(
+					"  Video%s │ %s │ %s%s",
+					filename,
+					util.format_milliseconds(message.attachment.duration),
+					util.format_bytes(message.attachment.size),
+					caption
+				)
+			end
 		end
 
 		-- Take the 20 first characters of the content
@@ -389,6 +436,13 @@ local function apply_highlights(buffer_id, room_id, lines)
 	end
 	get_buffer_data(buffer_id).image_placements = {}
 
+	--- @class neoment.room.Image
+	--- @field line number The line number of the image
+	--- @field url string The URL of the image
+	--- @field height number The height of the image
+	--- @field width number The width of the image
+
+	--- @type table<neoment.room.Image>
 	local images = {}
 
 	for index, l in ipairs(lines) do
@@ -453,13 +507,36 @@ local function apply_highlights(buffer_id, room_id, lines)
 				-- Apply highlight to the user's name
 				vim.hl.range(buffer_id, ns_id, hl_group, { index - 1, time_end }, { index - 1, name_end })
 
-				if message.image and Snacks then
-					table.insert(images, {
-						line = index,
-						url = message.image.url,
-						height = message.image.height,
-						width = message.image.width,
-					})
+				if message.attachment then
+					if Snacks then
+						if message.attachment.type == "image" then
+							--- @type neoment.room.Image
+							local image = {
+								line = index,
+								url = message.attachment.url,
+								height = message.attachment.height,
+								width = message.attachment.width,
+							}
+
+							table.insert(images, image)
+						end
+
+						if message.attachment.type == "location" or message.attachment.type == "video" then
+							local thumbnail = message.attachment.thumbnail
+
+							if thumbnail then
+								--- @type neoment.room.Image
+								local image = {
+									line = index,
+									url = thumbnail.url,
+									height = thumbnail.height,
+									width = thumbnail.width,
+								}
+
+								table.insert(images, image)
+							end
+						end
+					end
 				end
 
 				local message_start = bar_start + 1
@@ -495,13 +572,13 @@ local function apply_highlights(buffer_id, room_id, lines)
 							local reaction = r
 							return reaction.sender
 						end, message_reactions)
-						local border_hl = "NeomentReactionBorder"
-						local content_hl = "NeomentReactionContent"
+						local border_hl = "NeomentBubbleBorder"
+						local content_hl = "NeomentBubbleContent"
 						local user_sent = vim.tbl_contains(reaction_users, matrix.get_user_id())
 						-- If the user sent the reaction, we need to change the highlight group
 						if user_sent then
-							border_hl = "NeomentReactionUserBorder"
-							content_hl = "NeomentReactionUserContent"
+							border_hl = "NeomentBubbleActiveBorder"
+							content_hl = "NeomentBubbleActiveContent"
 						end
 						local left_border_id =
 							vim.api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, reaction_start - 1, {
@@ -533,19 +610,51 @@ local function apply_highlights(buffer_id, room_id, lines)
 					end
 				end
 			end
+
+			-- Attachments
+			if message.attachment then
+				local attachment_start = line:find("")
+				local attachment_end = line:find("", attachment_start)
+				if attachment_start and attachment_end then
+					vim.hl.range(
+						buffer_id,
+						ns_id,
+						"NeomentBubbleBorder",
+						{ index - 1, attachment_start - 1 },
+						{ index - 1, attachment_start }
+					)
+					vim.hl.range(
+						buffer_id,
+						ns_id,
+						"NeomentBubbleContent",
+						{ index - 1, attachment_start },
+						{ index - 1, attachment_end - 1 }
+					)
+					vim.hl.range(
+						buffer_id,
+						ns_id,
+						"NeomentBubbleBorder",
+						{ index - 1, attachment_end - 1 },
+						{ index - 1, attachment_end }
+					)
+				end
+			end
 		end
 	end
 
 	for _, image in ipairs(images) do
 		local dimensions = get_image_dimensions(image.width, image.height, false)
 
-		local placement = Snacks.image.placement.new(buffer_id, image.url, {
+		--- @type snacks.image.Opts
+		local opts = {
 			pos = { image.line, 33 },
 			height = dimensions.height,
 			width = dimensions.width,
 			inline = true,
 			type = "image",
-		})
+		}
+
+		local placement = Snacks.image.placement.new(buffer_id, image.url, opts)
 		--- @type neoment.room.ImagePlacement
 		local image_placement = {
 			placement = placement,
@@ -795,7 +904,7 @@ M.mark_read = function(buffer_id)
 end
 
 --- Get the message under the cursor
---- @return neoment.Error<neoment.room.LineMessage, {}> The message under the cursor or an error
+--- @return neoment.Error<neoment.room.LineMessage, string> The message under the cursor or an error
 local function get_message_under_cursor()
 	local line_number = vim.api.nvim_win_get_cursor(0)[1]
 	local buffer_id = vim.api.nvim_get_current_buf()
@@ -803,7 +912,7 @@ local function get_message_under_cursor()
 
 	if not message then
 		vim.notify("No message under the cursor", vim.log.levels.ERROR)
-		return error.error({})
+		return error.error("No message under the cursor")
 	end
 
 	return error.ok(message)
@@ -984,6 +1093,30 @@ M.toggle_image_zoom = function()
 		end
 	end
 	vim.notify("No image on this line", vim.log.levels.ERROR)
+end
+
+--- Open the attachment of the message under the cursor
+M.open_attachment = function()
+	local error_message = get_message_under_cursor()
+
+	local error_path = error.try(error_message, function(message)
+		if not message.attachment then
+			vim.notify("No attachment on this message", vim.log.levels.ERROR)
+			return error.error("No attachment on this message") --[[@as neoment.Error<string, string>]]
+		end
+
+		if message.attachment.type == "location" then
+			return error.ok(message.attachment.url)
+		end
+
+		local filename = message.id .. message.attachment.filename
+		return storage.fetch_to_temp(filename, message.attachment.url)
+	end) --[[@as neoment.Error<string, string>]]
+
+	error.map(error_path, function(path)
+		vim.ui.open(path)
+		return nil
+	end)
 end
 
 return M

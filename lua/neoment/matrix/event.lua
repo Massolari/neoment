@@ -5,6 +5,91 @@ local error = require("neoment.error")
 local api = require("neoment.matrix.api")
 local util = require("neoment.util")
 
+--- @type table<string, neoment.matrix.client.MessageAttachmentType>
+local attachment_types = {
+	["m.image"] = "image",
+	["m.file"] = "file",
+	["m.audio"] = "audio",
+	["m.location"] = "location",
+	["m.video"] = "video",
+}
+
+--- Get the thumbnail from an event
+--- @param event neoment.matrix.ClientEventWithoutRoomID The event to get the thumbnail from
+--- @return neoment.matrix.client.MessageImage|nil The thumbnail object
+local function get_thumbnail(event)
+	if event.content.info and event.content.info.thumbnail_url and event.content.info.thumbnail_info then
+		return {
+			type = "image",
+			filename = "thumbnail",
+			url = util.mxc_to_url(client.client.homeserver, event.content.info.thumbnail_url)
+				.. "?access_token="
+				.. client.client.access_token,
+			height = event.content.info.thumbnail_info.h,
+			width = event.content.info.thumbnail_info.w,
+			mimetype = event.content.info.thumbnail_info.mimetype,
+		}
+	end
+	return nil
+end
+
+--- Get an attachment from an event
+--- @param event neoment.matrix.ClientEventWithoutRoomID The event to get the attachment from
+--- @param attachment_type neoment.matrix.client.MessageAttachmentType The type of the attachment
+--- @return neoment.matrix.client.MessageAttachment The attachment object
+local function get_attachment(event, attachment_type)
+	-- Handle location first because it has a different structure
+	if attachment_type == "location" then
+		local geo_uri = event.content.geo_uri
+		local google_maps_url = nil
+
+		if geo_uri then
+			local latitude, longitude = geo_uri:match("geo:([%-%d%.]+),([%-%d%.]+)")
+			if latitude and longitude then
+				google_maps_url = "https://maps.google.com/?q=" .. latitude .. "," .. longitude
+			end
+		end
+
+		local thumbnail = get_thumbnail(event)
+
+		return {
+			type = "location",
+			url = google_maps_url,
+			thumbnail = thumbnail,
+		}
+	end
+
+	-- Create a partial attachment object with the base fields
+	--- @type neoment.matrix.client.MessageAttachment
+	local attachment = {
+		type = attachment_type,
+		mimetype = event.content.info and event.content.info.mimetype,
+		url = util.mxc_to_url(client.client.homeserver, event.content.url)
+			.. "?access_token="
+			.. client.client.access_token,
+		filename = event.content.filename,
+	}
+
+	-- Add the specific fields based on the attachment type
+	if attachment_type == "image" then
+		attachment.height = event.content.info and event.content.info.h
+		attachment.width = event.content.info and event.content.info.w
+	elseif attachment_type == "file" then
+		attachment.size = event.content.info and event.content.info.size
+	elseif attachment_type == "audio" then
+		attachment.size = event.content.info and event.content.info.size
+		attachment.duration = event.content.info and event.content.info.duration
+	elseif attachment_type == "video" then
+		local thumbnail = get_thumbnail(event)
+
+		attachment.duration = event.content.info and event.content.info.duration
+		attachment.thumbnail = thumbnail
+		attachment.size = event.content.info and event.content.info.size
+	end
+
+	return attachment
+end
+
 --- Add an event to the pending events
 --- @param room_id string The room ID
 --- @param target_event_id string The ID of the event that this event is related to
@@ -51,17 +136,14 @@ local function event_to_message(event, replying_to)
 		end
 	end
 
-	local image = nil
-	if event.content.msgtype == "m.image" then
-		image = {
-			url = util.mxc_to_url(client.client.homeserver, event.content.url)
-				.. "?access_token="
-				.. client.client.access_token,
-			height = event.content.info and event.content.info.h,
-			width = event.content.info and event.content.info.w,
-		}
+	--- @type neoment.matrix.client.MessageAttachment|nil
+	local attachment
+	local attachment_type = attachment_types[event.content.msgtype]
+	if attachment_type then
+		attachment = get_attachment(event, attachment_type)
 	end
 
+	--- @type neoment.matrix.client.Message
 	return {
 		id = event.event_id,
 		sender = event.sender,
@@ -73,7 +155,7 @@ local function event_to_message(event, replying_to)
 		mentions = mentions,
 		replying_to = replying_to,
 		reactions = {},
-		image = image,
+		attachment = attachment,
 	}
 end
 

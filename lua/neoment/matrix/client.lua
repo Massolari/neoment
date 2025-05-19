@@ -47,17 +47,43 @@ M.client = nil
 --- @field mentions table<string> A table to store mentions in the message, it contains the user IDs of users mentioned in the message.
 --- @field replying_to? neoment.matrix.client.Message The message being replied to, if available.
 --- @field reactions table<string, table<neoment.matrix.client.MessageReaction>> A table to store reactions to the message, it contains the reaction strings as keys and the user IDs of users who reacted as values.
---- @field image? neoment.matrix.client.MessageImage The URL of the image, if the message contains an image.
+--- @field attachment? neoment.matrix.client.MessageAttachment The attachment of the message, if available.
 
 --- @class neoment.matrix.client.PreviousBatchToken
 --- @field token string The previous batch token for the room.
 
 --- @alias neoment.matrix.client.PreviousBatch neoment.matrix.client.PreviousBatchToken|"End"|nil
 
---- @class neoment.matrix.client.MessageImage
---- @field url string The URL of the image.
+--- @alias neoment.matrix.client.MessageAttachment neoment.matrix.client.MessageImage|neoment.matrix.client.MessageFile|neoment.matrix.client.MessageAudio|neoment.matrix.client.MessageLocation|neoment.matrix.client.MessageVideo
+
+--- @alias neoment.matrix.client.MessageAttachmentType "image"|"file"|"audio"|"location"|"video"
+
+--- @class neoment.matrix.client.BaseAttachment
+--- @field type neoment.matrix.client.MessageAttachmentType The type of the attachment.
+--- @field mimetype string The MIME type of the attachment.
+--- @field url string The URL of the attachment.
+--- @field filename string The name of the file.
+
+--- @class neoment.matrix.client.MessageImage : neoment.matrix.client.BaseAttachment
 --- @field height integer? The height of the image.
 --- @field width integer? The width of the image.
+
+--- @class neoment.matrix.client.MessageFile : neoment.matrix.client.BaseAttachment
+--- @field size integer The size of the file in bytes.
+
+--- @class neoment.matrix.client.MessageAudio : neoment.matrix.client.BaseAttachment
+--- @field duration integer The duration of the audio in milliseconds.
+--- @field size integer The size of the file in bytes.
+
+--- @class neoment.matrix.client.MessageLocation
+--- @field type "location" The type of the attachment.
+--- @field url? string The URL of the location.
+--- @field thumbnail? neoment.matrix.client.MessageImage The thumbnail of the video, if available.
+
+--- @class neoment.matrix.client.MessageVideo : neoment.matrix.client.BaseAttachment
+--- @field duration integer The duration of the video in milliseconds.
+--- @field thumbnail? neoment.matrix.client.MessageImage The thumbnail of the video, if available.
+--- @field size integer The size of the file in bytes.
 
 --- @class neoment.matrix.client.MessageReaction
 --- @field event_id string The ID of the event associated with the reaction.

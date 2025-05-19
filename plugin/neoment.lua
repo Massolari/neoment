@@ -10,10 +10,10 @@ vim.cmd([[
     highlight default link NeomentBufferRoomUnread @keyword
     highlight default link NeomentMention @comment.hint
     highlight default link NeomentMentionUser @comment.error
-    highlight default link NeomentReactionContent ColorColumn
-    highlight default link NeomentReactionBorder ColorColumn
-    highlight default link NeomentReactionUserContent IncSearch
-    highlight default link NeomentReactionUserBorder IncSearch
+    highlight default link NeomentBubbleContent ColorColumn
+    highlight default link NeomentBubbleBorder ColorColumn
+    highlight default link NeomentBubbleActiveContent IncSearch
+    highlight default link NeomentBubbleActiveBorder IncSearch
 ]])
 
 -- Apply bold to NeomentBufferRoom
@@ -24,8 +24,8 @@ if hl_buffer_room_undead then
 	vim.api.nvim_set_hl(0, "NeomentBufferRoomUnread", hl_buffer_room_undead)
 end
 
--- Change the foreground with the background on NeomentReactionBorder and NeomentReactionUserBorder
-for _, hl_name in ipairs({ "NeomentReactionUserBorder", "NeomentReactionBorder" }) do
+-- Change the foreground with the background on NeomentBubbleBorder and NeomentBubbleActiveBorder
+for _, hl_name in ipairs({ "NeomentBubbleActiveBorder", "NeomentBubbleBorder" }) do
 	local hl = vim.api.nvim_get_hl(0, { name = hl_name, link = false })
 	if hl then
 		local new_fg = hl.bg

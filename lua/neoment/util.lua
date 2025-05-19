@@ -115,4 +115,71 @@ M.open_float = function(lines, opts)
 	return bufnr, win
 end
 
+--- Format milliseconds to a human-readable string
+--- @param ms? number The time in milliseconds
+--- @return string The formatted time string
+M.format_milliseconds = function(ms)
+	if not ms or ms < 0 then
+		return "--:--"
+	end
+	local seconds = math.floor(ms / 1000)
+	local minutes = math.floor(seconds / 60)
+	local hours = math.floor(minutes / 60)
+
+	seconds = seconds % 60
+	minutes = minutes % 60
+
+	if hours > 0 then
+		return string.format("%02d:%02d:%02d", hours, minutes, seconds)
+	else
+		return string.format("%02d:%02d", minutes, seconds)
+	end
+end
+
+--- Format bytes to a human-readable string
+--- @param bytes? number The size in bytes
+--- @return string The formatted size string
+M.format_bytes = function(bytes)
+	if not bytes or bytes < 0 then
+		return "?.? B"
+	end
+	local units = { "B", "KB", "MB", "GB", "TB" }
+	local unit_index = 1
+
+	while bytes >= 1024 and unit_index < #units do
+		bytes = bytes / 1024
+		unit_index = unit_index + 1
+	end
+
+	return string.format("%.2f %s", bytes, units[unit_index])
+end
+
+--- Check if a string is a filename based on the mimetype
+--- @param mimetype string The mimetype to check
+--- @param filename string The filename to check
+--- @return boolean True if the mimetype is a filename, false otherwise
+M.is_filename = function(mimetype, filename)
+	if not mimetype or not filename then
+		return false
+	end
+
+	local mime_parts = vim.split(mimetype, "/")
+	if #mime_parts ~= 2 then
+		return false
+	end
+
+	-- Get the subtype
+	local mime_subtype = mime_parts[2]
+
+	-- Get the filename extension (if any)
+	local filename_parts = vim.split(filename, ".", { plain = true })
+	local filename_extension = filename_parts[#filename_parts]
+	if #filename_parts == 1 then
+		return false
+	end
+
+	-- Check if the filename is included in the mimetype
+	return mime_subtype:find(filename_extension) ~= nil
+end
+
 return M
