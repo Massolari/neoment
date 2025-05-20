@@ -541,17 +541,13 @@ local function apply_highlights(buffer_id, room_id, lines)
 				end
 
 				local message_start = bar_start + 1
-				if message.was_redacted then
+				if message.was_redacted or message.is_date then
 					vim.hl.range(buffer_id, ns_id, "Comment", { index - 1, message_start }, { index - 1, -1 })
 				end
 
 				-- Check if the message is the last read message and not the last message
 				if message.is_last_read then
 					vim.hl.range(buffer_id, ns_id, "Title", { index - 1, message_start }, { index - 1, -1 })
-				end
-
-				if message.is_date then
-					vim.hl.range(buffer_id, ns_id, "FloatBorder", { index - 1, message_start }, { index - 1, -1 })
 				end
 			end
 
