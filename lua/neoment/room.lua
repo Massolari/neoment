@@ -1017,11 +1017,6 @@ end
 M.redact_message = function()
 	local error_message = get_message_under_cursor()
 	error.map(error_message, function(message)
-		if message.sender ~= matrix.get_user_id() then
-			vim.notify("You can only redact your own messages", vim.log.levels.ERROR)
-			return nil
-		end
-
 		local reason = vim.fn.input("Redact message reason: ")
 
 		local current_buf = vim.api.nvim_get_current_buf()
