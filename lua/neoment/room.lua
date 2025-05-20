@@ -47,13 +47,13 @@ local ns_id = api.nvim_create_namespace("neoment_highlight")
 local room_user_highlights = {}
 
 --- Buffer data
---- @type table<number, BufferData>
+--- @type table<number, neoment.room.BufferData>
 local buffer_data = {}
 
---- @class BufferData
+--- @class neoment.room.BufferData
 --- @field line_to_message table<number, neoment.room.LineMessage> The mapping of lines to messages
 --- @field image_placements table<neoment.room.ImagePlacement> The image placements in the room
---- @field extmarks_data table<number, ExtmarkData> The extmarks data for the room
+--- @field extmarks_data table<number, neoment.room.ExtmarkData> The extmarks data for the room
 
 --- @class neoment.room.ImagePlacement
 --- @field placement snacks.image.Placement The image placement object
@@ -61,12 +61,13 @@ local buffer_data = {}
 --- @field width number The image width
 --- @field zoom boolean Whether the image is zoomed or not
 
---- @class ExtmarkData
+--- @class neoment.room.ExtmarkData
+--- @field reaction_label string The label of the reaction
 --- @field reaction_users? table<string, string[]> The users who reacted to the message
 
 --- Get the buffer data for a specific buffer
 --- @param buffer_id number The ID of the buffer to get the data for
---- @return BufferData The buffer data for the specified buffer
+--- @return neoment.room.BufferData The buffer data for the specified buffer
 local function get_buffer_data(buffer_id)
 	if not buffer_data[buffer_id] then
 		buffer_data[buffer_id] = {
@@ -557,6 +558,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 			-- Reactions
 			if message.is_reaction then
 				local reaction_start = line:find("")
+				local emoji = require("neoment.emoji")
 				while reaction_start do
 					local reaction_end = line:find("", reaction_start)
 					if reaction_end then
@@ -595,15 +597,20 @@ local function apply_highlights(buffer_id, room_id, lines)
 								hl_group = border_hl,
 							})
 						local extmarks_data = get_buffer_data(buffer_id).extmarks_data
-						extmarks_data[left_border_id] = {
+						local reaction_emoji = vim.iter(emoji()):find(function(e)
+							return e.insertText == content
+						end)
+
+						local emoji_label = reaction_emoji and reaction_emoji.label or content
+
+						local reaction_data = {
 							reaction_users = reaction_users,
+							reaction_label = emoji_label,
 						}
-						extmarks_data[content_id] = {
-							reaction_users = reaction_users,
-						}
-						extmarks_data[right_border_id] = {
-							reaction_users = reaction_users,
-						}
+						extmarks_data[left_border_id] = reaction_data
+						extmarks_data[content_id] = reaction_data
+						extmarks_data[right_border_id] = reaction_data
+
 						reaction_start = line:find("", reaction_end)
 					else
 						break
@@ -1051,6 +1058,7 @@ M.handle_cursor_hold = function(buffer_id)
 	end
 
 	local extmark_id = extmark[1]
+	--- @type neoment.room.ExtmarkData|nil
 	local data = get_buffer_data(buffer_id).extmarks_data[extmark_id]
 	if not data then
 		return
@@ -1061,6 +1069,9 @@ M.handle_cursor_hold = function(buffer_id)
 		-- Create a float window with the reaction users
 		local lines = {}
 		local max_length = 0
+		table.insert(lines, data.reaction_label)
+		table.insert(lines, "")
+
 		for _, user in ipairs(reaction_users) do
 			local display_name = matrix.get_display_name(user)
 			table.insert(lines, display_name)
@@ -1068,10 +1079,12 @@ M.handle_cursor_hold = function(buffer_id)
 		end
 		local height = math.min(5, #lines)
 
-		util.open_float(lines, {
+		local float_buf = util.open_float(lines, {
 			width = max_length,
 			height = height,
 		})
+		-- Apply bold to the first line
+		vim.hl.range(float_buf, ns_id, "Bold", { 0, 0 }, { 0, -1 })
 	end
 end
 
