@@ -1068,7 +1068,7 @@ M.handle_cursor_hold = function(buffer_id)
 	if reaction_users and #reaction_users > 0 then
 		-- Create a float window with the reaction users
 		local lines = {}
-		local max_length = 0
+		local max_length = vim.fn.strdisplaywidth(data.reaction_label)
 		table.insert(lines, data.reaction_label)
 		table.insert(lines, "")
 
