@@ -1109,7 +1109,7 @@ M.open_attachment = function()
 			return error.ok(message.attachment.url)
 		end
 
-		local filename = message.id .. message.attachment.filename
+		local filename = message.id .. (message.attachment.filename or message.content)
 		return storage.fetch_to_temp(filename, message.attachment.url)
 	end) --[[@as neoment.Error<string, string>]]
 
