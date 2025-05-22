@@ -1123,4 +1123,56 @@ M.open_attachment = function()
 	end)
 end
 
+--- Save the attachment of the message under the cursor
+M.save_attachment = function()
+	local error_message = get_message_under_cursor()
+
+	error.map(error_message, function(message)
+		if not message.attachment then
+			vim.notify("No attachment on this message", vim.log.levels.ERROR)
+			return error.error("No attachment on this message") --[[@as neoment.Error<string, string>]]
+		end
+
+		vim.ui.input({ prompt = "Save attachment to: ", completion = "file" }, function(user_input)
+			if not user_input or user_input == "" then
+				vim.notify("Save location not provided", vim.log.levels.ERROR)
+				return
+			end
+
+			local filename = message.attachment.filename or message.content
+			local error_path = storage.fetch_to_temp(message.id .. filename, message.attachment.url)
+
+			error.match(error_path, function(path)
+				local save_path = vim.fn.expand(user_input)
+				if vim.fn.isdirectory(save_path) == 1 then
+					save_path = save_path .. "/" .. filename
+				end
+
+				if vim.fn.filereadable(save_path) == 1 then
+					vim.ui.select({ "Yes", "No" }, { prompt = "File exists. Overwrite?" }, function(choice)
+						if not choice then
+							return
+						end
+						if choice == "No" then
+							local base, ext = save_path:match("^(.*)%.(.*)$")
+							local counter = 1
+							while vim.fn.filereadable(save_path) == 1 do
+								save_path = string.format("%s(%d).%s", base, counter, ext)
+								counter = counter + 1
+							end
+						end
+					end)
+				end
+
+				vim.fn.writefile(vim.fn.readfile(path), save_path)
+				vim.notify("Attachment saved to " .. save_path, vim.log.levels.INFO)
+				return nil
+			end, function(err)
+				vim.notify("Error saving attachment: " .. err, vim.log.levels.ERROR)
+			end)
+		end)
+		return nil
+	end)
+end
+
 return M
