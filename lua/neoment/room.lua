@@ -1247,4 +1247,34 @@ M.upload_attachment = function()
 	end)
 end
 
+--- Upload an image from the clipboard and send it to the room.
+M.upload_image_from_clipboard = function()
+	local error_path = storage.save_clipboard_image()
+
+	error.map(error_path, function(path)
+		matrix.upload(
+			path,
+			vim.schedule_wrap(function(response)
+				error.match(response, function(data)
+					local attachment = {
+						filename = data.filename,
+						url = data.content_uri,
+						mimetype = data.mimetype,
+						size = vim.fn.getfsize(path),
+					}
+
+					vim.schedule(function()
+						M.prompt_message({ attachment = attachment })
+					end)
+
+					return nil
+				end, function(err)
+					vim.notify("Error uploading file: " .. err.error, vim.log.levels.ERROR)
+				end)
+			end)
+		)
+		return nil
+	end)
+end
+
 return M

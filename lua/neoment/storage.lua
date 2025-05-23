@@ -3,6 +3,7 @@ local json = vim.json
 local matrix = require("neoment.matrix")
 local error = require("neoment.error")
 local curl = require("neoment.curl")
+local util = require("neoment.util")
 
 --- Path to the data directory
 local data_path = vim.fn.stdpath("data") .. "/neoment/data.json"
@@ -235,6 +236,82 @@ M.fetch_to_temp = function(name, url)
 	end
 
 	return error.ok(temp_path)
+end
+
+--- Save the image from the clipboard to a temporary file
+--- @return neoment.Error<string, string> The path to the temporary file or an error message
+M.save_clipboard_image = function()
+	local temp_dir = "/tmp/neoment"
+	if vim.fn.isdirectory(temp_dir) == 0 then
+		vim.fn.mkdir(temp_dir, "p")
+	end
+
+	local temp_file = temp_dir .. "/" .. util.uuid() .. ".png"
+
+	-- Try to get image from clipboard using platform-specific commands
+	local success = false
+	local error_msg = ""
+
+	if vim.fn.has("mac") == 1 then
+		local result = vim.fn.system(
+			[[osascript -e "get the clipboard as «class PNGf»" | sed "s/«data PNGf//; s/»//" | xxd -r -p > ]]
+				.. temp_file
+		)
+		success = vim.v.shell_error == 0
+
+		if not success then
+			error_msg = "No image found in clipboard or osascript error: " .. result
+		end
+	elseif vim.fn.has("linux") == 1 then
+		-- Linux: Try using xclip
+		local has_xclip = vim.fn.executable("xclip") == 1
+
+		if has_xclip then
+			-- Check if clipboard has a PNG image
+			local result = vim.fn.system("xclip -selection clipboard -t TARGETS -o")
+			if result:find("image/png") then
+				vim.fn.system("xclip -selection clipboard -t image/png -o > " .. vim.fn.shellescape(temp_file))
+				success = vim.v.shell_error == 0 and vim.fn.getfsize(temp_file) > 0
+			else
+				error_msg = "No image found in clipboard"
+			end
+		else
+			error_msg = "The 'xclip' command is not available. Install with your package manager."
+		end
+	elseif vim.fn.has("win32") == 1 or vim.fn.has("win64") == 1 then
+		-- Windows: Try using PowerShell
+		local ps_script = [[
+		Add-Type -AssemblyName System.Windows.Forms;
+		if ([System.Windows.Forms.Clipboard]::ContainsImage()) {
+			$img = [System.Windows.Forms.Clipboard]::GetImage();
+			$img.Save(']] .. temp_file:gsub("\\", "\\\\") .. [[', [System.Drawing.Imaging.ImageFormat]::Png);
+			Write-Output "success"
+		} else {
+			Write-Error "No image in clipboard"
+			exit 1
+		}
+		]]
+
+		local result = vim.fn.system({ "powershell", "-NoProfile", "-Command", ps_script })
+		success = vim.v.shell_error == 0 and result:find("success") ~= nil
+
+		if not success then
+			error_msg = "No image found in clipboard or PowerShell error"
+		end
+	else
+		error_msg = "Clipboard image upload not supported on this platform"
+	end
+
+	if not success then
+		return error.error(error_msg)
+	end
+
+	-- Check if file was created and has content
+	if vim.fn.filereadable(temp_file) == 0 or vim.fn.getfsize(temp_file) <= 0 then
+		return error.error("Failed to save clipboard image to temporary file")
+	end
+
+	return error.ok(temp_file)
 end
 
 return M
