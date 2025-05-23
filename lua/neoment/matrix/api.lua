@@ -1,6 +1,6 @@
 local M = {}
 
-local curl = require("plenary.curl")
+local curl = require("neoment.curl")
 local json = vim.json
 local error = require("neoment.error")
 --- @alias neoment.matrix.api.ErrCode "M_FORBIDDEN" | "M_UNKNOWN_TOKEN" | "M_MISSING_TOKEN" | "M_USER_LOCKED" | "M_USER_SUSPENDED" | "M_BAD_JSON" | "M_NOT_JSON" | "M_NOT_FOUND" | "M_LIMIT_EXCEEDED" | "M_UNRECOGNIZED" | "M_UNKNOWN"
@@ -76,14 +76,27 @@ end
 --- @param opts? neoment.matrix.api.RequestOptions Optional parameters for the request.
 M.post = function(endpoint, body, callback, opts)
 	opts = opts or {}
+	opts.headers = vim.tbl_extend("force", {
+		["Content-Type"] = "application/json",
+	}, opts.headers or {})
+
+	M.post_raw(endpoint, body and json.encode(body) or nil, callback, opts)
+end
+
+--- Make a POST request to the Matrix API without encoding the body.
+--- @generic A : table
+--- @param endpoint string The API endpoint to send the request to.
+--- @param body? any The request body to send.
+--- @param callback fun(data: neoment.Error<A, neoment.matrix.api.Error>): any The callback function to handle the response.
+--- @param opts? neoment.matrix.api.RequestOptions Optional parameters for the request.
+M.post_raw = function(endpoint, body, callback, opts)
+	opts = opts or {}
 	curl.post(endpoint, {
 		on_error = function(err)
 			callback(error.error({ error = "Failed to make POST request", err = err }))
 		end,
-		body = body and json.encode(body) or nil,
-		headers = vim.tbl_extend("force", {
-			["Content-Type"] = "application/json",
-		}, opts.headers or {}),
+		body = body,
+		headers = opts.headers or {},
 		callback = function(response)
 			callback(handler(response))
 		end,

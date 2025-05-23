@@ -182,4 +182,25 @@ M.is_filename = function(mimetype, filename)
 	return mime_subtype:find(filename_extension) ~= nil
 end
 
+--- Get the msgtype from a mimetype
+--- @param mimetype string The mimetype to check
+--- @return string The msgtype
+M.get_msgtype = function(mimetype)
+	vim.validate({ mimetype = { mimetype, "string" } })
+
+	local mime_map = {
+		["image"] = "m.image",
+		["video"] = "m.video",
+		["audio"] = "m.audio",
+	}
+
+	local mime_parts = vim.split(mimetype, "/")
+	if #mime_parts ~= 2 then
+		return "m.file"
+	end
+
+	local mime_type = mime_parts[1]
+	return mime_map[mime_type] or "m.file"
+end
+
 return M

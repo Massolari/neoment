@@ -441,9 +441,15 @@ end
 --- @class neoment.matrix.SendResponse
 --- @field event_id string The ID of the sent message.
 
+--- @class neoment.matrix.SendMessageParams
+--- @field message string The message to send.
+--- @field reply_to? string The ID of the message being replied to.
+--- @field replace? string The ID of the message being replaced.
+--- @field attachment? {url: string, mimetype: string, filename: string, size: number} The attachment to send with the message.
+
 --- Send a message to a room.
 --- @param room_id string The ID of the room to send the message to.
---- @param params {message: string, reply_to?: string, replace?: string} The message to send and the ID of the message being replied to or replaced.
+--- @param params neoment.matrix.SendMessageParams The message to send and the ID of the message being replied to or replaced.
 --- @param callback fun(data: neoment.Error<neoment.matrix.SendResponse, neoment.matrix.api.Error>): any The callback function to handle the response. The response will be the event ID of the sent message.
 M.send_message = function(room_id, params, callback)
 	local txn_id = generate_txn_id()
@@ -493,6 +499,17 @@ M.send_message = function(room_id, params, callback)
 				rel_type = "m.replace",
 				event_id = params.replace,
 			},
+		}
+	end
+
+	local attachment = params.attachment
+	if attachment then
+		content.msgtype = util.get_msgtype(attachment.mimetype)
+		content.filename = attachment.filename
+		content.url = attachment.url
+		content.info = {
+			mimetype = attachment.mimetype,
+			size = attachment.size,
 		}
 	end
 
@@ -967,6 +984,32 @@ M.get_room_display_name = function(room_id)
 	end
 
 	return get_invited_room_display_name(room)
+end
+
+--- Upload a file to the Matrix server.
+--- @param filepath string The path to the file to upload.
+--- @param callback fun(data: neoment.Error<{ content_uri: string, filename: string, mimetype: string }, neoment.matrix.api.Error>): any The callback function to handle the response.
+M.upload = function(filepath, callback)
+	local filename = vim.fn.fnamemodify(filepath, ":t")
+	local mimetype = vim.fn.systemlist("file --mime-type -b " .. vim.fn.shellescape(filepath))[1]
+
+	api.post_raw(
+		client.client.homeserver .. "/_matrix/media/v3/upload?filename=" .. vim.uri_encode(filename),
+		filepath,
+		function(response)
+			local result = error.map(response, function(data)
+				return { content_uri = data.content_uri, mimetype = mimetype, filename = filename }
+			end) --[[@as neoment.Error<{ content_uri: string, filename: string, mimetype: string }, neoment.matrix.api.Error>]]
+
+			callback(result)
+		end,
+		{
+			headers = {
+				Authorization = "Bearer " .. client.client.access_token,
+				["Content-Type"] = mimetype,
+			},
+		}
+	)
 end
 
 --- @type neoment.matrix.client.Client

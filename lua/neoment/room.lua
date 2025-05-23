@@ -80,13 +80,15 @@ local function get_buffer_data(buffer_id)
 end
 
 --- Get the image dimensions
---- @param image_width number The width of the image
---- @param image_height number The height of the image
+--- @param maybe_image_width? number The width of the image
+--- @param maybe_image_height? number The height of the image
 --- @param zoom boolean Whether to zoom the image or not
 --- @return {width: number, height: number} The dimensions of the image
-local function get_image_dimensions(image_width, image_height, zoom)
+local function get_image_dimensions(maybe_image_width, maybe_image_height, zoom)
 	local win_width = vim.api.nvim_win_get_width(0)
 	local win_height = vim.api.nvim_win_get_height(0)
+	local image_width = maybe_image_width or win_width
+	local image_height = maybe_image_height or win_height
 
 	local width = math.min(image_width, win_width)
 	local height = image_height
@@ -286,14 +288,19 @@ local function messages_to_lines(buffer_id)
 			if message.attachment.type == "image" then
 				content = string.format("󰋩  Image%s%s", filename, caption)
 			elseif message.attachment.type == "file" then
-				content =
-					string.format("󰈙  File: %s │ %s", content, util.format_bytes(message.attachment.size))
+				content = string.format(
+					"󰈙  File%s │ %s%s",
+					filename,
+					util.format_bytes(message.attachment.size),
+					caption
+				)
 			elseif message.attachment.type == "audio" then
 				content = string.format(
-					"  Audio: %s │ %s │ %s",
-					content,
+					"  Audio%s │ %s │ %s%s",
+					filename,
 					util.format_milliseconds(message.attachment.duration),
-					util.format_bytes(message.attachment.size)
+					util.format_bytes(message.attachment.size),
+					caption
 				)
 			elseif message.attachment.type == "location" then
 				content = string.format("󰍎  Location", content)
@@ -716,10 +723,11 @@ end
 --- Send a message to the room
 --- @param room_id string The ID of the room to send the message to
 --- @param message string The message to send
---- @param relation? neoment.room.MessageRelation The relation to the message
-local function send_message(room_id, message, relation)
+--- @param message_params neoment.room.PromptMessageParams The params for the message
+local function send_message(room_id, message, message_params)
 	local params = { message = message }
 
+	local relation = message_params.relation
 	if relation then
 		if relation.relation == "reply" then
 			params.reply_to = relation.message.id
@@ -727,6 +735,8 @@ local function send_message(room_id, message, relation)
 			params.replace = relation.message.id
 		end
 	end
+
+	params.attachment = message_params.attachment
 
 	matrix.send_message(room_id, params, function(response)
 		error.map_error(response, function(err)
@@ -736,9 +746,19 @@ local function send_message(room_id, message, relation)
 	end)
 end
 
+--- @class neoment.room.PromptMessageParams
+--- @field relation? neoment.room.MessageRelation The relation to the message
+--- @field attachment? neoment.room.MessageAttachment The attachment to send with the message
+
+--- @class neoment.room.MessageAttachment
+--- @field filename string The name of the file
+--- @field url string The URL of the file
+--- @field mimetype string The MIME type of the file
+--- @field size number The size of the file in bytes
+
 --- Prompt the user for a message and send it to the room using a dedicated buffer
---- @param relation? neoment.room.MessageRelation The relation to the message
-M.prompt_message = function(relation)
+--- @param params? neoment.room.PromptMessageParams The relation to the message
+M.prompt_message = function(params)
 	local room_id = vim.b.room_id
 	local room_win = vim.api.nvim_get_current_win()
 
@@ -759,15 +779,23 @@ M.prompt_message = function(relation)
 
 	local lines = {}
 
-	if relation then
-		vim.b[input_buf].relation = relation
-		if relation.relation == "reply" then
-			buffer_name = string.format("neoment://Replying to %s", matrix.get_display_name(relation.message.sender))
-		elseif relation.relation == "replace" then
-			buffer_name = string.format("neoment://Editing message on %s", room_name)
-			for line in relation.message.content:gmatch("[^\n]+") do
-				table.insert(lines, line)
+	if params then
+		if params.relation then
+			vim.b[input_buf].relation = params.relation
+			if params.relation.relation == "reply" then
+				buffer_name =
+					string.format("neoment://Replying to %s", matrix.get_display_name(params.relation.message.sender))
+			elseif params.relation.relation == "replace" then
+				buffer_name = string.format("neoment://Editing message on %s", room_name)
+				for line in params.relation.message.content:gmatch("[^\n]+") do
+					table.insert(lines, line)
+				end
 			end
+		end
+
+		if params.attachment then
+			vim.b[input_buf].attachment = params.attachment
+			buffer_name = string.format("%s with the attachment %s", buffer_name, params.attachment.filename)
 		end
 	end
 
@@ -781,7 +809,7 @@ M.prompt_message = function(relation)
 	vim.api.nvim_win_set_buf(0, input_buf)
 	vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, lines)
 
-	if relation and relation.relation == "replace" then
+	if params and params.relation and params.relation.relation == "replace" then
 		-- Go to the end of the message (last line and last column)
 		local last_line = vim.api.nvim_buf_line_count(input_buf)
 		local last_col = vim.fn.strdisplaywidth(lines[#lines])
@@ -799,7 +827,6 @@ M.send_and_close_compose = function(compose_buf)
 	local message = table.concat(lines, "\n")
 	local room_id = vim.b[compose_buf].room_id
 	local room_win = vim.b[compose_buf].room_win
-	local relation = vim.b[compose_buf].relation
 
 	if not room_id then
 		vim.notify("Couldn't identify the current room", vim.log.levels.ERROR)
@@ -810,7 +837,13 @@ M.send_and_close_compose = function(compose_buf)
 		return
 	end
 
-	send_message(room_id, message, relation)
+	--- @type neoment.room.PromptMessageParams
+	local params = {
+		relation = vim.b[compose_buf].relation,
+		attachment = vim.b[compose_buf].attachment,
+	}
+
+	send_message(room_id, message, params)
 
 	vim.schedule(function()
 		local current_win = vim.api.nvim_get_current_win()
@@ -931,8 +964,10 @@ M.edit_message = function()
 		end
 
 		M.prompt_message({
-			message = message,
-			relation = "replace",
+			relation = {
+				message = message,
+				relation = "replace",
+			},
 		})
 		return nil
 	end)
@@ -943,8 +978,7 @@ M.reply_message = function()
 	local error_message = get_message_under_cursor()
 	error.map(error_message, function(message)
 		M.prompt_message({
-			message = message,
-			relation = "reply",
+			relation = { message = message, relation = "reply" },
 		})
 		return nil
 	end)
@@ -1172,6 +1206,44 @@ M.save_attachment = function()
 			end)
 		end)
 		return nil
+	end)
+end
+
+--- Upload an attachment and send it to the room.
+M.upload_attachment = function()
+	vim.ui.input({ prompt = "Enter file path: ", completion = "file" }, function(filepath)
+		if not filepath or filepath == "" then
+			return
+		end
+
+		local path = vim.fn.expand(filepath)
+
+		if vim.fn.filereadable(path) == 0 then
+			vim.notify("File does not exist: " .. path, vim.log.levels.ERROR)
+			return
+		end
+
+		matrix.upload(
+			path,
+			vim.schedule_wrap(function(response)
+				error.match(response, function(data)
+					local attachment = {
+						filename = data.filename,
+						url = data.content_uri,
+						mimetype = data.mimetype,
+						size = vim.fn.getfsize(path),
+					}
+
+					vim.schedule(function()
+						M.prompt_message({ attachment = attachment })
+					end)
+
+					return nil
+				end, function(err)
+					vim.notify("Error uploading file: " .. err.error, vim.log.levels.ERROR)
+				end)
+			end)
+		)
 	end)
 end
 

@@ -2,7 +2,7 @@ local M = {}
 local json = vim.json
 local matrix = require("neoment.matrix")
 local error = require("neoment.error")
-local curl = require("plenary.curl")
+local curl = require("neoment.curl")
 
 --- Path to the data directory
 local data_path = vim.fn.stdpath("data") .. "/neoment/data.json"
