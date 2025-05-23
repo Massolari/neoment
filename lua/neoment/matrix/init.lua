@@ -420,22 +420,10 @@ M.sync = function(options, callback)
 	)
 end
 
---- Generates a UUID v4.
---- @return string A UUID v4 string.
-local function uuid()
-	local template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
-	local uuid_str, _ = string.gsub(template, "[xy]", function(c)
-		local v = (c == "x" and math.random(0, 0xf) or math.random(8, 0xb))
-		return string.format("%x", v)
-	end)
-
-	return uuid_str
-end
-
 --- Generate a txn_id
 --- @return string A unique transaction ID.
 local function generate_txn_id()
-	return "neoment-" .. uuid()
+	return "neoment-" .. util.uuid()
 end
 
 --- @class neoment.matrix.SendResponse

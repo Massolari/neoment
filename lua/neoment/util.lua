@@ -203,4 +203,16 @@ M.get_msgtype = function(mimetype)
 	return mime_map[mime_type] or "m.file"
 end
 
+--- Generates a UUID v4.
+--- @return string A UUID v4 string.
+M.uuid = function()
+	local template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
+	local uuid_str, _ = string.gsub(template, "[xy]", function(c)
+		local v = (c == "x" and math.random(0, 0xf) or math.random(8, 0xb))
+		return string.format("%x", v)
+	end)
+
+	return uuid_str
+end
+
 return M
