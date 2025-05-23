@@ -1198,7 +1198,7 @@ M.save_attachment = function()
 					end)
 				end
 
-				vim.fn.writefile(vim.fn.readfile(path), save_path)
+				vim.fn.writefile(vim.fn.readblob(path), save_path)
 				vim.notify("Attachment saved to " .. save_path, vim.log.levels.INFO)
 				return nil
 			end, function(err)
