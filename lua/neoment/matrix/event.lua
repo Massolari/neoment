@@ -279,29 +279,15 @@ end
 --- @param event neoment.matrix.ClientEventWithoutRoomID
 --- @return boolean True if the event was handled, false otherwise
 M.handle = function(room_id, event)
-	-- Handle events without event_id
-	if event.type == "m.tag" then
-		if event.content.tags["m.favourite"] then
-			client.get_room(room_id).is_favorite = true
-			return true
-		elseif event.content.tags["m.lowpriority"] then
-			client.get_room(room_id).is_lowpriority = true
-			return true
+	if event.event_id then
+		-- Event already processed
+		if client.room_event_exists(room_id, event.event_id) then
+			return false
 		end
-	end
 
-	if not event.event_id then
-		-- Skip events without an ID
-		return false
+		-- Store the event in the room's events table
+		client.add_room_event(room_id, event)
 	end
-
-	-- Event already processed
-	if client.room_event_exists(room_id, event.event_id) then
-		return false
-	end
-
-	-- Store the event in the room's events table
-	client.add_room_event(room_id, event)
 
 	if event.type == "m.fully_read" then
 		-- Update the fully read event ID
@@ -370,6 +356,14 @@ M.handle = function(room_id, event)
 				add_pending_event(room_id, event_id, event)
 			end
 		end
+	elseif event.type == "m.tag" then
+		if event.content.tags["m.favourite"] then
+			client.get_room(room_id).is_favorite = true
+			return true
+		elseif event.content.tags["m.lowpriority"] then
+			client.get_room(room_id).is_lowpriority = true
+			return true
+		end
 	elseif event.type == "m.typing" then
 		client.get_room(room_id).typing = event.content.user_ids
 		return true
@@ -414,13 +408,13 @@ end
 M.handle_multiple = function(room_id, events)
 	local handled = false
 	for _, event in ipairs(events) do
+		if M.handle(room_id, event) then
+			handled = true
+		end
+
 		if not event or not event.event_id then
 			-- Skip events without an ID
 			goto continue
-		end
-
-		if M.handle(room_id, event) then
-			handled = true
 		end
 
 		-- Handle pending actions
