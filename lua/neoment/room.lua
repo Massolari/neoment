@@ -914,6 +914,25 @@ M.mark_read = function(buffer_id)
 		return
 	end
 
+	-- Mark the room as read
+	if matrix.get_room_unread_mark(room_id) then
+		matrix.send_event(
+			room_id,
+			{
+				unread = false,
+			},
+			"m.marked_unread",
+			function(response)
+				error.map(
+					response,
+					vim.schedule_wrap(function()
+						require("neoment.rooms").update_room_list()
+					end)
+				)
+			end
+		)
+	end
+
 	local last_message = matrix.get_room_last_message(room_id)
 	if not last_message then
 		return

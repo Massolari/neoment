@@ -31,6 +31,52 @@ local sections = {
 }
 local window_width = 50
 
+--- Check if a room is unread
+--- @param room neoment.matrix.client.Room|neoment.matrix.client.InvitedRoom The room object
+--- @return boolean True if the room has unread messages
+local function is_room_unread(room)
+	-- Case 1: Room explicitly marked as unread by user
+	if room.unread then
+		return true
+	end
+
+	-- Case 2: Room has unread notifications from server
+	if room.unread_notifications and room.unread_notifications > 0 then
+		return true
+	end
+
+	local last_activity_event = room.last_activity and room.last_activity.event_id
+
+	-- If there is no last activity event, we don't consider it unread
+	if not last_activity_event then
+		return false
+	end
+
+	local read_receipt_event = room.read_receipt and room.read_receipt.event_id
+
+	-- Case 3: Room is unread if the last activity hasn't been marked as read
+	-- We check both read receipt and fully_read marker to determine this
+	return read_receipt_event ~= last_activity_event and room.fully_read ~= last_activity_event
+end
+
+--- Get the room mark under the cursor
+--- @return neoment.rooms.RoomMark|nil The RoomMark if found, nil otherwise
+local function get_room_mark_under_cursor()
+	local cursor = api.nvim_win_get_cursor(0)
+	local current_line = cursor[1] -- 1-based, current line where the cursor is
+
+	if M.room_list_extmarks then
+		for _, mark in ipairs(M.room_list_extmarks) do
+			if mark.line == current_line then
+				return mark
+			end
+		end
+	end
+
+	vim.notify("No room found on this line. Position the cursor directly over the room name.", vim.log.levels.INFO)
+	return nil
+end
+
 --- Format the last synchronization time
 --- @return string Formatted last synchronization time
 local function format_last_sync_time()
@@ -100,24 +146,18 @@ end
 
 --- Join the selected room
 M.open_selected_room = function()
-	local cursor = api.nvim_win_get_cursor(0)
-	local current_line = cursor[1] -- 1-based, current line where the cursor is
+	local mark = get_room_mark_under_cursor()
 
-	-- Check if the current line corresponds to a room
-	if M.room_list_extmarks then
-		for _, mark in ipairs(M.room_list_extmarks) do
-			if mark.line == current_line then
-				if mark.is_invited then
-					handle_invited_room(mark.room_id)
-					return
-				end
-				open_room(mark.room_id)
-				return
-			end
-		end
+	if not mark then
+		return
 	end
 
-	vim.notify("No room found on this line. Position the cursor directly over the room name.", vim.log.levels.INFO)
+	-- Check if the current line corresponds to a room
+	if mark.is_invited then
+		handle_invited_room(mark.room_id)
+		return
+	end
+	open_room(mark.room_id)
 end
 
 --- Toggle the section fold at the cursor position
@@ -199,17 +239,39 @@ local function get_room_line(room)
 	local last_activity = matrix.get_room_last_activity(room.id)
 	local display = matrix.get_room_display_name(room.id)
 
-	if last_activity and last_activity > 0 then
-		local time = os.date("%H:%M", math.floor(last_activity / 1000))
+	if last_activity and last_activity.timestamp > 0 then
+		local time = os.date("%H:%M", math.floor(last_activity.timestamp / 1000))
 		display = display .. " [" .. time .. "]"
 		if room.unread_highlights and room.unread_highlights > 0 then
 			display = display .. " 🔔"
-		elseif room.unread_notifications and room.unread_notifications > 0 then
+		elseif is_room_unread(room) then
 			display = display .. " ⏺"
 		end
 	end
 
 	return display
+end
+
+--- Sort rooms by last activity
+--- 1. Unread rooms first
+--- 2. Then sort by most recent activity
+--- @param a neoment.matrix.client.Room The first room
+--- @param b neoment.matrix.client.Room The second room
+--- @return boolean True if the first room is more recent than the second
+local sort_by_activity = function(a, b)
+	local a_is_unread = is_room_unread(a)
+	local b_is_unread = is_room_unread(b)
+
+	if a_is_unread and not b_is_unread then
+		return true -- Unread rooms come first
+	elseif not a_is_unread and b_is_unread then
+		return false -- Read rooms come after unread rooms
+	end
+
+	local a_last_timestamp = a.last_activity and a.last_activity.timestamp or 0
+	local b_last_timestamp = b.last_activity and b.last_activity.timestamp or 0
+
+	return (a_last_timestamp or 0) > (b_last_timestamp or 0)
 end
 
 --- Update the room list buffer
@@ -265,14 +327,6 @@ M.update_room_list = function()
 			table.insert(section_rooms.rooms, room)
 		end
 		::continue::
-	end
-
-	--- Sort rooms by last activity
-	--- @param a neoment.matrix.client.Room The first room
-	--- @param b neoment.matrix.client.Room The second room
-	--- @return boolean True if the first room is more recent than the second
-	local sort_by_activity = function(a, b)
-		return (a.last_activity or 0) > (b.last_activity or 0)
 	end
 
 	-- Sort by activity (most recent first)
@@ -411,6 +465,89 @@ end
 --- Get the name of the room list buffer
 M.get_buffer_name = function()
 	return room_list_buffer_name
+end
+
+--- Mark a room as unread
+M.mark_unread = function()
+	local mark = get_room_mark_under_cursor()
+
+	if not mark then
+		return
+	end
+
+	if mark.is_invited then
+		vim.notify("You cannot mark an invited room as unread.", vim.log.levels.INFO)
+		return
+	end
+
+	matrix.send_event(
+		mark.room_id,
+		{
+			unread = true,
+		},
+		"m.marked_unread",
+		function(response)
+			error.match(
+				response,
+				vim.schedule_wrap(function()
+					M.update_room_list()
+					vim.notify("Room marked as unread successfully", vim.log.levels.INFO)
+					return nil
+				end),
+				function(err)
+					local error_msg = err.error or "unknown error"
+					local room_name = matrix.get_room_display_name(mark.room_id) or mark.room_id
+					vim.notify(
+						string.format("Failed to mark room '%s' as unread: %s", room_name, error_msg),
+						vim.log.levels.ERROR
+					)
+					return nil
+				end
+			)
+		end
+	)
+end
+
+--- Mark a room as read
+M.mark_read = function()
+	local mark = get_room_mark_under_cursor()
+
+	if not mark then
+		return
+	end
+
+	if mark.is_invited then
+		vim.notify("You cannot mark an invited room as read.", vim.log.levels.INFO)
+		return
+	end
+
+	local last_activity = matrix.get_room_last_activity(mark.room_id)
+	if not last_activity or not last_activity.event_id then
+		vim.notify("No activity found in this room to mark as read.", vim.log.levels.INFO)
+		return
+	end
+
+	matrix.set_room_read_marker(
+		mark.room_id,
+		{
+			read_private = last_activity.event_id,
+		},
+		vim.schedule_wrap(function(response)
+			error.match(response, function()
+				M.update_room_list()
+				local room_name = matrix.get_room_display_name(mark.room_id) or mark.room_id
+				vim.notify("Room '" .. room_name .. "' marked as read", vim.log.levels.INFO)
+				return nil
+			end, function(err)
+				local error_msg = err.error or "unknown error"
+				local room_name = matrix.get_room_display_name(mark.room_id) or mark.room_id
+				vim.notify(
+					string.format("Failed to mark room '%s' as read: %s", room_name, error_msg),
+					vim.log.levels.ERROR
+				)
+			end)
+		end)
+	)
 end
 
 return M

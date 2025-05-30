@@ -214,8 +214,14 @@ local function handle_message(room_id, event)
 	end
 
 	-- Update the last activity timestamp
-	client.get_room(room_id).last_activity =
-		math.max(client.get_room(room_id).last_activity or 0, event.origin_server_ts)
+	local last_activity = client.get_room(room_id).last_activity
+	local last_timestamp = last_activity and last_activity.timestamp or 0
+	if last_timestamp < event.origin_server_ts then
+		client.get_room(room_id).last_activity = {
+			timestamp = event.origin_server_ts,
+			event_id = event.event_id,
+		}
+	end
 
 	return true
 end
@@ -293,6 +299,33 @@ M.handle = function(room_id, event)
 		-- Update the fully read event ID
 		client.get_room(room_id).fully_read = event.content.event_id
 		return true
+	elseif event.type == "m.marked_unread" then
+		-- Update the marked unread event ID
+		client.get_room(room_id).unread = event.content.unread
+	elseif event.type == "m.receipt" then
+		local room_read_receipt = client.get_room_read_receipt(room_id)
+		local last_user_receipt = room_read_receipt or {
+			ts = 0,
+			event_id = nil,
+		}
+		local user_id = require("neoment.matrix").get_user_id()
+
+		for event_id, receipt in pairs(event.content) do
+			for _, values in pairs(receipt) do
+				for user, data in pairs(values) do
+					if user == user_id then
+						if data.ts > last_user_receipt.ts then
+							last_user_receipt = {
+								ts = data.ts,
+								event_id = event_id,
+							}
+						end
+					end
+				end
+			end
+		end
+
+		client.set_room_read_receipt(room_id, last_user_receipt)
 	elseif event.type == "m.room.message" then
 		if handle_message(room_id, event) then
 			return true

@@ -21,7 +21,7 @@ M.client = nil
 --- @field pending_events table<string, neoment.matrix.ClientEventWithoutRoomID> A table to store pending events associated with the room.
 --- @field messages table<string, neoment.matrix.client.Message> A table to store messages associated with the room.
 --- @field prev_batch? neoment.matrix.client.PreviousBatch The previous batch token for the room.
---- @field last_activity? integer The timestamp of the last activity in the room.
+--- @field last_activity? neoment.matrix.client.LastActivity The last activity in the room, containing the timestamp and event ID.
 --- @field is_direct? boolean Indicates if the room is a direct chat.
 --- @field is_favorite? boolean Indicates if the room is a favorite.
 --- @field is_lowpriority? boolean Indicates if the room is a low-priority room.
@@ -29,6 +29,8 @@ M.client = nil
 --- @field fully_read? string The event ID of the last fully read message in the room.
 --- @field unread_notifications integer The number of unread notifications for this room.
 --- @field unread_highlights integer The number of unread highlights for this room.
+--- @field unread boolean Indicates if the room was marked as unread.
+--- @field read_receipt? neoment.matrix.client.ReadReceipt The read receipt of the user in the room, containing the event ID and timestamp of the last read event.
 
 --- @class neoment.matrix.client.InvitedRoom
 --- @field id string The ID of the room.
@@ -53,6 +55,14 @@ M.client = nil
 --- @field token string The previous batch token for the room.
 
 --- @alias neoment.matrix.client.PreviousBatch neoment.matrix.client.PreviousBatchToken|"End"|nil
+
+--- @class neoment.matrix.client.LastActivity
+--- @field timestamp integer The timestamp of the last activity in the room.
+--- @field event_id string The ID of the last event in the room.
+
+--- @class neoment.matrix.client.ReadReceipt
+--- @field event_id string The ID of the event that was last read.
+--- @field ts integer The timestamp of the last read event.
 
 --- @alias neoment.matrix.client.MessageAttachment neoment.matrix.client.MessageImage|neoment.matrix.client.MessageFile|neoment.matrix.client.MessageAudio|neoment.matrix.client.MessageLocation|neoment.matrix.client.MessageVideo
 
@@ -125,6 +135,7 @@ local function create_new_room(room_id)
 		unread_notifications = 0,
 		unread_highlights = 0,
 		is_tracked = false,
+		unread = false,
 	}
 
 	return M.client.rooms[room_id]
@@ -188,6 +199,14 @@ M.get_room_last_message = function(room_id)
 		return messages[#messages]
 	end
 	return nil
+end
+
+--- Get the unread mark for a room.
+--- @param room_id string The ID of the room.
+--- @return boolean True if the room is marked as unread, false otherwise.
+M.get_room_unread_mark = function(room_id)
+	local room = M.get_room(room_id)
+	return room.unread
 end
 
 --- Set data for a room.
@@ -287,6 +306,27 @@ end
 --- @return boolean True if the room is invited, false otherwise.
 M.is_invited_room = function(room_id)
 	return M.client.invited_rooms[room_id] ~= nil
+end
+
+--- Get the user read receipt for a room
+--- @param room_id string The ID of the room.
+--- @return neoment.matrix.client.ReadReceipt? The read receipt object if it exists, nil otherwise.
+M.get_room_read_receipt = function(room_id)
+	local room = M.get_room(room_id)
+
+	return room.read_receipt
+end
+
+--- Set the user read receipt for a room
+--- @param room_id string The ID of the room.
+--- @param read_receipt neoment.matrix.client.ReadReceipt The read receipt object to set.
+M.set_room_read_receipt = function(room_id, read_receipt)
+	local room = M.get_room(room_id)
+
+	room.read_receipt = read_receipt
+	if not room.fully_read then
+		room.fully_read = read_receipt.event_id
+	end
 end
 
 return M

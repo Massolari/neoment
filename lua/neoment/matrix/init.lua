@@ -732,7 +732,7 @@ M.set_room_read_marker = function(room_id, markers, callback)
 	api.post(client.client.homeserver .. "/_matrix/client/v3/rooms/" .. room_id .. "/read_markers", {
 		["m.fully_read"] = markers.fully_read,
 		["m.read"] = markers.read,
-		["m.read_private"] = markers.read_private,
+		["m.read.private"] = markers.read_private,
 	}, function(response)
 		if not callback then
 			return
@@ -886,7 +886,7 @@ end
 
 --- Get the last activity timestamp in a room.
 --- @param room_id string The ID of the room.
---- @return integer? The last activity timestamp in the room.
+--- @return neoment.matrix.client.LastActivity? The last activity timestamp in the room.
 M.get_room_last_activity = function(room_id)
 	return client.get_room(room_id).last_activity
 end
@@ -1011,6 +1011,7 @@ M.set_invited_room = client.set_invited_room
 M.set_room_tracked = client.set_room_tracked
 M.get_room_messages = client.get_room_messages
 M.get_room_last_message = client.get_room_last_message
+M.get_room_unread_mark = client.get_room_unread_mark
 
 setmetatable(M, {
 	__index = function(_, key)
