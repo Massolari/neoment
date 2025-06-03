@@ -214,14 +214,10 @@ local function handle_message(room_id, event)
 	end
 
 	-- Update the last activity timestamp
-	local last_activity = client.get_room(room_id).last_activity
-	local last_timestamp = last_activity and last_activity.timestamp or 0
-	if last_timestamp < event.origin_server_ts then
-		client.get_room(room_id).last_activity = {
-			timestamp = event.origin_server_ts,
-			event_id = event.event_id,
-		}
-	end
+	require("neoment.matrix").set_room_last_activity(room_id, {
+		timestamp = event.origin_server_ts,
+		event_id = event.event_id,
+	})
 
 	return true
 end

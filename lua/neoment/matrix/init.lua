@@ -727,7 +727,20 @@ M.set_room_read_marker = function(room_id, markers, callback)
 	-- Set the read markers in the room object before sending the request
 	-- This is to ensure that the room object is updated immediately
 	-- If the request fails, this is not a problem, as the room object will be updated again
-	client.get_room(room_id).fully_read = markers.fully_read
+	local room = client.get_room(room_id)
+	if markers.fully_read then
+		room.fully_read = markers.fully_read
+	end
+
+	local read_receipt = markers.read or markers.read_private
+	if read_receipt then
+		room.read_receipt = {
+			event_id = read_receipt,
+			ts = os.time() * 1000, -- Convert to milliseconds
+		}
+	end
+
+	room.unread = false
 
 	api.post(client.client.homeserver .. "/_matrix/client/v3/rooms/" .. room_id .. "/read_markers", {
 		["m.fully_read"] = markers.fully_read,
@@ -891,6 +904,17 @@ M.get_room_last_activity = function(room_id)
 	return client.get_room(room_id).last_activity
 end
 
+--- Set the last activity in a room.
+--- @param room_id string The ID of the room.
+--- @param new_last_activity neoment.matrix.client.LastActivity The last activity timestamp to set in the room.
+M.set_room_last_activity = function(room_id, new_last_activity)
+	local last_activity = M.get_room_last_activity(room_id)
+	local last_timestamp = last_activity and last_activity.timestamp or 0
+	if last_timestamp < new_last_activity.timestamp then
+		client.get_room(room_id).last_activity = new_last_activity
+	end
+end
+
 --- Get the last read message ID in a room.
 --- @param room_id string The ID of the room.
 --- @return string? The last read message ID in the room.
@@ -1001,16 +1025,13 @@ M.upload = function(filepath, callback)
 end
 
 --- Check if a room is unread
---- @param room neoment.matrix.client.Room|neoment.matrix.client.InvitedRoom The room object
+--- @param room_id string The room ID
 --- @return boolean True if the room has unread messages
-M.is_room_unread = function(room)
+M.is_room_unread = function(room_id)
+	local room = M.get_room(room_id)
+
 	-- Case 1: Room explicitly marked as unread by user
 	if room.unread then
-		return true
-	end
-
-	-- Case 2: Room has unread notifications from server
-	if room.unread_notifications and room.unread_notifications > 0 then
 		return true
 	end
 

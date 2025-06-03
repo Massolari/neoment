@@ -933,8 +933,7 @@ M.mark_read = function(buffer_id)
 		)
 	end
 
-	local room = matrix.get_room(room_id)
-	if not matrix.is_room_unread(room) then
+	if not matrix.is_room_unread(room_id) then
 		-- If the room is not unread, we don't need to mark it as read
 		return
 	end
@@ -956,8 +955,6 @@ M.mark_read = function(buffer_id)
 			return nil
 		end)
 	end)
-
-	M.update_buffer(buffer_id)
 end
 
 --- Get the message under the cursor

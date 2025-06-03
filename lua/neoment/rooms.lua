@@ -215,8 +215,10 @@ local function get_room_line(room)
 		local time = os.date("%H:%M", math.floor(last_activity.timestamp / 1000))
 		display = display .. " [" .. time .. "]"
 		if room.unread_highlights and room.unread_highlights > 0 then
-			display = display .. " 🔔"
-		elseif matrix.is_room_unread(room) then
+			display = display .. " 󰵛 "
+		elseif room.unread_notifications and room.unread_notifications > 0 then
+			display = display .. "  "
+		elseif matrix.is_room_unread(room.id) then
 			display = display .. " ⏺"
 		end
 	end
@@ -231,8 +233,8 @@ end
 --- @param b neoment.matrix.client.Room The second room
 --- @return boolean True if the first room is more recent than the second
 local sort_by_activity = function(a, b)
-	local a_is_unread = matrix.is_room_unread(a)
-	local b_is_unread = matrix.is_room_unread(b)
+	local a_is_unread = matrix.is_room_unread(a.id)
+	local b_is_unread = matrix.is_room_unread(b.id)
 
 	if a_is_unread and not b_is_unread then
 		return true -- Unread rooms come first
