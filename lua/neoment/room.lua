@@ -79,6 +79,15 @@ local function get_buffer_data(buffer_id)
 	return buffer_data[buffer_id]
 end
 
+--- Get the formatted sender name for a message
+--- @param sender string The ID of the sender
+--- @return string The formatted sender name
+local function get_formatted_sender_name(sender)
+	local sender_name = matrix.get_display_name(sender)
+	local sub_sender_name = sender_name:sub(1, SENDER_NAME_LENGTH)
+	return util.pad_left(sub_sender_name, SENDER_NAME_LENGTH)
+end
+
 --- Get the image dimensions
 --- @param maybe_image_width? number The width of the image
 --- @param maybe_image_height? number The height of the image
@@ -212,7 +221,7 @@ local function get_separator_line(text)
 	local line2_length = math.ceil(line_length)
 	local line1 = string.rep("─", line1_length)
 	local line2 = string.rep("─", line2_length)
-	return string.rep(" ", 28) .. " ├" .. line1 .. text .. line2
+	return line1 .. text .. line2
 end
 
 ---@class neoment.room.LineMessage : neoment.matrix.client.Message
@@ -239,27 +248,8 @@ local function messages_to_lines(buffer_id)
 
 		-- Weekday month day, year
 		local display_date = os.date("%A %B %d, %Y", math.floor(message.timestamp / 1000))
-		if last_date ~= display_date then
-			last_date = display_date
-			local text = " " .. last_date .. " "
-			local line = get_separator_line(text)
-			table.insert(lines, line)
-			---@type neoment.matrix.client.Message
-			local date_message = vim.tbl_extend("force", message, {})
-			date_message.attachment = nil
-			date_message.reactions = {}
-			date_message.was_edited = false
-			date_message.replying_to = nil
-			line_to_message[line_index] = vim.tbl_extend("force", date_message, {
-				is_header = true,
-				is_date = true,
-			})
-			line_index = line_index + 1
-		end
-		local time = os.date(TIME_FORMAT, math.floor(message.timestamp / 1000))
-
-		-- Get a friendly name for the sender
-		local sender_name = matrix.get_display_name(message.sender)
+		local is_date = last_date ~= display_date
+		last_date = display_date
 
 		-- Check if the content exists
 		local content = message.content or ""
@@ -315,10 +305,6 @@ local function messages_to_lines(buffer_id)
 			end
 		end
 
-		-- Take the 20 first characters of the content
-		sender_name = sender_name:sub(1, SENDER_NAME_LENGTH)
-		local header = time .. " " .. util.pad_left(sender_name, SENDER_NAME_LENGTH) .. " │"
-
 		local content_lines = {}
 		-- Handle replies
 		local reply_to = message.replying_to
@@ -350,9 +336,12 @@ local function messages_to_lines(buffer_id)
 			table.insert(content_lines, "")
 		end
 
+		local is_last_read = message.id == last_read and index < #messages
 		-- Mark the first line as containing the user's name
-		table.insert(lines, header .. " " .. content_lines[1])
+		table.insert(lines, content_lines[1])
 		line_to_message[line_index] = vim.tbl_extend("force", message, {
+			is_date = is_date,
+			is_last_read = #content_lines == 1 and is_last_read,
 			is_header = true,
 		})
 		line_index = line_index + 1
@@ -363,11 +352,12 @@ local function messages_to_lines(buffer_id)
 			local line = content_lines[i]
 			local line_to_add = ""
 			if vim.trim(line) ~= "" then
-				line_to_add = " " .. line
+				line_to_add = line
 			end
 
-			table.insert(lines, string.rep(" ", 28) .. " │" .. line_to_add)
+			table.insert(lines, line_to_add)
 			line_to_message[line_index] = vim.tbl_extend("force", message, {
+				is_last_read = i == #content_lines and is_last_read,
 				is_header = false,
 			})
 			line_index = line_index + 1
@@ -385,36 +375,13 @@ local function messages_to_lines(buffer_id)
 				reactions_line = reactions_line .. string.format(" %s%s", reaction, reaction_count)
 			end
 
-			table.insert(lines, string.rep(" ", 28) .. " │" .. reactions_line)
+			table.insert(lines, vim.trim(reactions_line))
 			line_to_message[line_index] = vim.tbl_extend("force", message, {
 				is_header = false,
 				is_reaction = true,
 			})
 			line_index = line_index + 1
 		end
-
-		-- If the last message read is not the last message, add a line indicating new messages
-		if message.id == last_read and index < #messages then
-			line_to_message[line_index] = vim.tbl_extend("force", message, {
-				is_header = true,
-				is_last_read = true,
-			})
-			line_index = line_index + 1
-			local text = "  New messages  "
-			local line = get_separator_line(text)
-			table.insert(lines, line)
-		end
-	end
-
-	local typing_users = matrix.get_typing_users(room_id)
-	if not vim.tbl_isempty(typing_users) then
-		local typing_line = "Typing: "
-		for _, user in pairs(typing_users) do
-			local display_name = matrix.get_display_name(user)
-			typing_line = typing_line .. display_name .. ", "
-		end
-		typing_line = typing_line:sub(1, -3) -- Remove the last comma and space
-		table.insert(lines, string.rep(" ", 28) .. " │ " .. typing_line)
 	end
 
 	return lines
@@ -435,7 +402,9 @@ end
 --- @param lines table The lines to apply highlights to
 local function apply_highlights(buffer_id, room_id, lines)
 	api.nvim_buf_clear_namespace(buffer_id, ns_id, 0, -1)
-	get_buffer_data(buffer_id).extmarks_data = {}
+	--- @type table<number, neoment.room.ExtmarkData>
+	local new_extmarks_data = {}
+	get_buffer_data(buffer_id).extmarks_data = new_extmarks_data
 	-- Clear previous images
 	for _, p in pairs(get_buffer_data(buffer_id).image_placements) do
 		--- @type neoment.room.ImagePlacement
@@ -457,13 +426,6 @@ local function apply_highlights(buffer_id, room_id, lines)
 		--- @type string
 		local line = l
 		-- Apply styles for the vertical bar
-		local bar_start = string.find(line, "│") or string.find(line, "├")
-		if bar_start then
-			vim.hl.range(buffer_id, ns_id, "FloatBorder", { index - 1, bar_start - 1 }, { index - 1, bar_start })
-		end
-		local time_end = string.len(TIME_FORMAT) -- Time ends after 8 characters
-		local name_end = bar_start - 1 -- Name ends before the vertical bar
-
 		local quote_start = string.find(line, "┃")
 		if quote_start then
 			vim.hl.range(buffer_id, ns_id, "Comment", { index - 1, quote_start }, { index - 1, -1 })
@@ -512,8 +474,20 @@ local function apply_highlights(buffer_id, room_id, lines)
 					api.nvim_set_hl(0, hl_group, hl)
 				end
 
+				local time = os.date(TIME_FORMAT, math.floor(message.timestamp / 1000))
+
+				-- Get a friendly name for the sender
+				local sender_name = get_formatted_sender_name(message.sender)
+
 				-- Apply highlight to the user's name
-				vim.hl.range(buffer_id, ns_id, hl_group, { index - 1, time_end }, { index - 1, name_end })
+				api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, 0, {
+					virt_text = {
+						{ time .. " ", "Normal" },
+						{ sender_name, hl_group },
+						{ " │ ", "FloatBorder" },
+					},
+					virt_text_pos = "inline",
+				})
 
 				if message.attachment then
 					if Snacks then
@@ -547,15 +521,40 @@ local function apply_highlights(buffer_id, room_id, lines)
 					end
 				end
 
-				local message_start = bar_start + 1
-				if message.was_redacted or message.is_date then
-					vim.hl.range(buffer_id, ns_id, "Comment", { index - 1, message_start }, { index - 1, -1 })
+				if message.was_redacted then
+					vim.hl.range(buffer_id, ns_id, "Comment", { index - 1, 0 }, { index - 1, -1 })
 				end
 
-				-- Check if the message is the last read message and not the last message
-				if message.is_last_read then
-					vim.hl.range(buffer_id, ns_id, "Title", { index - 1, message_start }, { index - 1, -1 })
+				if message.is_date then
+					local display_date = os.date("%A %B %d, %Y", math.floor(message.timestamp / 1000))
+					local text = " " .. display_date .. " "
+					local text_with_line = get_separator_line(text)
+					api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, 0, {
+						virt_lines = {
+							{ { string.rep(" ", 28) .. " ├", "Title" }, { text_with_line, "Comment" } },
+						},
+						virt_lines_above = true,
+					})
 				end
+				-- Check if the message is the last read message and not the last message
+			else
+				-- Apply highlight to the user's name
+				api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, 0, {
+					virt_text = {
+						{ string.rep(" ", 28) .. " │ ", "FloatBorder" },
+					},
+					virt_text_pos = "inline",
+				})
+			end
+
+			if message.is_last_read then
+				local text = "  New messages  "
+				local text_with_line = get_separator_line(text)
+				api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, 0, {
+					virt_lines = {
+						{ { string.rep(" ", 28) .. " ├" .. text_with_line, "Title" } },
+					},
+				})
 			end
 
 			-- Reactions
@@ -590,16 +589,16 @@ local function apply_highlights(buffer_id, room_id, lines)
 								end_col = reaction_start,
 								hl_group = border_hl,
 							})
-						local content_id = vim.api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, reaction_start, {
-							end_col = reaction_end - 1,
-							hl_group = content_hl,
-						})
+						local content_id =
+							vim.api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, reaction_start + 1, {
+								end_col = reaction_end - 1,
+								hl_group = content_hl,
+							})
 						local right_border_id =
 							vim.api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, reaction_end - 1, {
 								end_col = reaction_end,
 								hl_group = border_hl,
 							})
-						local extmarks_data = get_buffer_data(buffer_id).extmarks_data
 						local reaction_emoji = vim.iter(emoji()):find(function(e)
 							return e.insertText == content
 						end)
@@ -610,9 +609,9 @@ local function apply_highlights(buffer_id, room_id, lines)
 							reaction_users = reaction_users,
 							reaction_label = emoji_label,
 						}
-						extmarks_data[left_border_id] = reaction_data
-						extmarks_data[content_id] = reaction_data
-						extmarks_data[right_border_id] = reaction_data
+						new_extmarks_data[left_border_id] = reaction_data
+						new_extmarks_data[content_id] = reaction_data
+						new_extmarks_data[right_border_id] = reaction_data
 
 						reaction_start = line:find("", reaction_end)
 					else
@@ -680,8 +679,20 @@ local function apply_highlights(buffer_id, room_id, lines)
 	end
 
 	-- Apply Comment highlight for the typing users, if any
-	if not vim.tbl_isempty(matrix.get_typing_users(room_id)) then
-		vim.hl.range(buffer_id, ns_id, "Comment", { #lines - 1, 31 }, { #lines - 1, -1 })
+	local typing_users = matrix.get_typing_users(room_id)
+	if not vim.tbl_isempty(typing_users) then
+		local typing_line = "Typing: "
+		for _, user in pairs(typing_users) do
+			local display_name = matrix.get_display_name(user)
+			typing_line = typing_line .. display_name .. ", "
+		end
+		typing_line = typing_line:sub(1, -3) -- Remove the last comma and space
+
+		api.nvim_buf_set_extmark(buffer_id, ns_id, #lines - 1, 0, {
+			virt_lines = {
+				{ { string.rep(" ", 28) .. " │ ", "Title" }, { typing_line, "Comment" } },
+			},
+		})
 	end
 end
 
@@ -1089,45 +1100,47 @@ end
 --- @param buffer_id number The ID of the buffer to handle the cursor hold event for
 M.handle_cursor_hold = function(buffer_id)
 	local pos = vim.api.nvim_win_get_cursor(0)
-	local extmark = vim.api.nvim_buf_get_extmarks(
+	local extmarks = vim.api.nvim_buf_get_extmarks(
 		buffer_id,
 		ns_id,
 		{ pos[1] - 1, pos[2] },
 		{ pos[1] - 1, pos[2] },
 		{ details = true, overlap = true }
-	)[1]
-	if not extmark then
-		return
-	end
+	)
 
-	local extmark_id = extmark[1]
-	--- @type neoment.room.ExtmarkData|nil
-	local data = get_buffer_data(buffer_id).extmarks_data[extmark_id]
-	if not data then
-		return
-	end
-
-	local reaction_users = data.reaction_users
-	if reaction_users and #reaction_users > 0 then
-		-- Create a float window with the reaction users
-		local lines = {}
-		local max_length = vim.fn.strdisplaywidth(data.reaction_label)
-		table.insert(lines, data.reaction_label)
-		table.insert(lines, "")
-
-		for _, user in ipairs(reaction_users) do
-			local display_name = matrix.get_display_name(user)
-			table.insert(lines, display_name)
-			max_length = math.max(max_length, vim.fn.strdisplaywidth(display_name))
+	for _, extmark in ipairs(extmarks) do
+		local extmark_id = extmark[1]
+		--- @type neoment.room.ExtmarkData|nil
+		local data = get_buffer_data(buffer_id).extmarks_data[extmark_id]
+		if not data then
+			-- No data for this extmark, continue to the next one
+			goto continue
 		end
-		local height = math.min(5, #lines)
 
-		local float_buf = util.open_float(lines, {
-			width = max_length,
-			height = height,
-		})
-		-- Apply bold to the first line
-		vim.hl.range(float_buf, ns_id, "Bold", { 0, 0 }, { 0, -1 })
+		local reaction_users = data.reaction_users
+		if reaction_users and #reaction_users > 0 then
+			-- Create a float window with the reaction users
+			local lines = {}
+			local max_length = vim.fn.strdisplaywidth(data.reaction_label)
+			table.insert(lines, data.reaction_label)
+			table.insert(lines, "")
+
+			for _, user in ipairs(reaction_users) do
+				local display_name = matrix.get_display_name(user)
+				table.insert(lines, display_name)
+				max_length = math.max(max_length, vim.fn.strdisplaywidth(display_name))
+			end
+			local height = math.min(5, #lines)
+
+			local float_buf = util.open_float(lines, {
+				width = max_length,
+				height = height,
+			})
+			-- Apply bold to the first line
+			vim.hl.range(float_buf, ns_id, "Bold", { 0, 0 }, { 0, -1 })
+			break
+		end
+		::continue::
 	end
 end
 
