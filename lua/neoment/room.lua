@@ -933,19 +933,21 @@ M.mark_read = function(buffer_id)
 		)
 	end
 
-	local last_message = matrix.get_room_last_message(room_id)
-	if not last_message then
+	local room = matrix.get_room(room_id)
+	if not matrix.is_room_unread(room) then
+		-- If the room is not unread, we don't need to mark it as read
 		return
 	end
 
-	local fully_read = matrix.get_room_last_read_message(room_id)
-	if fully_read == last_message.id then
+	local last_activity = matrix.get_room_last_activity(room_id)
+
+	if not last_activity or not last_activity.event_id then
 		return
 	end
 
 	matrix.set_room_read_marker(room_id, {
-		read = last_message.id,
-		fully_read = last_message.id,
+		read = last_activity.event_id,
+		fully_read = last_activity.event_id,
 	}, function(response)
 		error.map(response, function()
 			vim.schedule(function()

@@ -1000,6 +1000,34 @@ M.upload = function(filepath, callback)
 	)
 end
 
+--- Check if a room is unread
+--- @param room neoment.matrix.client.Room|neoment.matrix.client.InvitedRoom The room object
+--- @return boolean True if the room has unread messages
+M.is_room_unread = function(room)
+	-- Case 1: Room explicitly marked as unread by user
+	if room.unread then
+		return true
+	end
+
+	-- Case 2: Room has unread notifications from server
+	if room.unread_notifications and room.unread_notifications > 0 then
+		return true
+	end
+
+	local last_activity_event = room.last_activity and room.last_activity.event_id
+
+	-- If there is no last activity event, we don't consider it unread
+	if not last_activity_event then
+		return false
+	end
+
+	local read_receipt_event = room.read_receipt and room.read_receipt.event_id
+
+	-- Case 3: Room is unread if the last activity hasn't been marked as read
+	-- We check both read receipt and fully_read marker to determine this
+	return read_receipt_event ~= last_activity_event and room.fully_read ~= last_activity_event
+end
+
 --- @type neoment.matrix.client.Client
 M.client = nil
 M.get_room = client.get_room

@@ -31,34 +31,6 @@ local sections = {
 }
 local window_width = 50
 
---- Check if a room is unread
---- @param room neoment.matrix.client.Room|neoment.matrix.client.InvitedRoom The room object
---- @return boolean True if the room has unread messages
-local function is_room_unread(room)
-	-- Case 1: Room explicitly marked as unread by user
-	if room.unread then
-		return true
-	end
-
-	-- Case 2: Room has unread notifications from server
-	if room.unread_notifications and room.unread_notifications > 0 then
-		return true
-	end
-
-	local last_activity_event = room.last_activity and room.last_activity.event_id
-
-	-- If there is no last activity event, we don't consider it unread
-	if not last_activity_event then
-		return false
-	end
-
-	local read_receipt_event = room.read_receipt and room.read_receipt.event_id
-
-	-- Case 3: Room is unread if the last activity hasn't been marked as read
-	-- We check both read receipt and fully_read marker to determine this
-	return read_receipt_event ~= last_activity_event and room.fully_read ~= last_activity_event
-end
-
 --- Get the room mark under the cursor
 --- @return neoment.rooms.RoomMark|nil The RoomMark if found, nil otherwise
 local function get_room_mark_under_cursor()
@@ -244,7 +216,7 @@ local function get_room_line(room)
 		display = display .. " [" .. time .. "]"
 		if room.unread_highlights and room.unread_highlights > 0 then
 			display = display .. " 🔔"
-		elseif is_room_unread(room) then
+		elseif matrix.is_room_unread(room) then
 			display = display .. " ⏺"
 		end
 	end
@@ -259,8 +231,8 @@ end
 --- @param b neoment.matrix.client.Room The second room
 --- @return boolean True if the first room is more recent than the second
 local sort_by_activity = function(a, b)
-	local a_is_unread = is_room_unread(a)
-	local b_is_unread = is_room_unread(b)
+	local a_is_unread = matrix.is_room_unread(a)
+	local b_is_unread = matrix.is_room_unread(b)
 
 	if a_is_unread and not b_is_unread then
 		return true -- Unread rooms come first
