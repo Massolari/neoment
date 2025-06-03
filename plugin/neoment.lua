@@ -8,7 +8,7 @@ vim.cmd([[
     highlight default link NeomentBufferRoom @keyword
     highlight default link NeomentRoomUnread Bold
     highlight default link NeomentBufferRoomUnread @keyword
-    highlight default link NeomentMention @comment.hint
+    highlight default link NeomentMention ColorColumn
     highlight default link NeomentMentionUser @comment.error
     highlight default link NeomentBubbleContent ColorColumn
     highlight default link NeomentBubbleBorder ColorColumn
