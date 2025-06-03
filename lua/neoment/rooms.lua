@@ -215,9 +215,9 @@ local function get_room_line(room)
 		local time = os.date("%H:%M", math.floor(last_activity.timestamp / 1000))
 		display = display .. " [" .. time .. "]"
 		if room.unread_highlights and room.unread_highlights > 0 then
-			display = display .. " 󰵛 "
+			display = display .. " 󰵛"
 		elseif room.unread_notifications and room.unread_notifications > 0 then
-			display = display .. "  "
+			display = display .. " "
 		elseif matrix.is_room_unread(room.id) then
 			display = display .. " ⏺"
 		end
