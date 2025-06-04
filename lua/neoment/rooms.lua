@@ -468,20 +468,12 @@ M.get_buffer_name = function()
 end
 
 --- Mark a room as unread
-M.mark_unread = function()
-	local mark = get_room_mark_under_cursor()
-
-	if not mark then
-		return
-	end
-
-	if mark.is_invited then
-		vim.notify("You cannot mark an invited room as unread.", vim.log.levels.INFO)
-		return
-	end
+--- @param room_id string The ID of the room to mark as unread
+local function mark_unread(room_id)
+	local room_name = matrix.get_room_display_name(room_id)
 
 	matrix.send_event(
-		mark.room_id,
+		room_id,
 		{
 			unread = true,
 		},
@@ -491,12 +483,11 @@ M.mark_unread = function()
 				response,
 				vim.schedule_wrap(function()
 					M.update_room_list()
-					vim.notify("Room marked as unread successfully", vim.log.levels.INFO)
+					vim.notify("Room '" .. room_name .. "' marked as unread", vim.log.levels.INFO)
 					return nil
 				end),
 				function(err)
 					local error_msg = err.error or "unknown error"
-					local room_name = matrix.get_room_display_name(mark.room_id) or mark.room_id
 					vim.notify(
 						string.format("Failed to mark room '%s' as unread: %s", room_name, error_msg),
 						vim.log.levels.ERROR
@@ -509,7 +500,38 @@ M.mark_unread = function()
 end
 
 --- Mark a room as read
-M.mark_read = function()
+--- @param room_id string The ID of the room to mark as read
+local function mark_read(room_id)
+	local last_activity = matrix.get_room_last_activity(room_id)
+	if not last_activity or not last_activity.event_id then
+		vim.notify("No activity found in this room to mark as read.", vim.log.levels.INFO)
+		return
+	end
+
+	local room_name = matrix.get_room_display_name(room_id)
+	matrix.set_room_read_marker(
+		room_id,
+		{
+			read_private = last_activity.event_id,
+		},
+		vim.schedule_wrap(function(response)
+			error.match(response, function()
+				M.update_room_list()
+				vim.notify("Room '" .. room_name .. "' marked as read", vim.log.levels.INFO)
+				return nil
+			end, function(err)
+				local error_msg = err.error or "unknown error"
+				vim.notify(
+					string.format("Failed to mark room '%s' as read: %s", room_name, error_msg),
+					vim.log.levels.ERROR
+				)
+			end)
+		end)
+	)
+end
+
+--- Toggle the read status of the room under the cursor
+M.toggle_read = function()
 	local mark = get_room_mark_under_cursor()
 
 	if not mark then
@@ -521,33 +543,17 @@ M.mark_read = function()
 		return
 	end
 
-	local last_activity = matrix.get_room_last_activity(mark.room_id)
-	if not last_activity or not last_activity.event_id then
-		vim.notify("No activity found in this room to mark as read.", vim.log.levels.INFO)
+	local room = matrix.get_room(mark.room_id)
+	local is_unread = (room.unread_highlights and room.unread_highlights > 0)
+		or (room.unread_notifications and room.unread_notifications > 0)
+		or matrix.is_room_unread(mark.room_id)
+
+	if is_unread then
+		mark_read(mark.room_id)
 		return
 	end
 
-	matrix.set_room_read_marker(
-		mark.room_id,
-		{
-			read_private = last_activity.event_id,
-		},
-		vim.schedule_wrap(function(response)
-			error.match(response, function()
-				M.update_room_list()
-				local room_name = matrix.get_room_display_name(mark.room_id) or mark.room_id
-				vim.notify("Room '" .. room_name .. "' marked as read", vim.log.levels.INFO)
-				return nil
-			end, function(err)
-				local error_msg = err.error or "unknown error"
-				local room_name = matrix.get_room_display_name(mark.room_id) or mark.room_id
-				vim.notify(
-					string.format("Failed to mark room '%s' as read: %s", room_name, error_msg),
-					vim.log.levels.ERROR
-				)
-			end)
-		end)
-	)
+	mark_unread(mark.room_id)
 end
 
 return M
