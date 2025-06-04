@@ -3,8 +3,8 @@ vim.g.neoment.save_session = vim.g.neoment and vim.g.neoment.save_session or tru
 
 -- Definir grupos de highlight
 vim.cmd([[
-    highlight default link NeomentRoomsTitle @text.title.1.markdown
-    highlight default link NeomentSectionTitle @text.title.2.markdown
+    highlight default link NeomentRoomsTitle @text.title.2.markdown
+    highlight default link NeomentSectionTitle Title
     highlight default link NeomentBufferRoom @keyword
     highlight default link NeomentRoomUnread Bold
     highlight default link NeomentBufferRoomUnread @keyword

@@ -198,10 +198,31 @@ M.toggle_room_list = function()
 	create_room_list()
 end
 
+--- Get the fold arrow for the section
+--- @param section neoment.rooms.Section The section name
+local function get_section_fold_arrow(section)
+	return room_list_fold_state[section] and "" or ""
+end
+
 --- Get the icon for the section
 --- @param section neoment.rooms.Section The section name
+--- @return string The icon for the section
 local function get_section_icon(section)
-	return room_list_fold_state[section] and "" or ""
+	if section == "invited" then
+		return "" -- Icon for invited rooms
+	elseif section == "buffers" then
+		return "󰮫" -- Icon for buffers
+	elseif section == "favorites" then
+		return "" -- Icon for favorites
+	elseif section == "people" then
+		return "" -- Icon for people (direct messages)
+	elseif section == "rooms" then
+		return "󰮧" -- Icon for regular rooms
+	elseif section == "low_priority" then
+		return "󰘄" -- Icon for low priority rooms
+	else
+		return "" -- Default icon if not recognized
+	end
 end
 
 --- Get the line for a room
@@ -312,7 +333,7 @@ M.update_room_list = function()
 
 	-- Montar a lista
 	local lines = {
-		"Rooms - Last sync: " .. format_last_sync_time(),
+		"Neoment - Last sync: " .. format_last_sync_time(),
 		"",
 	}
 	--- @class neoment.rooms.RoomMark
@@ -345,8 +366,12 @@ M.update_room_list = function()
 	end
 
 	for index, section in ipairs(section_list) do
+		local fold_arrow = get_section_fold_arrow(section)
 		local icon = get_section_icon(section)
-		table.insert(lines, string.format("%s %s (%d)", icon, sections[section], #section_rooms[section]))
+		table.insert(
+			lines,
+			string.format("%s %s  %s (%d)", fold_arrow, icon, sections[section], #section_rooms[section])
+		)
 		section_lines[section] = line_index
 		line_index = line_index + 1
 
@@ -386,12 +411,13 @@ M.update_room_list = function()
 	local ns_id = api.nvim_create_namespace("neoment_room_list")
 	api.nvim_buf_clear_namespace(buffer_id, ns_id, 0, -1)
 
-	vim.hl.range(buffer_id, ns_id, "Title", { 0, 0 }, { 0, -1 })
+	vim.hl.range(buffer_id, ns_id, "NeomentRoomsTitle", { 0, 0 }, { 0, 7 })
+	vim.hl.range(buffer_id, ns_id, "Comment", { 0, 7 }, { 0, -1 })
 
 	-- Highlight the section titles
 	for _, section in ipairs(section_list) do
 		local line = section_lines[section]
-		vim.hl.range(buffer_id, ns_id, "NeomentSectionTitle", { line - 1, 0 }, { line - 1, -1 })
+		vim.hl.range(buffer_id, ns_id, "NeomentSectionTitle", { line - 1, 1 }, { line - 1, -1 })
 	end
 
 	-- Highlight the room lines
