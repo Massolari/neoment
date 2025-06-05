@@ -555,16 +555,18 @@ M.toggle_read = function()
 	mark_unread(mark.room_id)
 end
 
---- Toggle the favorite status of the room under the cursor
-M.toggle_favorite = function()
+--- Toggle a tag on the room under the cursor
+--- @param tag "m.favourite"|"m.lowpriority" The tag to toggle
+local function toggle_room_tag(tag)
 	local mark = get_room_mark_under_cursor()
 
 	if not mark then
 		return
 	end
 
+	local tag_label = tag == "m.favourite" and "favorites" or "low priority"
 	if mark.is_invited then
-		vim.notify("You cannot favorite an invited room.", vim.log.levels.INFO)
+		vim.notify("You cannot add an invited room to " .. tag_label .. ".", vim.log.levels.INFO)
 		return
 	end
 
@@ -582,7 +584,10 @@ M.toggle_favorite = function()
 		error = "adding " .. room_name .. " to",
 	}
 
-	if room.is_favorite then
+	local is_already_tagged = (tag == "m.favourite" and room.is_favorite)
+		or (tag == "m.lowpriority" and room.is_lowpriority)
+
+	if is_already_tagged then
 		action = {
 			operation = matrix.remove_room_tag,
 			success = "removed from",
@@ -590,17 +595,27 @@ M.toggle_favorite = function()
 		}
 	end
 
-	action.operation(room.id, "m.favourite", nil, function(response)
+	action.operation(room.id, tag, nil, function(response)
 		error.match(response, function()
 			vim.schedule(function()
 				M.update_room_list()
 			end)
-			vim.notify(string.format("%s %s favorites", room_name, action.success), vim.log.levels.INFO)
+			vim.notify(string.format("%s %s %s", room_name, action.success, tag_label), vim.log.levels.INFO)
 			return nil
 		end, function(err)
-			vim.notify(string.format("Error %s favorites: %s", action.error, err.error), vim.log.levels.ERROR)
+			vim.notify(string.format("Error %s %s: %s", action.error, tag_label, err.error), vim.log.levels.ERROR)
 		end)
 	end)
+end
+
+--- Toggle the favorite status of the room under the cursor
+M.toggle_favorite = function()
+	toggle_room_tag("m.favourite")
+end
+
+--- Toggle the low priority status of the room under the cursor
+M.toggle_low_priority = function()
+	toggle_room_tag("m.lowpriority")
 end
 
 return M

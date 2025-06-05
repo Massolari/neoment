@@ -1072,11 +1072,6 @@ local function add_remove_room_tag(room_id, tag, user_id, is_add, callback)
 
 	local actual_callback = function(response)
 		local result = error.map(response, function()
-			if tag == "m.favourite" then
-				client.get_room(room_id).is_favorite = is_add
-			elseif tag == "m.lowpriority" then
-				client.get_room(room_id).is_lowpriority = is_add
-			end
 			return nil
 		end) --[[@as neoment.Error<nil, neoment.matrix.api.Error>]]
 
