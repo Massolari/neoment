@@ -439,19 +439,18 @@ end
 
 --- Select a room from the list using a picker
 M.pick = function()
-	local room_names = {}
-	local room_ids = {}
+	local rooms = vim.tbl_values(matrix.get_rooms())
 
-	for id, room in pairs(matrix.get_rooms()) do
-		table.insert(room_names, room.name)
-		table.insert(room_ids, id)
-	end
-
-	vim.ui.select(room_names, {
+	vim.ui.select(rooms, {
 		prompt = "Rooms",
-	}, function(choice, idx)
+		format_item = function(room)
+			return get_room_line(room)
+		end,
+	}, function(c)
+		--- @type neoment.matrix.client.Room|nil
+		local choice = c
 		if choice then
-			open_room(room_ids[idx])
+			open_room(choice.id)
 		end
 	end)
 end
