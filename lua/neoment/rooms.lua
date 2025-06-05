@@ -555,4 +555,52 @@ M.toggle_read = function()
 	mark_unread(mark.room_id)
 end
 
+--- Toggle the favorite status of the room under the cursor
+M.toggle_favorite = function()
+	local mark = get_room_mark_under_cursor()
+
+	if not mark then
+		return
+	end
+
+	if mark.is_invited then
+		vim.notify("You cannot favorite an invited room.", vim.log.levels.INFO)
+		return
+	end
+
+	local room = matrix.get_room(mark.room_id)
+	if not room then
+		vim.notify("Room not found.", vim.log.levels.ERROR)
+		return
+	end
+
+	local room_name = matrix.get_room_display_name(room.id)
+
+	local action = {
+		operation = matrix.add_room_tag,
+		success = "added to",
+		error = "adding " .. room_name .. " to",
+	}
+
+	if room.is_favorite then
+		action = {
+			operation = matrix.remove_room_tag,
+			success = "removed from",
+			error = "removing " .. room_name .. " from",
+		}
+	end
+
+	action.operation(room.id, "m.favourite", nil, function(response)
+		error.match(response, function()
+			vim.schedule(function()
+				M.update_room_list()
+			end)
+			vim.notify(string.format("%s %s favorites", room_name, action.success), vim.log.levels.INFO)
+			return nil
+		end, function(err)
+			vim.notify(string.format("Error %s favorites: %s", action.error, err.error), vim.log.levels.ERROR)
+		end)
+	end)
+end
+
 return M

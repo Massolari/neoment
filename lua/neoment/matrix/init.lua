@@ -1049,6 +1049,72 @@ M.is_room_unread = function(room_id)
 	return read_receipt_event ~= last_activity_event and room.fully_read ~= last_activity_event
 end
 
+--- Add or remove a tag from a room.
+--- @param room_id string The ID of the room.
+--- @param tag "m.favourite"|"m.lowpriority" The tag to add or remove from the room.
+--- @param user_id? string The ID of the user to add or remove the tag for. If not provided, the tag will be added or removed for the logged-in user.
+--- @param is_add boolean If true, the tag will be added; if false, the tag will be removed.
+--- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any The callback function to handle the response.
+local function add_remove_room_tag(room_id, tag, user_id, is_add, callback)
+	local actual_user_id = user_id or M.get_user_id()
+	if not actual_user_id then
+		callback(error.error({ error = "No user ID provided" }))
+		return
+	end
+
+	local url = client.client.homeserver
+		.. "/_matrix/client/v3/user/"
+		.. actual_user_id
+		.. "/rooms/"
+		.. room_id
+		.. "/tags/"
+		.. tag
+
+	local actual_callback = function(response)
+		local result = error.map(response, function()
+			if tag == "m.favourite" then
+				client.get_room(room_id).is_favorite = is_add
+			elseif tag == "m.lowpriority" then
+				client.get_room(room_id).is_lowpriority = is_add
+			end
+			return nil
+		end) --[[@as neoment.Error<nil, neoment.matrix.api.Error>]]
+
+		callback(result)
+	end
+	local opts = {
+		headers = {
+			Authorization = "Bearer " .. client.client.access_token,
+		},
+	}
+
+	if is_add then
+		api.put(url, {
+			order = 0, -- Default order, can be adjusted if needed
+		}, actual_callback, opts)
+	else
+		api.delete(url, actual_callback, opts)
+	end
+end
+
+--- Add a tag to a room
+--- @param room_id string The ID of the room.
+--- @param tag "m.favourite"|"m.lowpriority" The tag to add to the room.
+--- @param user_id? string The ID of the user to add the tag for. If not provided, the tag will be added for the logged-in user.
+--- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any The callback function to handle the response.
+M.add_room_tag = function(room_id, tag, user_id, callback)
+	add_remove_room_tag(room_id, tag, user_id, true, callback)
+end
+
+--- Remove a tag from a room
+--- @param room_id string The ID of the room.
+--- @param tag "m.favourite"|"m.lowpriority" The tag to remove from the room.
+--- @param user_id? string The ID of the user to remove the tag for. If not provided, the tag will be removed for the logged-in user.
+--- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any The callback function to handle the response.
+M.remove_room_tag = function(room_id, tag, user_id, callback)
+	add_remove_room_tag(room_id, tag, user_id, false, callback)
+end
+
 --- @type neoment.matrix.client.Client
 M.client = nil
 M.get_room = client.get_room

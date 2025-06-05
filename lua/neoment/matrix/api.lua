@@ -125,4 +125,24 @@ M.put = function(endpoint, body, callback, opts)
 	})
 end
 
+--- Make a DELETE request to the Matrix API.
+--- @generic A : table
+--- @param endpoint string The API endpoint to send the request to.
+--- @param callback fun(data: neoment.Error<A, neoment.matrix.api.Error>): any The callback function to handle the response.
+--- @param opts? neoment.matrix.api.RequestOptions Optional parameters for the request.
+M.delete = function(endpoint, callback, opts)
+	opts = opts or {}
+	curl.delete(endpoint, {
+		on_error = function(err)
+			callback(error.error({ error = "Failed to make DELETE request", err = err }))
+		end,
+		headers = vim.tbl_extend("force", {
+			["Content-Type"] = "application/json",
+		}, opts.headers or {}),
+		callback = function(response)
+			callback(handler(response))
+		end,
+	})
+end
+
 return M
