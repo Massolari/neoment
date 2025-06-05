@@ -236,13 +236,19 @@ end
 --- @return table The list of lines to display
 local function messages_to_lines(buffer_id)
 	local room_id = vim.b[buffer_id].room_id
+	local messages = matrix.get_room_messages(room_id)
+	if vim.tbl_count(messages) == 0 then
+		return {}
+	end
+
 	local lines = {}
 	get_buffer_data(buffer_id).line_to_message = {}
 	local line_to_message = get_buffer_data(buffer_id).line_to_message
-	local line_index = 1
-	local messages = matrix.get_room_messages(room_id)
 	local last_read = matrix.get_room_last_read_message(room_id)
 	local last_date = nil
+	local line_index = 2
+	-- Empty line to add the date of the first message
+	table.insert(lines, "")
 	for index, msg in ipairs(messages) do
 		---@type neoment.matrix.client.Message
 		local message = msg
@@ -530,12 +536,19 @@ local function apply_highlights(buffer_id, room_id, lines)
 					local display_date = os.date("%A %B %d, %Y", math.floor(message.timestamp / 1000))
 					local text = " " .. display_date .. " "
 					local text_with_line = get_separator_line(text)
-					api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, 0, {
-						virt_lines = {
-							{ { string.rep(" ", 28) .. " ├", "Title" }, { text_with_line, "Comment" } },
-						},
-						virt_lines_above = true,
-					})
+					-- The first message is on index 2 (index 1 is the empty line to add the date)
+					local virtual_text = { { string.rep(" ", 28) .. " ├", "Title" }, { text_with_line, "Comment" } }
+					if index == 2 then
+						api.nvim_buf_set_extmark(buffer_id, ns_id, 0, 0, {
+							virt_text = virtual_text,
+							virt_text_pos = "inline",
+						})
+					else
+						api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, 0, {
+							virt_lines = { virtual_text },
+							virt_lines_above = true,
+						})
+					end
 				end
 				-- Check if the message is the last read message and not the last message
 			else
