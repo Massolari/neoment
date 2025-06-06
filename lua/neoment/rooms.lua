@@ -8,17 +8,21 @@ local error = require("neoment.error")
 
 local room_list_buffer_name = "neoment://rooms"
 local buffer_id = nil
---- @alias neoment.rooms.Section "invited" | "buffers" | "favorites" | "people" | "rooms" | "low_priority"
+--- @alias neoment.rooms.Section "invited" | "buffers" | "favorites" | "people" | "spaces" | "rooms" | "low_priority"
 
 --- @type table<neoment.rooms.Section, boolean>
-local room_list_fold_state = {
-	invited = false,
-	buffers = false,
-	favorites = false,
-	people = false,
-	rooms = false,
-	low_priority = false,
-}
+local room_list_fold_state = {}
+
+--- Get the fold state for a section
+--- @param section neoment.rooms.Section The section name
+--- @param default? boolean Optional default value if the section is not found
+--- @return boolean The fold state of the section
+local function get_fold_state(section, default)
+	if room_list_fold_state[section] == nil then
+		room_list_fold_state[section] = default or false
+	end
+	return room_list_fold_state[section]
+end
 
 --- @type table<neoment.rooms.Section, string>
 local sections = {
@@ -26,6 +30,7 @@ local sections = {
 	buffers = "Buffers",
 	favorites = "Favorites",
 	people = "People",
+	spaces = "Spaces",
 	rooms = "Rooms",
 	low_priority = "Low priority",
 }
@@ -138,9 +143,9 @@ M.toggle_fold_at_cursor = function()
 	local current_line = cursor[1] -- 1-based, linha atual onde o cursor está
 
 	local section = nil
-	if M.room_section_lines then
-		for section_name, _ in pairs(M.room_section_lines) do
-			if current_line == M.room_section_lines[section_name] then
+	if M.section_lines then
+		for section_name, _ in pairs(M.section_lines) do
+			if current_line == M.section_lines[section_name] then
 				section = section_name
 				break
 			end
@@ -148,11 +153,11 @@ M.toggle_fold_at_cursor = function()
 	end
 
 	if section then
-		room_list_fold_state[section] = not room_list_fold_state[section]
+		room_list_fold_state[section] = not get_fold_state(section)
 
 		-- Atualizar o símbolo de expansão no próprio buffer
 		local current_line_text = api.nvim_buf_get_lines(0, current_line - 1, current_line, false)[1]
-		local new_symbol = room_list_fold_state[section] and "" or ""
+		local new_symbol = get_fold_state(section) and "" or ""
 		local new_line = new_symbol .. current_line_text:sub(2)
 		util.buffer_write(0, { new_line }, current_line - 1, current_line)
 
@@ -199,9 +204,9 @@ M.toggle_room_list = function()
 end
 
 --- Get the fold arrow for the section
---- @param section neoment.rooms.Section The section name
-local function get_section_fold_arrow(section)
-	return room_list_fold_state[section] and "" or ""
+--- @param is_folded boolean Whether the section is folded
+local function get_section_fold_arrow(is_folded)
+	return is_folded and "" or ""
 end
 
 --- Get the icon for the section
@@ -209,28 +214,39 @@ end
 --- @return string The icon for the section
 local function get_section_icon(section)
 	if section == "invited" then
-		return "" -- Icon for invited rooms
+		return ""
 	elseif section == "buffers" then
-		return "󰮫" -- Icon for buffers
+		return "󰮫"
 	elseif section == "favorites" then
-		return "" -- Icon for favorites
+		return ""
 	elseif section == "people" then
-		return "" -- Icon for people (direct messages)
+		return ""
+	elseif section == "spaces" then
+		return "󰴖"
 	elseif section == "rooms" then
-		return "󰮧" -- Icon for regular rooms
+		return "󰮧"
 	elseif section == "low_priority" then
-		return "󰘄" -- Icon for low priority rooms
+		return "󰘄"
 	else
-		return "" -- Default icon if not recognized
+		return ""
 	end
 end
 
 --- Get the line for a room
 --- @param room neoment.matrix.client.Room|neoment.matrix.client.InvitedRoom The room object
+--- @param show_space boolean Whether to show the space name in the line
 --- @return string The formatted line for the room
-local function get_room_line(room)
+local function get_room_line(room, show_space)
 	local last_activity = matrix.get_room_last_activity(room.id)
-	local display = matrix.get_room_display_name(room.id)
+	local display_space = ""
+	if show_space then
+		local space_name = matrix.get_space_name(room.id)
+		if space_name then
+			display_space = space_name .. "/"
+		end
+	end
+
+	local display = display_space .. matrix.get_room_display_name(room.id)
 
 	if last_activity and last_activity.timestamp > 0 then
 		local time = os.date("%H:%M", math.floor(last_activity.timestamp / 1000))
@@ -247,13 +263,28 @@ local function get_room_line(room)
 	return display
 end
 
+--- Sort rooms by name
+--- @param a neoment.matrix.client.Room The first room
+--- @param b neoment.matrix.client.Room The second room
+--- @return boolean True if the first room comes before the second alphabetically
+local function sort_by_name(a, b)
+	local a_name = matrix.get_room_display_name(a.id):lower()
+	local b_name = matrix.get_room_display_name(b.id):lower()
+
+	if a_name == b_name then
+		return a.id < b.id -- Sort by ID if names are the same
+	end
+
+	return a_name < b_name
+end
+
 --- Sort rooms by last activity
 --- 1. Unread rooms first
 --- 2. Then sort by most recent activity
 --- @param a neoment.matrix.client.Room The first room
 --- @param b neoment.matrix.client.Room The second room
 --- @return boolean True if the first room is more recent than the second
-local sort_by_activity = function(a, b)
+local function sort_by_activity(a, b)
 	local a_is_unread = matrix.is_room_unread(a.id)
 	local b_is_unread = matrix.is_room_unread(b.id)
 
@@ -267,6 +298,74 @@ local sort_by_activity = function(a, b)
 	local b_last_timestamp = b.last_activity and b.last_activity.timestamp or 0
 
 	return (a_last_timestamp or 0) > (b_last_timestamp or 0)
+end
+
+--- Render a room
+--- @param room neoment.matrix.client.Room The room object
+--- @param lines table The lines to append the rendered room to
+--- @param line_index number The current line index to start rendering
+--- @param extmarks table The extmarks to append the room to
+--- @param opts {section: neoment.rooms.Section, show_space: boolean, indentation_level: number} Options for rendering
+local function render_room(room, lines, line_index, extmarks, opts)
+	opts = opts or {}
+	vim.validate("opts.show_space", opts.show_space, "boolean")
+	vim.validate("opts.indentation_level", opts.indentation_level, "number")
+
+	local display = get_room_line(room, opts.show_space)
+
+	local indentation = string.rep("  ", opts.indentation_level)
+	table.insert(lines, indentation .. display)
+	--- @type neoment.rooms.RoomMark
+	local extmark = {
+		line = line_index,
+		room_id = room.id,
+		is_buffer = opts.section == "buffers",
+		is_invited = opts.section == "invited",
+		has_unread = (room.unread_notifications and room.unread_notifications > 0)
+			or (room.unread_highlights and room.unread_highlights > 0),
+	}
+	table.insert(extmarks, extmark)
+end
+
+--- Render a space and its rooms or nested spaces
+--- @param space neoment.matrix.client.Room The space room object
+--- @param lines table The lines to append the rendered space to
+--- @param line_index number The current line index to start rendering
+--- @param extmarks table The extmarks to append the space rooms to
+--- @param indentation_level number The indentation level (default is 1)
+--- @return number The new line index after rendering
+local function render_space(space, lines, line_index, extmarks, indentation_level)
+	local is_folded = get_fold_state(space.id, true)
+	local fold_arrow = get_section_fold_arrow(is_folded)
+	local space_name = matrix.get_room_display_name(space.id)
+	local indentation = string.rep("  ", indentation_level)
+	table.insert(lines, string.format("%s%s %s", indentation, fold_arrow, space_name))
+
+	M.section_lines[space.id] = line_index
+	local new_line_index = line_index + 1
+
+	if not is_folded then
+		for _, r in ipairs(space.space_rooms) do
+			if not matrix.has_room(r) then
+				-- If the room is not found, skip it
+				goto continue
+			end
+
+			local room = matrix.get_room(r)
+			if matrix.is_space(room.id) then
+				new_line_index = render_space(room, lines, new_line_index, extmarks, indentation_level + 1)
+			else
+				render_room(room, lines, new_line_index, extmarks, {
+					show_space = false,
+					indentation_level = indentation_level + 1,
+				})
+				new_line_index = new_line_index + 1
+			end
+			::continue::
+		end
+	end
+
+	return new_line_index
 end
 
 --- Update the room list buffer
@@ -290,6 +389,7 @@ M.update_room_list = function()
 		buffers = {},
 		favorites = {},
 		people = {},
+		spaces = {},
 		rooms = {},
 		low_priority = {},
 	}
@@ -318,6 +418,13 @@ M.update_room_list = function()
 			table.insert(section_rooms.people, room)
 		elseif room.is_lowpriority then
 			table.insert(section_rooms.low_priority, room)
+		elseif #room.space_rooms > 0 then
+			-- Check if it's a nested space
+			-- If it is, we skip it because when we render the parent space, we will render all nested spaces
+			local parent_space = matrix.get_space(room.id)
+			if not parent_space then
+				table.insert(section_rooms.spaces, room)
+			end
 		else
 			table.insert(section_rooms.rooms, room)
 		end
@@ -328,6 +435,7 @@ M.update_room_list = function()
 	table.sort(section_rooms.buffers, sort_by_activity)
 	table.sort(section_rooms.favorites, sort_by_activity)
 	table.sort(section_rooms.people, sort_by_activity)
+	table.sort(section_rooms.spaces, sort_by_name)
 	table.sort(section_rooms.rooms, sort_by_activity)
 	table.sort(section_rooms.low_priority, sort_by_activity)
 
@@ -347,53 +455,47 @@ M.update_room_list = function()
 	local extmarks = {}
 	local line_index = 3 -- Starting from the 3rd line
 
-	--- @type table<neoment.rooms.Section, number>
-	local section_lines = {}
-	--- @type table<neoment.rooms.Section>
-	local section_list = {
+	--- @type table<string, number>
+	M.section_lines = {}
+	--- @type neoment.rooms.Section[]
+	local section_list = vim.tbl_values({
+		#section_rooms.invited > 0 and "invited" or nil,
+		#section_rooms.buffers > 0 and "buffers" or nil,
 		"favorites",
 		"people",
+		#section_rooms.spaces > 0 and "spaces" or nil,
 		"rooms",
 		"low_priority",
-	}
+	})
 
-	if #section_rooms.buffers > 0 then
-		table.insert(section_list, 1, "buffers")
-	end
-
-	if #section_rooms.invited > 0 then
-		table.insert(section_list, 1, "invited")
-	end
-
-	for index, section in ipairs(section_list) do
-		local fold_arrow = get_section_fold_arrow(section)
+	for index, s in ipairs(section_list) do
+		--- @type neoment.rooms.Section
+		local section = s
+		local is_folded = get_fold_state(section)
+		local fold_arrow = get_section_fold_arrow(is_folded)
 		local icon = get_section_icon(section)
 		table.insert(
 			lines,
 			string.format("%s %s  %s (%d)", fold_arrow, icon, sections[section], #section_rooms[section])
 		)
-		section_lines[section] = line_index
+		M.section_lines[section] = line_index
 		line_index = line_index + 1
 
-		if not room_list_fold_state[section] then
+		if not is_folded then
 			for _, r in ipairs(section_rooms[section]) do
 				--- @type neoment.matrix.client.Room
 				local room = r
 
-				local display = get_room_line(room)
-
-				table.insert(lines, "  " .. display)
-				--- @type neoment.rooms.RoomMark
-				local extmark = {
-					line = line_index,
-					room_id = room.id,
-					is_buffer = section == "buffers",
-					is_invited = section == "invited",
-					has_unread = (room.unread_notifications and room.unread_notifications > 0)
-						or (room.unread_highlights and room.unread_highlights > 0),
-				}
-				table.insert(extmarks, extmark)
-				line_index = line_index + 1
+				if matrix.is_space(room.id) then
+					line_index = render_space(room, lines, line_index, extmarks, 1)
+				else
+					render_room(room, lines, line_index, extmarks, {
+						section = section,
+						show_space = true,
+						indentation_level = 1,
+					})
+					line_index = line_index + 1
+				end
 			end
 		end
 
@@ -406,7 +508,6 @@ M.update_room_list = function()
 	util.buffer_write(buffer_id, lines, 0, -1)
 
 	M.room_list_extmarks = extmarks
-	M.room_section_lines = section_lines
 
 	local ns_id = api.nvim_create_namespace("neoment_room_list")
 	api.nvim_buf_clear_namespace(buffer_id, ns_id, 0, -1)
@@ -415,8 +516,7 @@ M.update_room_list = function()
 	vim.hl.range(buffer_id, ns_id, "Comment", { 0, 7 }, { 0, -1 })
 
 	-- Highlight the section titles
-	for _, section in ipairs(section_list) do
-		local line = section_lines[section]
+	for _, line in pairs(M.section_lines) do
 		vim.hl.range(buffer_id, ns_id, "NeomentSectionTitle", { line - 1, 1 }, { line - 1, -1 })
 	end
 
@@ -439,12 +539,17 @@ end
 
 --- Select a room from the list using a picker
 M.pick = function()
-	local rooms = vim.tbl_values(matrix.get_rooms())
+	local rooms_and_spaces = vim.tbl_values(matrix.get_rooms())
+	local rooms = vim.iter(rooms_and_spaces)
+		:filter(function(room)
+			return not matrix.is_space(room.id)
+		end)
+		:totable()
 
 	vim.ui.select(rooms, {
 		prompt = "Rooms",
 		format_item = function(room)
-			return get_room_line(room)
+			return get_room_line(room, true)
 		end,
 	}, function(c)
 		--- @type neoment.matrix.client.Room|nil

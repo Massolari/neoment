@@ -366,6 +366,8 @@ M.handle = function(room_id, event)
 		if handle_redaction(room_id, event) then
 			return true
 		end
+	elseif event.type == "m.space.child" then
+		client.add_space_child(room_id, event.state_key)
 	elseif event.type == "m.reaction" then
 		local relates_to = event.content["m.relates_to"]
 		if relates_to and relates_to.rel_type == "m.annotation" then

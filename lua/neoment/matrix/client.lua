@@ -25,6 +25,7 @@ M.client = nil
 --- @field is_direct? boolean Indicates if the room is a direct chat.
 --- @field is_favorite? boolean Indicates if the room is a favorite.
 --- @field is_lowpriority? boolean Indicates if the room is a low-priority room.
+--- @field space_rooms table<string> A table to store rooms in a space, mapped as room ID to room information. If the list is empty, the room is not in a space.
 --- @field typing table<string, string> A table to store typing users, it contains the user IDs of users who are typing in the room.
 --- @field fully_read? string The event ID of the last fully read message in the room.
 --- @field unread_notifications integer The number of unread notifications for this room.
@@ -111,6 +112,7 @@ M.new = function(homeserver, access_token)
 		homeserver = homeserver,
 		device_id = "neovim-matrix-client",
 		rooms = {},
+		spaces = {},
 		invited_rooms = {},
 		access_token = access_token,
 		display_names = {},
@@ -130,6 +132,7 @@ local function create_new_room(room_id)
 		messages = {},
 		is_direct = false,
 		is_favorite = false,
+		space_rooms = {},
 		members = {},
 		typing = {},
 		unread_notifications = 0,
@@ -157,7 +160,7 @@ end
 
 --- Get a room by its ID.
 --- @param room_id string The ID of the room.
---- @return neoment.matrix.client.Room The room object if found, nil otherwise.
+--- @return neoment.matrix.client.Room The room object if found
 M.get_room = function(room_id)
 	if not M.client or not M.client.rooms[room_id] then
 		M.client.rooms[room_id] = create_new_room(room_id)
@@ -334,6 +337,15 @@ M.set_room_read_receipt = function(room_id, read_receipt)
 	if not room.fully_read then
 		room.fully_read = read_receipt.event_id
 	end
+end
+
+--- Add a room to a space
+--- @param space_id string The ID of the space.
+--- @param room_id string The ID of the room to add.
+M.add_space_child = function(space_id, room_id)
+	local space = M.get_room(space_id)
+
+	table.insert(space.space_rooms, room_id)
 end
 
 return M

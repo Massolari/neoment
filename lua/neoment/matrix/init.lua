@@ -1100,6 +1100,52 @@ M.remove_room_tag = function(room_id, tag, user_id, callback)
 	add_remove_room_tag(room_id, tag, user_id, false, callback)
 end
 
+--- Check if the room is a space
+--- @param room_id string The ID of the room.
+--- @return boolean True if the room is a space, false otherwise.
+M.is_space = function(room_id)
+	return #client.get_room(room_id).space_rooms > 0
+end
+
+--- @type table<string, string> A cache for space IDs by room ID.
+local cached_spaces_from_room = {}
+
+--- Get the space of a room or nil if it doesn't belong to a space
+--- @param room_id string The ID of the room.
+--- @return neoment.matrix.client.Room|nil The space the room belongs to, or nil if it doesn't belong to a space.
+M.get_space = function(room_id)
+	if cached_spaces_from_room[room_id] then
+		return client.get_room(cached_spaces_from_room[room_id])
+	end
+
+	local rooms = vim.tbl_values(client.get_rooms())
+	local space = vim.iter(rooms)
+		:filter(function(r)
+			return r.space_rooms and #r.space_rooms > 0
+		end)
+		:find(function(r)
+			return vim.tbl_contains(r.space_rooms, room_id)
+		end)
+
+	if not space then
+		return nil
+	end
+
+	cached_spaces_from_room[room_id] = space.id
+	return space
+end
+
+--- Get the space name of a room or nil if it doesn't belong to a space
+--- @param room_id string The ID of the room.
+--- @return string|nil The name of the space the room belongs to, or nil if it doesn't belong to a space.
+M.get_space_name = function(room_id)
+	local space = M.get_space(room_id)
+	if not space then
+		return nil
+	end
+	return M.get_room_display_name(space.id)
+end
+
 --- @type neoment.matrix.client.Client
 M.client = nil
 M.get_room = client.get_room
@@ -1112,6 +1158,7 @@ M.set_room_tracked = client.set_room_tracked
 M.get_room_messages = client.get_room_messages
 M.get_room_last_message = client.get_room_last_message
 M.get_room_unread_mark = client.get_room_unread_mark
+M.has_room = client.has_room
 
 setmetatable(M, {
 	__index = function(_, key)
