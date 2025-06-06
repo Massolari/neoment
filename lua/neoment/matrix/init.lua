@@ -965,23 +965,6 @@ local function get_room_display_name_from_members(members)
 	return displayname
 end
 
---- Get a display name for a invited room
---- @param room neoment.matrix.client.Room|neoment.matrix.client.InvitedRoom The ID of the room.
---- @return string The display name of the room.
-local function get_invited_room_display_name(room)
-	if room.name ~= room.id then
-		return room.name
-	end
-
-	local displayname = get_room_display_name_from_members(room.members)
-
-	if displayname == "" then
-		displayname = "Empty room"
-	end
-
-	return displayname
-end
-
 --- Get a display name for a room or a invited room
 --- @param room_id string The ID of the room.
 --- @return string The display name of the room.
@@ -995,7 +978,17 @@ M.get_room_display_name = function(room_id)
 		room = client.get_room(room_id)
 	end
 
-	return get_invited_room_display_name(room)
+	if room.name ~= room.id then
+		return room.name
+	end
+
+	local displayname = get_room_display_name_from_members(room.members)
+
+	if displayname == "" then
+		displayname = "Empty room"
+	end
+
+	return displayname
 end
 
 --- Upload a file to the Matrix server.
