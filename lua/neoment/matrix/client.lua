@@ -166,6 +166,13 @@ M.get_room = function(room_id)
 	return M.client.rooms[room_id]
 end
 
+--- Check if a room exists by its ID.
+--- @param room_id string The ID of the room.
+--- @return boolean True if the room exists, false otherwise.
+M.has_room = function(room_id)
+	return M.client.rooms[room_id] ~= nil
+end
+
 --- Get a invited room by its ID.
 --- @param room_id string The ID of the room.
 --- @return neoment.matrix.client.InvitedRoom The invited room object

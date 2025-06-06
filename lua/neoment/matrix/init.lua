@@ -224,13 +224,10 @@ local function handle_sync_account_data(account_data)
 		---@type neoment.matrix.Event
 		local event_ = e
 		if event_.type == "m.direct" then
-			for user_id, rooms in pairs(event_.content) do
+			for _, rooms in pairs(event_.content) do
 				for _, room_id in ipairs(rooms) do
-					if client.get_room(room_id) then
+					if client.has_room(room_id) then
 						client.get_room(room_id).is_direct = true
-						if client.get_room(room_id).name == room_id then
-							client.get_room(room_id).name = M.get_display_name_or_fetch(user_id)
-						end
 						table.insert(updated_rooms, room_id)
 					end
 				end
