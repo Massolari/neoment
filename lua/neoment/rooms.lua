@@ -238,15 +238,10 @@ end
 --- @return string The formatted line for the room
 local function get_room_line(room, show_space)
 	local last_activity = matrix.get_room_last_activity(room.id)
-	local display_space = ""
-	if show_space then
-		local space_name = matrix.get_space_name(room.id)
-		if space_name then
-			display_space = space_name .. "/"
-		end
-	end
 
-	local display = display_space .. matrix.get_room_display_name(room.id)
+	local get_name = show_space and matrix.get_room_display_name_with_space or matrix.get_room_display_name
+
+	local display = get_name(room.id)
 
 	if last_activity and last_activity.timestamp > 0 then
 		local time = os.date("%H:%M", math.floor(last_activity.timestamp / 1000))

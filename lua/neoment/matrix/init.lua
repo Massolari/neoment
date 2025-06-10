@@ -807,6 +807,18 @@ M.get_room_name = function(room_id)
 	return client.get_room(room_id).name
 end
 
+--- Get the name of the room with the space prefix
+--- @param room_id string The ID of the room.
+--- @return string The name of the room with the space prefix.
+M.get_room_display_name_with_space = function(room_id)
+	local name = M.get_room_display_name(room_id)
+	local space = M.get_space_name(room_id)
+	if space and space ~= "" then
+		return string.format("%s/%s", space, name)
+	end
+	return name
+end
+
 --- Set the name of the room.
 --- @param room_id string The ID of the room.
 --- @param name string The new name of the room.

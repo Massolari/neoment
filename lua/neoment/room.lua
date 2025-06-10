@@ -132,7 +132,7 @@ M.open_room = function(room_id)
 	end
 
 	-- Create a new buffer for the room
-	local buffer_name = "neoment://" .. matrix.get_room_name(room_id)
+	local buffer_name = "neoment://" .. matrix.get_room_display_name_with_space(room_id)
 	local buffer_id = api.nvim_create_buf(true, false) -- listed=true, scratch=false
 	api.nvim_buf_set_name(buffer_id, buffer_name)
 	vim.b[buffer_id].room_id = room_id
