@@ -217,6 +217,7 @@ local function handle_message(room_id, event)
 	require("neoment.matrix").set_room_last_activity(room_id, {
 		timestamp = event.origin_server_ts,
 		event_id = event.event_id,
+		age = event.content and event.content.age or 0,
 	})
 
 	return true

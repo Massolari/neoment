@@ -60,6 +60,7 @@ M.client = nil
 --- @class neoment.matrix.client.LastActivity
 --- @field timestamp integer The timestamp of the last activity in the room.
 --- @field event_id string The ID of the last event in the room.
+--- @field age? number The age of the last activity in milliseconds.
 
 --- @class neoment.matrix.client.ReadReceipt
 --- @field event_id string The ID of the event that was last read.
