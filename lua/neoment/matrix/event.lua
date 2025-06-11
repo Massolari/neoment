@@ -126,6 +126,12 @@ local function event_to_message(event, replying_to)
 		formatted_content = event.content.formatted_body
 	end
 
+	if event.content["m.new_content"] then
+		-- If the event is a replacement, use the new content
+		content = event.content["m.new_content"].body or content
+		formatted_content = event.content["m.new_content"].formatted_body or formatted_content
+	end
+
 	local mentions = {}
 	if event.content["m.mentions"] then
 		mentions = event.content["m.mentions"].user_ids or {}
@@ -198,6 +204,11 @@ local function handle_message(room_id, event)
 			local event_id = relates_to["m.in_reply_to"].event_id
 			local replying_event = fetch_room_event_by_id(room_id, event_id)
 			replying_to = error.match(replying_event, function(e)
+				-- If the event was replaced, fetch the replacement event
+				if e.unsigned and e.unsigned["m.relations"] and e.unsigned["m.relations"]["m.replace"] then
+					local replacement = e.unsigned["m.relations"]["m.replace"]
+					return event_to_message(replacement)
+				end
 				return event_to_message(e) --[[@as neoment.matrix.client.Message|nil]]
 			end, function(_)
 				return nil
