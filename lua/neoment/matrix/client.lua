@@ -45,6 +45,7 @@ M.client = nil
 --- @field content string The content of the message.
 --- @field formatted_content? string The formatted content of the message, if available.
 --- @field timestamp integer The timestamp of when the message was sent.
+--- @field age? number The age of the message in milliseconds.
 --- @field was_edited boolean Indicates if the message was edited.
 --- @field was_redacted boolean Indicates if the message was redacted.
 --- @field mentions table<string> A table to store mentions in the message, it contains the user IDs of users mentioned in the message.
@@ -195,6 +196,9 @@ M.get_room_messages = function(room_id)
 	local messages = vim.tbl_values(M.get_room(room_id).messages)
 
 	table.sort(messages, function(a, b)
+		if a.timestamp == b.timestamp then
+			return (a.age or 0) > (b.age or 0)
+		end
 		return a.timestamp < b.timestamp
 	end)
 

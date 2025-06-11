@@ -922,7 +922,7 @@ M.set_room_last_activity = function(room_id, new_last_activity)
 	local last_age = last_activity and last_activity.age or 0
 	if last_timestamp < new_last_activity.timestamp then
 		client.get_room(room_id).last_activity = new_last_activity
-	elseif last_timestamp == new_last_activity.timestamp and last_activity and last_age < new_last_activity.age then
+	elseif last_timestamp == new_last_activity.timestamp and last_activity and last_age > new_last_activity.age then
 		client.get_room(room_id).last_activity = new_last_activity
 	end
 end
