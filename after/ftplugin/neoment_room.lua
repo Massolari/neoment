@@ -8,6 +8,14 @@ vim.wo.wrap = true
 vim.wo.foldmethod = "manual"
 vim.wo.signcolumn = "no"
 
+local neoment_room_ns = vim.api.nvim_get_namespaces()
+for name, id in pairs(neoment_room_ns) do
+	if name == "neoment_room" then
+		vim.api.nvim_set_hl_ns(id)
+		break
+	end
+end
+
 local old_number = vim.wo.number
 local old_relativenumber = vim.wo.relativenumber
 local old_cursorline = vim.wo.cursorline
@@ -26,6 +34,9 @@ vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
 		vim.wo.relativenumber = false
 		vim.wo.conceallevel = 2
 		vim.wo.cursorline = true
+		vim.wo.breakindent = true
+		vim.wo.breakindentopt = "shift:31,sbr"
+		vim.wo.showbreak = string.rep(" ", 29) .. "│ "
 		require("neoment.room").mark_read(buffer_id)
 	end,
 })

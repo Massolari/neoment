@@ -16,6 +16,9 @@ vim.cmd([[
     highlight default link NeomentBubbleActiveBorder IncSearch
 ]])
 
+local neoment_room_ns = vim.api.nvim_create_namespace("neoment_room")
+vim.api.nvim_set_hl(neoment_room_ns, "NonText", { link = "FloatBorder" })
+
 -- Apply bold to NeomentBufferRoom
 local hl_buffer_room_undead = vim.api.nvim_get_hl(0, { name = "NeomentBufferRoomUnread", link = false })
 if hl_buffer_room_undead then
