@@ -334,7 +334,7 @@ local function messages_to_lines(buffer_id)
 		content = content:gsub("%z", "")
 
 		-- Split the content into lines
-		for line in content:gmatch("[^\n]+") do
+		for line in vim.gsplit(content, "\n", { plain = true }) do
 			table.insert(content_lines, line)
 		end
 
