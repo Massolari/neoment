@@ -40,37 +40,50 @@ for _, hl_name in ipairs({ "NeomentBubbleActiveBorder", "NeomentBubbleBorder" })
 end
 
 -- Criar comandos
-vim.api.nvim_create_user_command("Neoment", function()
-	require("neoment").init()
-end, { desc = "Open Neoment" })
+vim.api.nvim_create_user_command("Neoment", function(opts)
+	local subcommand = opts.fargs[1]
 
-vim.api.nvim_create_user_command("NeomentRooms", function()
-	require("neoment.rooms").pick()
-end, { desc = "Pick a room to open" })
+	if not subcommand then
+		require("neoment").init()
+	elseif subcommand == "rooms" then
+		require("neoment.rooms").pick()
+	elseif subcommand == "stop" then
+		require("neoment.sync").stop()
+	elseif subcommand == "clear" then
+		require("neoment.storage").clear_cache()
+	elseif subcommand == "logout" then
+		local choice = vim.fn.confirm(
+			"Are you sure you want to log out?\nAll saved data will be lost.",
+			"&Yes\n&No",
+			2, -- Default to "No"
+			"Neoment"
+		)
 
-vim.api.nvim_create_user_command("NeomentStopSync", function()
-	require("neoment.sync").stop()
-end, { desc = "Stop the synchronization process" })
-
-vim.api.nvim_create_user_command("NeomentClearCache", function()
-	require("neoment.storage").clear_cache()
-end, { desc = "Clear the cache data" })
-
-vim.api.nvim_create_user_command("NeomentLogout", function()
-	local choice = vim.fn.confirm(
-		"Are you sure you want to log out?\nAll saved data will be lost.",
-		"&Yes\n&No",
-		2, -- Default to "No"
-		"Neoment"
-	)
-
-	if choice == 1 then -- 1 = "Yes"
-		require("neoment").logout()
+		if choice == 1 then -- 1 = "Yes"
+			require("neoment").logout()
+		else
+			vim.notify("Operation canceled", vim.log.levels.INFO)
+		end
 	else
-		vim.notify("Operation canceled", vim.log.levels.INFO)
+		vim.notify("Unknown subcommand: " .. subcommand, vim.log.levels.ERROR)
+		vim.notify("Available subcommands: rooms, stop, clear, logout", vim.log.levels.INFO)
 	end
 end, {
-	desc = "Logout from the Matrix server and clear session data",
+	desc = "Neoment Matrix client",
+	nargs = "*",
+	complete = function(arglead)
+		local subcommands = { "rooms", "stop", "clear", "logout" }
+		if arglead == "" then
+			return subcommands
+		end
+		local matches = {}
+		for _, cmd in ipairs(subcommands) do
+			if cmd:match("^" .. vim.pesc(arglead)) then
+				table.insert(matches, cmd)
+			end
+		end
+		return matches
+	end,
 })
 
 vim.api.nvim_create_autocmd("FileType", {
