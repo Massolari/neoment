@@ -207,6 +207,11 @@ describe("Markdown", function()
 			local expected_output = "_italic text_"
 			local result = markdown.from_html(input)
 			assert.are.same(expected_output, result)
+
+			local quoted_input = [[<span data-md="\"">quoted text</span>]]
+			local quoted_expected_output = '"quoted text"'
+			local quoted_result = markdown.from_html(quoted_input)
+			assert.are.same(quoted_expected_output, quoted_result)
 		end)
 
 		it("should handle empty input", function()
@@ -233,7 +238,8 @@ describe("Markdown", function()
 		it("should handle complex mixed HTML", function()
 			local input =
 				'<p>This is <strong>bold</strong> and <em>italic</em> text with <code>code</code> and a <a href="https://example.com">link</a>.</p>'
-			local expected_output = "This is **bold** and _italic_ text with `code` and a [link](https://example.com).\n\n"
+			local expected_output =
+				"This is **bold** and _italic_ text with `code` and a [link](https://example.com).\n"
 			local result = markdown.from_html(input)
 			assert.are.same(expected_output, result)
 		end)

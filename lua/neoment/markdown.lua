@@ -216,11 +216,14 @@ M.from_html = function(html)
 
 	-- Handle tags with data-md attribute
 	markdown = markdown:gsub(
-		'<(%w+)%s+data%-md="([^"]*)">(.-)</(%w+)>',
+		[[<(%w+)%s+data%-md=["'](.-)["']>(.-)</(%w+)>]],
 		function(tag_open, md_value, content, tag_close)
 			if tag_open ~= tag_close then
 				return content -- Open tag and close tag do not match, return only the content
 			end
+
+			-- Remove any \ characters from the md_value
+			md_value = md_value:gsub("\\", "")
 
 			-- Use the data-md value as a delimiter for the content
 			if md_value ~= "" then
