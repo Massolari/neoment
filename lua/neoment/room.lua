@@ -95,7 +95,7 @@ end
 --- @param zoom boolean Whether to zoom the image or not
 --- @return {width: number, height: number} The dimensions of the image
 local function get_image_dimensions(maybe_image_width, maybe_image_height, zoom)
-	local win_width = vim.api.nvim_win_get_width(0) - HEADER_LENGTH
+	local win_width = vim.api.nvim_win_get_width(0) - HEADER_LENGTH - 4 -- Subtract the header length and padding
 	local win_height = vim.api.nvim_win_get_height(0)
 	local image_width = maybe_image_width or win_width
 	local image_height = maybe_image_height or win_height
