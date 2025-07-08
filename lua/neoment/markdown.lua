@@ -7,10 +7,9 @@ local markdown_patterns = {
 	{ pattern = "__(.-)__", replacement = "<strong>%1</strong>" },
 
 	-- Italic: *text* or _text_
-	{ pattern = "([^%*])%*([^%*].-)%*([^%*])", replacement = "%1<em>%2</em>%3" },
 	{ pattern = "([^_])_([^_].-)_([^_])", replacement = "%1<em>%2</em>%3" },
 	{ pattern = "_([^_].-)_", replacement = "<em>%1</em>" },
-	{ pattern = "%*([^%*].-)%*", replacement = "<em>%1</em>" },
+	{ pattern = "%*([^%*\n]-)%*", replacement = "<em>%1</em>" },
 
 	-- Inline code: `code`
 	{ pattern = "`(.-)`", replacement = "<code>%1</code>" },
@@ -18,23 +17,19 @@ local markdown_patterns = {
 	{ pattern = "```(%w+)\n(.-)\n```", replacement = '<pre><code class="language-%1">%2</code></pre>' },
 
 	-- Unordered lists
-	{ pattern = "^%s*-%s+(.*)", replacement = "<li>%1</li>" },
-	{ pattern = "^%s*%*%s+(.*)", replacement = "<li>%1</li>" },
+	{ pattern = "^%s*[-%*]%s+([^\n]+)", replacement = "<li>%1</li>" },
+	{ pattern = "\n%s*[-%*]%s+([^\n]+)", replacement = "\n<li>%1</li>" },
 
 	-- Links: [text](url)
 	{ pattern = "%[(.-)%]%((.-)%)", replacement = '<a href="%2">%1</a>' },
 
 	-- Headers: # Title
-	{ pattern = "^%s*#%s+(.+)", replacement = "<h1>%1</h1>" },
-	{ pattern = "^%s*##%s+(.+)", replacement = "<h2>%1</h2>" },
-	{ pattern = "^%s*###%s+(.+)", replacement = "<h3>%1</h3>" },
-
-	-- Blockquote: > text
-	-- { pattern = "^%s*>%s*(.*)", replacement = "<blockquote>%1</blockquote>" },
-
-	-- Spoilers: >! text
-	{ pattern = ">!(.*)<!", replacement = "<span data-mx-spoiler>%1</span>" },
-	{ pattern = "^%s*>!(.*)", replacement = "<span data-mx-spoiler>%1</span>" },
+	{ pattern = "^%s*#%s+([^\n]+)", replacement = "<h1>%1</h1>" },
+	{ pattern = "\n%s*#%s+([^\n]+)", replacement = "\n<h1>%1</h1>" },
+	{ pattern = "^%s*##%s+([^\n]+)", replacement = "<h2>%1</h2>" },
+	{ pattern = "\n%s*##%s+([^\n]+)", replacement = "\n<h2>%1</h2>" },
+	{ pattern = "^%s*###%s+([^\n]+)", replacement = "<h3>%1</h3>" },
+	{ pattern = "\n%s*###%s+([^\n]+)", replacement = "\n<h3>%1</h3>" },
 }
 
 --- Escape HTML entities
@@ -66,7 +61,7 @@ M.to_html = function(markdown_text)
 	local in_blockquote = false
 	local blockquote_content = ""
 
-	for line in html:gmatch("([^\n]+)") do
+	for line in vim.gsplit(html, "\n", { plain = true }) do
 		if line:match("^%s*>%s([^!]*)") then
 			local content = line:gsub("^%s*>%s*(.*)", "%1")
 			content = escape_html_content(content)
@@ -76,6 +71,17 @@ M.to_html = function(markdown_text)
 				in_blockquote = true
 				blockquote_content = content
 			end
+		elseif line:match("%s*>!.-<!") then
+			-- Inline spoiler
+			local new_line = line:gsub(">!%s*(.-)<!", function(spoiler_content)
+				return "<span data-mx-spoiler>" .. escape_html_content(spoiler_content) .. "</span>"
+			end)
+			table.insert(lines, new_line)
+		elseif line:match("^%s*>!.*") then
+			-- Spoiler block
+			local content = line:gsub("^%s*>!%s*(.*)", "%1")
+			content = escape_html_content(content)
+			table.insert(lines, "<span data-mx-spoiler>" .. content .. "</span>")
 		else
 			if in_blockquote then
 				table.insert(lines, "<blockquote>" .. blockquote_content .. "</blockquote>")
@@ -106,24 +112,46 @@ M.to_html = function(markdown_text)
 	-- Aplicar outros padrões Markdown
 	for _, pattern in ipairs(markdown_patterns) do
 		-- Skip only blockquote patterns (not spoilers) to avoid double processing
-		if not pattern.pattern:match("^%%s*>%s*[^!]") then
+		if not pattern.pattern:match("^%%s*>%s*") then
 			html = html:gsub(pattern.pattern, pattern.replacement)
 		end
 	end
 
-	-- Converter quebras de linha para <br>
-	html = html:gsub("\n", "<br>")
+	-- Primeiro preservamos blocos de código para não substituir quebras de linha dentro deles
+	local code_blocks = {}
+	local code_count = 0
+
+	-- Preservar blocos de código com classe de linguagem
+	html = html:gsub('(<pre><code class="language%-[^"]+">.-)([^<]*)(</code></pre>)', function(pre, content, post)
+		code_count = code_count + 1
+		local placeholder = "{{CODE_BLOCK_" .. code_count .. "}}"
+		code_blocks[placeholder] = pre .. content .. post
+		return placeholder
+	end)
+
+	-- Preservar blocos de código sem classe de linguagem
+	html = html:gsub("(<pre><code>.-)([^<]*)(</code></pre>)", function(pre, content, post)
+		code_count = code_count + 1
+		local placeholder = "{{CODE_BLOCK_" .. code_count .. "}}"
+		code_blocks[placeholder] = pre .. content .. post
+		return placeholder
+	end)
+
+	-- Convert line breaks to <br /> tags (except in code blocks)
+	html = html:gsub("\n", "<br />")
+
+	-- Restaurar os blocos de código
+	for placeholder, code_block in pairs(code_blocks) do
+		html = html:gsub(placeholder, code_block)
+	end
 
 	-- Processar listas não ordenadas para adicionar <ul> tags
 	html = html:gsub("(<li>.-</li>)%s*(<li>)", "%1%2") -- juntar itens adjacentes
-	html = html:gsub("(<li>.-</li>)", "<ul>%1</ul>") -- envolver com <ul>
-	html = html:gsub("<ul>.-(<ul>.-</ul>).-</ul>", "%1") -- remover aninhamentos extras
+	html = html:gsub("(<li>.*</li>)", "<ul>%1</ul>") -- envolver com <ul>
+	-- html = html:gsub("<ul>.-(<ul>.-</ul>).-</ul>", "%1") -- remover aninhamentos extras
 
 	-- Linebreaks
 	html = html:gsub("\\n", "<br />")
-
-	-- Escape HTML entities
-	-- html = escape_content(html)
 
 	return html
 end
@@ -148,7 +176,7 @@ M.from_html = function(html)
 	markdown = markdown:gsub("&quot;", '"')
 
 	-- Paragraphs
-	markdown = markdown:gsub("<p>(.-)</p>", "%1\n\n")
+	markdown = markdown:gsub("<p>(.-)</p>", "%1\n")
 
 	-- Line breaks
 	markdown = markdown:gsub("<br>", "\n")
