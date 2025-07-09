@@ -1423,6 +1423,8 @@ M.go_to_replied_message = function()
 		-- Search for the replied message in the current buffer
 		for line_num, line_message in pairs(line_to_message) do
 			if line_message.id == replied_message_id then
+				-- Add current position to jump list before moving
+				vim.cmd("normal! m'")
 				-- Move cursor to the replied message
 				vim.api.nvim_win_set_cursor(0, { line_num, 0 })
 				return nil
