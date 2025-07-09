@@ -710,6 +710,45 @@ local function apply_highlights(buffer_id, room_id, lines)
 	end
 end
 
+--- Update only the lines that have changed to prevent screen flickering
+--- @param buffer_id number The ID of the buffer to update
+--- @param old_lines table The old lines in the buffer
+--- @param new_lines table The new lines to set
+local function update_buffer_lines_diff(buffer_id, old_lines, new_lines)
+	local old_count = #old_lines
+	local new_count = #new_lines
+
+	-- Find the first line that differs
+	local start_line = 0
+	while start_line < math.min(old_count, new_count) do
+		if old_lines[start_line + 1] ~= new_lines[start_line + 1] then
+			break
+		end
+		start_line = start_line + 1
+	end
+
+	-- Find the last line that differs (working backwards)
+	local old_end = old_count
+	local new_end = new_count
+	while old_end > start_line and new_end > start_line do
+		if old_lines[old_end] ~= new_lines[new_end] then
+			break
+		end
+		old_end = old_end - 1
+		new_end = new_end - 1
+	end
+
+	-- Only update if there are actual changes
+	if start_line < old_end or start_line < new_end or old_count ~= new_count then
+		local lines_to_set = {}
+		for i = start_line + 1, new_end do
+			table.insert(lines_to_set, new_lines[i])
+		end
+
+		api.nvim_buf_set_lines(buffer_id, start_line, old_end, false, lines_to_set)
+	end
+end
+
 --- Update the chat view with the latest messages
 --- @param buffer_id number The ID of the buffer to update
 M.update_buffer = function(buffer_id)
@@ -733,16 +772,19 @@ M.update_buffer = function(buffer_id)
 	end
 	vim.wo.winbar = winbar
 
-	local lines = messages_to_lines(buffer_id)
+	local new_lines = messages_to_lines(buffer_id)
 
-	-- Update the buffer with the new lines
+	-- Get current buffer lines for comparison
+	local old_lines = api.nvim_buf_get_lines(buffer_id, 0, -1, false)
+
+	-- Update the buffer with only the changed lines
 	api.nvim_set_option_value("modifiable", true, { buf = buffer_id })
-	api.nvim_buf_set_lines(buffer_id, 0, -1, false, lines)
+	update_buffer_lines_diff(buffer_id, old_lines, new_lines)
 	api.nvim_set_option_value("modifiable", false, { buf = buffer_id })
 	api.nvim_set_option_value("modified", false, { buf = buffer_id })
 
 	-- Apply highlights for each line
-	apply_highlights(buffer_id, room_id, lines)
+	apply_highlights(buffer_id, room_id, new_lines)
 end
 
 --- Send a message to the room
@@ -1321,5 +1363,8 @@ M.upload_image_from_clipboard = function()
 		return nil
 	end)
 end
+
+-- Expose for testing
+M._update_buffer_lines_diff = update_buffer_lines_diff
 
 return M

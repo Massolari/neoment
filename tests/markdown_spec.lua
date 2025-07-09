@@ -160,9 +160,9 @@ describe("Markdown", function()
 			assert.are.same(expected_output, result)
 		end)
 
-		it("should convert paragraphs to double newlines", function()
+		it("should convert paragraphs to a single newline", function()
 			local input = "<p>Paragraph 1</p><p>Paragraph 2</p>"
-			local expected_output = "Paragraph 1\n\nParagraph 2\n\n"
+			local expected_output = "Paragraph 1\nParagraph 2\n"
 			local result = markdown.from_html(input)
 			assert.are.same(expected_output, result)
 		end)
