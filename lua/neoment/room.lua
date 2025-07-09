@@ -1407,6 +1407,34 @@ M.upload_image_from_clipboard = function()
 	end)
 end
 
+--- Go to the replied message of the message under the cursor
+M.go_to_replied_message = function()
+	local error_message = get_message_under_cursor()
+	error.map(error_message, function(message)
+		if not message.replying_to then
+			vim.notify("This message is not replying to another message", vim.log.levels.ERROR)
+			return nil
+		end
+
+		local buffer_id = vim.api.nvim_get_current_buf()
+		local replied_message_id = message.replying_to.id
+		local line_to_message = get_buffer_data(buffer_id).line_to_message
+
+		-- Search for the replied message in the current buffer
+		for line_num, line_message in pairs(line_to_message) do
+			if line_message.id == replied_message_id then
+				-- Move cursor to the replied message
+				vim.api.nvim_win_set_cursor(0, { line_num, 0 })
+				return nil
+			end
+		end
+
+		-- If we reach here, the replied message is not in the current buffer
+		vim.notify("The replied message is older than the loaded messages", vim.log.levels.WARN)
+		return nil
+	end)
+end
+
 -- Expose for testing
 M._update_buffer_lines_diff = update_buffer_lines_diff
 
