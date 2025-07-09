@@ -404,6 +404,21 @@ M.sync = function(options, callback)
 					updated_rooms = vim.iter({ updated_rooms, new_updated_rooms }):flatten():totable()
 				end
 
+				if sync_data.presence then
+					for _, presence_event in ipairs(sync_data.presence.events or {}) do
+						if presence_event.type == "m.presence" then
+							local user_id = presence_event.sender
+							local presence_data = {
+								presence = presence_event.content.presence,
+								last_active_ago = presence_event.content.last_active_ago,
+								status_msg = presence_event.content.status_msg,
+								currently_active = presence_event.content.currently_active,
+							}
+							client.set_user_presence(user_id, presence_data)
+						end
+					end
+				end
+
 				return { sync = data, updated_rooms = updated_rooms }
 			end) --[[@as neoment.Error<{ sync: neoment.matrix.SyncResponse, updated_rooms: table<string> }, neoment.matrix.api.Error>]]
 
@@ -590,6 +605,23 @@ M.get_display_name_or_fetch = function(user_id)
 		return client.client.display_names[user_id]
 	end
 	return fetch_display_name(user_id)
+end
+
+--- Get the presence of a user.
+--- @param user_id string The ID of the user.
+--- @return neoment.matrix.client.UserPresence|nil The presence information or nil if not found.
+M.get_user_presence = function(user_id)
+	return client.get_user_presence(user_id)
+end
+
+--- Get the current user's presence.
+--- @return neoment.matrix.client.UserPresence|nil The presence information or nil if not found.
+M.get_current_user_presence = function()
+	local user_id = M.get_user_id()
+	if user_id then
+		return M.get_user_presence(user_id)
+	end
+	return nil
 end
 
 -- Room

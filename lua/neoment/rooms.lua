@@ -64,6 +64,36 @@ local function format_last_sync_time()
 	return tostring(os.date("%H:%M:%S", sync_status.last_sync))
 end
 
+--- Get the logged user info
+--- @return string, string The display name, and status text
+local function get_logged_user_info()
+	-- Get current user info
+	local user_id = matrix.get_user_id()
+	if not user_id then
+		return "Unknown", "offline"
+	end
+
+	local display_name = matrix.get_display_name_or_fetch(user_id)
+	local presence = matrix.get_current_user_presence()
+
+	-- Default to offline if no presence info
+	local status = presence and presence.presence or "offline"
+
+	-- Get status icon
+	local status_icon = ""
+	if status == "online" then
+		status_icon = "●"
+	elseif status == "unavailable" then
+		status_icon = "◐"
+	else -- offline
+		status_icon = "○"
+	end
+
+	local status_text = string.format("%s %s", status_icon, status)
+
+	return display_name, status_text
+end
+
 --- Join a room by its ID
 local function open_room(room_id)
 	-- If the current buffer is the room list buffer
@@ -438,6 +468,7 @@ M.update_room_list = function()
 	local lines = {
 		"Neoment - Last sync: " .. format_last_sync_time(),
 		"",
+		"",
 	}
 	--- @class neoment.rooms.RoomMark
 	--- @field line number
@@ -448,7 +479,7 @@ M.update_room_list = function()
 
 	--- @type table<neoment.rooms.RoomMark>
 	local extmarks = {}
-	local line_index = 3 -- Starting from the 3rd line
+	local line_index = 4 -- Starting after the header
 
 	--- @type table<string, number>
 	M.section_lines = {}
@@ -507,8 +538,21 @@ M.update_room_list = function()
 	local ns_id = api.nvim_create_namespace("neoment_room_list")
 	api.nvim_buf_clear_namespace(buffer_id, ns_id, 0, -1)
 
+	-- Highlight the title
 	vim.hl.range(buffer_id, ns_id, "NeomentRoomsTitle", { 0, 0 }, { 0, 7 })
 	vim.hl.range(buffer_id, ns_id, "Comment", { 0, 7 }, { 0, -1 })
+
+	-- Add user status line with highlighting
+	-- Add user status as virtual text on the second line
+	local user_display_name, user_status_text = get_logged_user_info()
+	api.nvim_buf_set_extmark(buffer_id, ns_id, 1, 0, {
+		virt_text = {
+			{ "", "NeomentBubbleBorder" }, -- Left border
+			{ user_display_name .. " │ " .. user_status_text, "NeomentBubbleContent" }, -- Use a nice highlight group for username
+			{ "", "NeomentBubbleBorder" }, -- Right border
+		},
+		virt_text_pos = "inline",
+	})
 
 	-- Highlight the section titles
 	for _, line in pairs(M.section_lines) do

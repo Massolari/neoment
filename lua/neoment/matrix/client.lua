@@ -9,6 +9,7 @@ local M = {}
 ---@field access_token? string The access token for authentication.
 ---@field sync_token? string The token to supply in the since param of the next /sync request. (next_batch)
 ---@field display_names table<string, string> A table to store display names for users.
+---@field user_presence table<string, neoment.matrix.client.UserPresence> A table to store user presence information.
 M.client = nil
 
 --- @class neoment.matrix.client.Room
@@ -103,6 +104,12 @@ M.client = nil
 --- @field event_id string The ID of the event associated with the reaction.
 --- @field sender string The ID of the user who sent the reaction.
 
+--- @class neoment.matrix.client.UserPresence
+--- @field presence "online"|"offline"|"unavailable" The presence state of the user.
+--- @field last_active_ago? number The last time the user was active (in milliseconds).
+--- @field status_msg? string The status message set by the user.
+--- @field currently_active? boolean Whether the user is currently active.
+
 --- Create a new MatrixClient instance.
 --- @param homeserver string The URL of the Matrix server.
 --- @param access_token? string The access token for authentication.
@@ -119,6 +126,7 @@ M.new = function(homeserver, access_token)
 		invited_rooms = {},
 		access_token = access_token,
 		display_names = {},
+		user_presence = {},
 	}
 end
 
@@ -352,6 +360,20 @@ M.add_space_child = function(space_id, room_id)
 	local space = M.get_room(space_id)
 
 	table.insert(space.space_rooms, room_id)
+end
+
+--- Set the presence of a user
+--- @param user_id string The ID of the user.
+--- @param presence neoment.matrix.client.UserPresence The presence information.
+M.set_user_presence = function(user_id, presence)
+	M.client.user_presence[user_id] = presence
+end
+
+--- Get the presence of a user
+--- @param user_id string The ID of the user.
+--- @return neoment.matrix.client.UserPresence|nil The presence information or nil if not found.
+M.get_user_presence = function(user_id)
+	return M.client.user_presence[user_id]
 end
 
 return M
