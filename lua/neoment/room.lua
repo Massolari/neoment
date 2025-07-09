@@ -1151,6 +1151,49 @@ M.redact_message = function()
 	end)
 end
 
+--- Forward the message under the cursor to another room
+M.forward_message = function()
+	local error_message = get_message_under_cursor()
+	error.map(error_message, function(m)
+		--- @type neoment.room.LineMessage
+		local message = m
+		local rooms = require("neoment.rooms")
+		rooms.pick_room(function(room)
+			local content = message.content or ""
+
+			if message.formatted_content then
+				content = markdown.from_html(message.formatted_content)
+			end
+
+			-- Format the forwarded message
+			local sender_name = matrix.get_display_name(message.sender)
+			local forwarded_content = string.format("_↪️ Forwarded from %s:_\n\n%s", sender_name, content)
+
+			--- @type neoment.room.PromptMessageParams
+			local params = {}
+
+			-- If the original message has an attachment, include it in the forward
+			if message.attachment then
+				params.attachment = {
+					filename = message.attachment.filename,
+					url = message.attachment.mxc_url,
+					mimetype = message.attachment.mimetype,
+					size = message.attachment.size,
+				}
+			end
+
+			send_message(room.id, forwarded_content, params)
+
+			local target_room_name = matrix.get_room_display_name(room.id)
+			vim.notify(string.format("Message forwarded to %s", target_room_name), vim.log.levels.INFO)
+
+			M.open_room(room.id)
+		end, { prompt = "Forward message to room: " })
+
+		return nil
+	end)
+end
+
 --- Handle the cursor hold event
 --- Depending on the context, it will show a float window with information
 --- @param buffer_id number The ID of the buffer to handle the cursor hold event for

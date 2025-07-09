@@ -64,6 +64,7 @@ local function get_attachment(event, attachment_type)
 	local attachment = {
 		type = attachment_type,
 		mimetype = event.content.info and event.content.info.mimetype,
+		mxc_url = event.content.url,
 		url = util.mxc_to_url(client.client.homeserver, event.content.url)
 			.. "?access_token="
 			.. client.client.access_token,

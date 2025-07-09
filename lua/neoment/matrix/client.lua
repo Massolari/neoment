@@ -75,6 +75,7 @@ M.client = nil
 --- @field type neoment.matrix.client.MessageAttachmentType The type of the attachment.
 --- @field mimetype string The MIME type of the attachment.
 --- @field url string The URL of the attachment.
+--- @field mxc_url string The MXC URL of the attachment.
 --- @field filename string The name of the file.
 
 --- @class neoment.matrix.client.MessageImage : neoment.matrix.client.BaseAttachment

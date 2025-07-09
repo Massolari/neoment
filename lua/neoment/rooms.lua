@@ -532,8 +532,11 @@ M.update_room_list = function()
 	end
 end
 
---- Select a room from the list using a picker
-M.pick = function()
+--- Pick a room from the list and call a callback function with the selected room
+--- @param callback function Callback function to call with the selected room
+--- @param options? {prompt: string} Optional parameters for the picker
+M.pick_room = function(callback, options)
+	options = options or {}
 	local rooms_and_spaces = vim.tbl_values(matrix.get_rooms())
 	local rooms = vim.iter(rooms_and_spaces)
 		:filter(function(room)
@@ -542,7 +545,7 @@ M.pick = function()
 		:totable()
 
 	vim.ui.select(rooms, {
-		prompt = "Rooms",
+		prompt = options.prompt or "Rooms",
 		format_item = function(room)
 			return get_room_line(room, true)
 		end,
@@ -550,8 +553,15 @@ M.pick = function()
 		--- @type neoment.matrix.client.Room|nil
 		local choice = c
 		if choice then
-			open_room(choice.id)
+			callback(choice)
 		end
+	end)
+end
+
+--- Select a room from the list using a picker
+M.pick = function()
+	M.pick_room(function(choice)
+		open_room(choice.id)
 	end)
 end
 
