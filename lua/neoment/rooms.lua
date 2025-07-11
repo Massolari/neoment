@@ -7,7 +7,7 @@ local util = require("neoment.util")
 local error = require("neoment.error")
 
 local room_list_buffer_name = "neoment://rooms"
-local buffer_id = nil
+local rooms_buffer_id = nil
 --- @alias neoment.rooms.Section "invited" | "buffers" | "favorites" | "people" | "spaces" | "rooms" | "low_priority"
 
 --- @type table<neoment.rooms.Section, boolean>
@@ -98,7 +98,7 @@ end
 local function open_room(room_id)
 	-- If the current buffer is the room list buffer
 	local current_buf = api.nvim_get_current_buf()
-	if current_buf == buffer_id then
+	if current_buf == rooms_buffer_id then
 		-- If this is the only window, create a new one
 		if #vim.api.nvim_list_wins() == 1 then
 			vim.cmd("vsplit")
@@ -199,11 +199,11 @@ end
 
 --- Create a new buffer for the room list
 local function create_room_list()
-	buffer_id = api.nvim_create_buf(false, false) -- listed=false, scratch=false
-	api.nvim_buf_set_name(buffer_id, room_list_buffer_name)
-	api.nvim_set_option_value("filetype", "neoment_rooms", { buf = buffer_id })
-	api.nvim_set_option_value("buftype", "nofile", { buf = buffer_id })
-	api.nvim_set_current_buf(buffer_id)
+	rooms_buffer_id = api.nvim_create_buf(false, false) -- listed=false, scratch=false
+	api.nvim_buf_set_name(rooms_buffer_id, room_list_buffer_name)
+	api.nvim_set_option_value("filetype", "neoment_rooms", { buf = rooms_buffer_id })
+	api.nvim_set_option_value("buftype", "nofile", { buf = rooms_buffer_id })
+	api.nvim_set_current_buf(rooms_buffer_id)
 
 	M.update_room_list()
 end
@@ -214,7 +214,7 @@ end
 M.toggle_room_list = function()
 	-- Close the room list if it's already open
 	for _, win in ipairs(api.nvim_list_wins()) do
-		if api.nvim_win_is_valid(win) and api.nvim_win_get_buf(win) == buffer_id then
+		if api.nvim_win_is_valid(win) and api.nvim_win_get_buf(win) == rooms_buffer_id then
 			api.nvim_win_close(win, false)
 			return
 		end
@@ -224,8 +224,8 @@ M.toggle_room_list = function()
 	local new_win = api.nvim_get_current_win()
 	api.nvim_win_set_width(new_win, window_width)
 
-	if buffer_id and api.nvim_buf_is_loaded(buffer_id) then
-		api.nvim_set_current_buf(buffer_id)
+	if rooms_buffer_id and api.nvim_buf_is_loaded(rooms_buffer_id) then
+		api.nvim_set_current_buf(rooms_buffer_id)
 		M.update_room_list()
 		return
 	end
@@ -395,16 +395,16 @@ end
 
 --- Update the room list buffer
 M.update_room_list = function()
-	if not buffer_id or not api.nvim_buf_is_loaded(buffer_id) then
+	if not rooms_buffer_id or not api.nvim_buf_is_loaded(rooms_buffer_id) then
 		return
 	end
 
 	local sync_status = sync.get_status()
 	if sync_status.kind == "never" then
-		util.buffer_write(buffer_id, { "No sync yet" }, 0, -1)
+		util.buffer_write(rooms_buffer_id, { "No sync yet" }, 0, -1)
 		return
 	elseif sync_status.kind == "syncing" and sync_status.last_sync == nil then
-		util.buffer_write(buffer_id, { "Syncing..." }, 0, -1)
+		util.buffer_write(rooms_buffer_id, { "Syncing..." }, 0, -1)
 		return
 	end
 
@@ -479,7 +479,7 @@ M.update_room_list = function()
 
 	--- @type table<neoment.rooms.RoomMark>
 	local extmarks = {}
-	local line_index = 4 -- Starting after the header
+	local line_index = #lines + 1 -- Starting after the header
 
 	--- @type table<string, number>
 	M.section_lines = {}
@@ -531,21 +531,21 @@ M.update_room_list = function()
 		end
 	end
 
-	util.buffer_write(buffer_id, lines, 0, -1)
+	util.buffer_write(rooms_buffer_id, lines, 0, -1)
 
 	M.room_list_extmarks = extmarks
 
 	local ns_id = api.nvim_create_namespace("neoment_room_list")
-	api.nvim_buf_clear_namespace(buffer_id, ns_id, 0, -1)
+	api.nvim_buf_clear_namespace(rooms_buffer_id, ns_id, 0, -1)
 
 	-- Highlight the title
-	vim.hl.range(buffer_id, ns_id, "NeomentRoomsTitle", { 0, 0 }, { 0, 7 })
-	vim.hl.range(buffer_id, ns_id, "Comment", { 0, 7 }, { 0, -1 })
+	vim.hl.range(rooms_buffer_id, ns_id, "NeomentRoomsTitle", { 0, 0 }, { 0, 7 })
+	vim.hl.range(rooms_buffer_id, ns_id, "Comment", { 0, 7 }, { 0, -1 })
 
 	-- Add user status line with highlighting
 	-- Add user status as virtual text on the second line
 	local user_display_name, user_status_text = get_logged_user_info()
-	api.nvim_buf_set_extmark(buffer_id, ns_id, 1, 0, {
+	api.nvim_buf_set_extmark(rooms_buffer_id, ns_id, 1, 0, {
 		virt_text = {
 			{ "", "NeomentBubbleBorder" }, -- Left border
 			{ user_display_name .. " │ " .. user_status_text, "NeomentBubbleContent" }, -- Use a nice highlight group for username
@@ -556,7 +556,7 @@ M.update_room_list = function()
 
 	-- Highlight the section titles
 	for _, line in pairs(M.section_lines) do
-		vim.hl.range(buffer_id, ns_id, "NeomentSectionTitle", { line - 1, 1 }, { line - 1, -1 })
+		vim.hl.range(rooms_buffer_id, ns_id, "NeomentSectionTitle", { line - 1, 1 }, { line - 1, -1 })
 	end
 
 	-- Highlight the room lines
@@ -564,12 +564,12 @@ M.update_room_list = function()
 		--- @type neoment.rooms.RoomMark
 		local mark = m
 		if mark.is_buffer then
-			api.nvim_buf_set_extmark(buffer_id, ns_id, mark.line - 1, 0, {
+			api.nvim_buf_set_extmark(rooms_buffer_id, ns_id, mark.line - 1, 0, {
 				line_hl_group = mark.has_unread and "NeomentBufferRoomUnread" or "NeomentBufferRoom",
 			})
 		elseif mark.has_unread then
 			-- Apply bold highlight for unread rooms
-			api.nvim_buf_set_extmark(buffer_id, ns_id, mark.line - 1, 0, {
+			api.nvim_buf_set_extmark(rooms_buffer_id, ns_id, mark.line - 1, 0, {
 				line_hl_group = "NeomentRoomUnread",
 			})
 		end
@@ -612,7 +612,7 @@ end
 --- Get the buffer ID of the room list
 --- @return number|nil
 M.get_buffer_id = function()
-	return buffer_id
+	return rooms_buffer_id
 end
 
 --- Get the name of the room list buffer
