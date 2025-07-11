@@ -1,4 +1,5 @@
 local buffer_id = vim.api.nvim_get_current_buf()
+local room_id = vim.b.room_id
 
 vim.bo.buftype = "nofile"
 vim.bo.swapfile = false
@@ -37,13 +38,19 @@ vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
 		vim.wo.breakindent = true
 		vim.wo.breakindentopt = "shift:31,sbr"
 		vim.wo.showbreak = string.rep(" ", 29) .. "│ "
+		local winbar = require("neoment.matrix").get_room_name(room_id)
+		local topic = require("neoment.matrix").get_room_topic(room_id)
+		if topic ~= "" then
+			winbar = winbar .. " - " .. topic
+		end
+		vim.api.nvim_set_option_value("winbar", winbar, { win = vim.api.nvim_get_current_win() })
+
 		require("neoment.room").mark_read(buffer_id)
 	end,
 })
 vim.wo.number = false
 vim.wo.relativenumber = false
 
-local room_id = vim.b.room_id
 -- Destroy completely the buffer when closing
 vim.api.nvim_create_autocmd("BufDelete", {
 	buffer = buffer_id,
