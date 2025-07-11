@@ -25,6 +25,28 @@ describe("Markdown", function()
 		assert.are.same(expected_output, result)
 	end)
 
+	it("should convert italic text with following link which contains underline to HTML", function()
+		local input = "_↪️ Forwarded:_\n\n[@r_neovim](https://with_underline.com)"
+		local expected_output =
+			'<em>↪️ Forwarded:</em><br /><br /><a href="https://with_underline.com">@r_neovim</a>'
+		local result = markdown.to_html(input)
+		assert.are.same(expected_output, result)
+	end)
+
+	it("shouldn't convert underline in links to italic when converting to HTML", function()
+		local input = "[this is a_link](https://an_link.com)"
+		local expected_output = '<a href="https://an_link.com">this is a_link</a>'
+		local result = markdown.to_html(input)
+		assert.are.same(expected_output, result)
+	end)
+
+	it("should convert italic text inside link description to HTML", function()
+		local input = "[this is a _link_](https://an_link.com)"
+		local expected_output = '<a href="https://an_link.com">this is a <em>link</em></a>'
+		local result = markdown.to_html(input)
+		assert.are.same(expected_output, result)
+	end)
+
 	it("should convert inline code with single backticks to HTML", function()
 		local input = "`inline code`"
 		local expected_output = "<code>inline code</code>"

@@ -20,9 +20,6 @@ local markdown_patterns = {
 	{ pattern = "^%s*[-%*]%s+([^\n]+)", replacement = "<li>%1</li>" },
 	{ pattern = "\n%s*[-%*]%s+([^\n]+)", replacement = "\n<li>%1</li>" },
 
-	-- Links: [text](url)
-	{ pattern = "%[(.-)%]%((.-)%)", replacement = '<a href="%2">%1</a>' },
-
 	-- Headers: # Title
 	{ pattern = "^%s*#%s+([^\n]+)", replacement = "<h1>%1</h1>" },
 	{ pattern = "\n%s*#%s+([^\n]+)", replacement = "\n<h1>%1</h1>" },
@@ -109,12 +106,32 @@ M.to_html = function(markdown_text)
 		return "<pre><code>" .. code .. "</code></pre>"
 	end)
 
-	-- Aplicar outros padrões Markdown
-	for _, pattern in ipairs(markdown_patterns) do
-		-- Skip only blockquote patterns (not spoilers) to avoid double processing
-		if not pattern.pattern:match("^%%s*>%s*") then
-			html = html:gsub(pattern.pattern, pattern.replacement)
+	-- First, preserve link content but process markdown within link text
+	local link_placeholders = {}
+	local link_count = 0
+
+	-- Process links first and store them as placeholders
+	html = html:gsub("%[(.-)%]%((.-)%)", function(text, url)
+		link_count = link_count + 1
+		local placeholder = "LINKPLACEHOLDER" .. link_count .. "LINKPLACEHOLDER"
+
+		-- Process markdown patterns within the link text (but not the URL)
+		local processed_text = text
+		for _, pattern in ipairs(markdown_patterns) do
+			processed_text = processed_text:gsub(pattern.pattern, pattern.replacement)
 		end
+
+		link_placeholders[placeholder] = '<a href="' .. url .. '">' .. processed_text .. "</a>"
+		return placeholder
+	end)
+	-- Apply other patterns (excluding links since they're already processed)
+	for _, pattern in ipairs(markdown_patterns) do
+		html = html:gsub(pattern.pattern, pattern.replacement)
+	end
+
+	-- Restore link placeholders
+	for placeholder, link in pairs(link_placeholders) do
+		html = html:gsub(placeholder, link)
 	end
 
 	-- Primeiro preservamos blocos de código para não substituir quebras de linha dentro deles
@@ -155,7 +172,6 @@ M.to_html = function(markdown_text)
 
 	return html
 end
-
 -- Adicionar esta função para converter HTML de volta para Markdown
 M.from_html = function(html)
 	if not html or html == "" then
