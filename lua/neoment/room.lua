@@ -1159,8 +1159,7 @@ M.forward_message = function()
 			end
 
 			-- Format the forwarded message
-			local sender_name = matrix.get_display_name(message.sender)
-			local forwarded_content = string.format("_↪️ Forwarded:_\n\n%s", sender_name, content)
+			local forwarded_content = string.format("_↪️ Forwarded:_\n\n%s", content)
 
 			--- @type neoment.room.PromptMessageParams
 			local params = {}
