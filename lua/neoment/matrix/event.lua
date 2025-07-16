@@ -12,6 +12,7 @@ local attachment_types = {
 	["m.audio"] = "audio",
 	["m.location"] = "location",
 	["m.video"] = "video",
+	["m.sticker"] = "image",
 }
 
 --- Get the thumbnail from an event
@@ -145,7 +146,7 @@ local function event_to_message(event, replying_to)
 
 	--- @type neoment.matrix.client.MessageAttachment|nil
 	local attachment
-	local attachment_type = attachment_types[event.content.msgtype]
+	local attachment_type = attachment_types[event.content.msgtype] or attachment_types[event.type]
 	if attachment_type and event.content.url then
 		attachment = get_attachment(event, attachment_type)
 	end
@@ -336,7 +337,7 @@ M.handle = function(room_id, event)
 		end
 
 		client.set_room_read_receipt(room_id, last_user_receipt)
-	elseif event.type == "m.room.message" then
+	elseif event.type == "m.room.message" or event.type == "m.sticker" then
 		if handle_message(room_id, event) then
 			return true
 		end
