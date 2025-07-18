@@ -165,6 +165,105 @@ local function event_to_message(event, replying_to)
 		replying_to = replying_to,
 		reactions = {},
 		attachment = attachment,
+		is_state = false,
+	}
+end
+
+--- Convert a Matrix state event to a message.
+--- @param event neoment.matrix.ClientEventWithoutRoomID The state event to convert.
+--- @return neoment.matrix.client.Message? The converted message object.
+local function state_event_to_message(event)
+	local membership = event.content.membership
+	local prev_content = event.unsigned and event.unsigned.prev_content or nil
+	local sender_name = require("neoment.matrix").get_display_name_or_fetch(event.sender)
+	local message_action
+	if membership == "join" then
+		message_action = "joined the room"
+		if prev_content and prev_content.membership == "join" then
+			if event.content.displayname ~= prev_content.displayname then
+				if event.content.displayname then
+					message_action = "changed display name from "
+						.. prev_content.displayname
+						.. " to "
+						.. event.content.displayname
+				else
+					message_action = "removed their display name"
+				end
+			elseif event.content.avatar_url ~= prev_content.avatar_url then
+				message_action = "changed avatar picture"
+			end
+		end
+	elseif membership == "leave" then
+		message_action = "left the room"
+		if prev_content then
+			if prev_content.membership == "invite" then
+				if event.sender ~= event.state_key then
+					message_action = "had their invite to the room revoked by " .. sender_name
+				else
+					message_action = "rejected the invite to the room"
+				end
+			elseif prev_content.membership == "join" and event.sender ~= event.state_key then
+				message_action = "was removed from the room by " .. sender_name
+			elseif prev_content.membership == "ban" then
+				message_action = "was unbanned from the room by " .. sender_name
+			elseif prev_content.membership == "knock" then
+				if event.sender ~= event.state_key then
+					message_action = "had their knock to the room denied by " .. sender_name
+				else
+					message_action = "retracted their knock to the room"
+				end
+			end
+		end
+	elseif membership == "invite" then
+		message_action = "was invited to the room"
+		if prev_content then
+			if prev_content.membership == "leave" then
+				message_action = "was re-invited to the room"
+			elseif prev_content.membership == "knock" then
+				message_action = "had their knock to the room accepted by " .. sender_name
+			end
+		end
+	elseif membership == "ban" then
+		message_action = "was banned from the room by " .. sender_name
+		if prev_content and prev_content.membership == "join" then
+			message_action = "was kicked and banned from the room by " .. sender_name
+		end
+	elseif membership == "knock" then
+		message_action = "is knocking on the room"
+		if prev_content and prev_content.membership == "invite" then
+			message_action = "is re-knocking on the room"
+		end
+	else
+		return nil -- Unsupported membership type
+	end
+
+	if event.content.displayname then
+		require("neoment.matrix").set_display_name(
+			event.state_key,
+			event.content.displayname,
+			event.origin_server_ts or 0
+		)
+	end
+
+	local display_name = require("neoment.matrix").get_display_name(event.state_key)
+
+	local content = string.format("%s %s", display_name, message_action)
+
+	--- @type neoment.matrix.client.Message
+	return {
+		id = event.event_id,
+		sender = event.sender,
+		content = content,
+		formatted_content = nil,
+		timestamp = event.origin_server_ts,
+		age = event.unsigned and event.unsigned.age or nil,
+		was_edited = false,
+		was_redacted = false,
+		mentions = {},
+		replying_to = nil,
+		reactions = {},
+		attachment = nil,
+		is_state = true,
 	}
 end
 
@@ -364,18 +463,13 @@ M.handle = function(room_id, event)
 	elseif event.type == "m.room.member" then
 		if event.content.membership == "join" then
 			client.get_room(room_id).members[event.state_key] = event.state_key
-
-			-- Fetch the display name if it is not already set
-			local displayname = event.content.displayname
-			if not displayname then
-				displayname = require("neoment.matrix").get_display_name_or_fetch(event.state_key)
-			end
-			client.client.display_names[event.state_key] = displayname
-
-			return true
 		elseif event.content.membership == "leave" or event.content.membership == "ban" then
 			client.get_room(room_id).members[event.state_key] = nil
-			return true
+		end
+
+		local message = state_event_to_message(event)
+		if message then
+			client.add_room_message(room_id, message)
 		end
 	elseif event.type == "m.room.redaction" then
 		if handle_redaction(room_id, event) then

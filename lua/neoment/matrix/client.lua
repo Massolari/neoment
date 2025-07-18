@@ -8,7 +8,7 @@ local M = {}
 ---@field user_id? string The ID of the user.
 ---@field access_token? string The access token for authentication.
 ---@field sync_token? string The token to supply in the since param of the next /sync request. (next_batch)
----@field display_names table<string, string> A table to store display names for users.
+---@field display_names table<string, neoment.matrix.client.DisplayName> A table to store display names for users.
 ---@field user_presence table<string, neoment.matrix.client.UserPresence> A table to store user presence information.
 M.client = nil
 
@@ -40,6 +40,11 @@ M.client = nil
 --- @field topic string The topic of the room.
 --- @field members table<string, string> A table to store members of the room, mapped as user ID to display name.
 
+--- @class neoment.matrix.client.DisplayName
+--- @field user_id string The ID of the user.
+--- @field display_name string The display name of the user.
+--- @field timestamp integer The timestamp of when the display name was last updated.
+
 --- @class neoment.matrix.client.Message
 --- @field id string The ID of the event.
 --- @field sender string The ID of the user who sent the message.
@@ -53,6 +58,7 @@ M.client = nil
 --- @field replying_to? neoment.matrix.client.Message The message being replied to, if available.
 --- @field reactions table<string, table<neoment.matrix.client.MessageReaction>> A table to store reactions to the message, it contains the reaction strings as keys and the user IDs of users who reacted as values.
 --- @field attachment? neoment.matrix.client.MessageAttachment The attachment of the message, if available.
+--- @field is_state boolean Indicates if the message is a state event.
 
 --- @class neoment.matrix.client.PreviousBatchToken
 --- @field token string The previous batch token for the room.

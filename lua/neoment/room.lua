@@ -261,6 +261,11 @@ local function messages_to_lines(buffer_id)
 		-- Check if the content exists
 		local content = message.content or ""
 
+		-- Handle membership events specially
+		if message.is_state then
+			content = "Membership: " .. content
+		end
+
 		-- If there's a formatted content, convert it to markdown
 		if message.formatted_content then
 			content = markdown.from_html(message.formatted_content)
@@ -464,37 +469,48 @@ local function apply_highlights(buffer_id, room_id, lines)
 			end
 
 			if message.is_header then
-				-- Apply user highlights for the sender's name
-				local user_id = message.sender
-				local highlight_group = get_user_highlight(room_id, user_id)
+				-- Special handling for membership events
+				if message.is_state then
+					-- Apply Comment highlight for membership events and no header
+					api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, 0, {
+						virt_text = {
+							{ string.rep(" ", 28) .. " │ ", "Title" },
+						},
+						virt_text_pos = "inline",
+					})
+				else
+					-- Apply user highlights for the sender's name
+					local user_id = message.sender
+					local highlight_group = get_user_highlight(room_id, user_id)
 
-				-- Create a dynamic highlight group that links to the Treesitter group
-				local hl_group = "NeomentUser_" .. user_id:gsub("[^%w]", "_") .. room_id:gsub("[^%w]", "_")
-				-- Try to link to the Treesitter highlight group
-				api.nvim_set_hl(0, hl_group, { link = highlight_group, default = true })
+					-- Create a dynamic highlight group that links to the Treesitter group
+					local hl_group = "NeomentUser_" .. user_id:gsub("[^%w]", "_") .. room_id:gsub("[^%w]", "_")
+					-- Try to link to the Treesitter highlight group
+					api.nvim_set_hl(0, hl_group, { link = highlight_group, default = true })
 
-				-- Add bold attribute to the linked group
-				local hl = api.nvim_get_hl(0, { name = highlight_group, link = false })
-				if hl then
-					hl.bold = true
-					--- @diagnostic disable-next-line: param-type-mismatch
-					api.nvim_set_hl(0, hl_group, hl)
+					-- Add bold attribute to the linked group
+					local hl = api.nvim_get_hl(0, { name = highlight_group, link = false })
+					if hl then
+						hl.bold = true
+						--- @diagnostic disable-next-line: param-type-mismatch
+						api.nvim_set_hl(0, hl_group, hl)
+					end
+
+					local time = os.date(TIME_FORMAT, math.floor(message.timestamp / 1000))
+
+					-- Get a friendly name for the sender
+					local sender_name = get_formatted_sender_name(message.sender)
+
+					-- Apply highlight to the user's name
+					api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, 0, {
+						virt_text = {
+							{ time .. " ", "Normal" },
+							{ sender_name, hl_group },
+							{ " │ ", "FloatBorder" },
+						},
+						virt_text_pos = "inline",
+					})
 				end
-
-				local time = os.date(TIME_FORMAT, math.floor(message.timestamp / 1000))
-
-				-- Get a friendly name for the sender
-				local sender_name = get_formatted_sender_name(message.sender)
-
-				-- Apply highlight to the user's name
-				api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, 0, {
-					virt_text = {
-						{ time .. " ", "Normal" },
-						{ sender_name, hl_group },
-						{ " │ ", "FloatBorder" },
-					},
-					virt_text_pos = "inline",
-				})
 
 				if message.attachment then
 					if Snacks then
@@ -528,7 +544,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 					end
 				end
 
-				if message.was_redacted then
+				if message.was_redacted or message.is_state then
 					vim.hl.range(buffer_id, ns_id, "Comment", { index - 1, 0 }, { index - 1, -1 })
 				end
 

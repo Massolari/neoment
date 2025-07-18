@@ -205,7 +205,11 @@ local function fetch_display_name(user_id)
 
 	local result = error.map(response, function(data)
 		if data.displayname then
-			client.client.display_names[user_id] = data.displayname
+			client.client.display_names[user_id] = {
+				user_id = user_id,
+				display_name = data.displayname,
+				timestamp = os.time(),
+			}
 			return data.displayname
 		end
 		return user_id
@@ -587,7 +591,28 @@ end
 --- @param user_id string The ID of the user.
 --- @return string The display name of the user.
 M.get_display_name = function(user_id)
-	return client.client.display_names[user_id] or user_id
+	local display_name = client.client.display_names[user_id]
+	if display_name then
+		return display_name.display_name
+	end
+	return user_id
+end
+
+--- Set the display name of a user if it is not already set.
+--- @param user_id string The ID of the user.
+--- @param display_name string The display name of the user, or the user ID if the display name is not set.
+--- @param timestamp integer The timestamp when the display name was set. Defaults to the current time.
+M.set_display_name = function(user_id, display_name, timestamp)
+	local current_display_name = client.client.display_names[user_id]
+	if current_display_name and current_display_name.timestamp > timestamp then
+		return
+	end
+
+	client.client.display_names[user_id] = {
+		user_id = user_id,
+		display_name = display_name,
+		timestamp = timestamp,
+	}
 end
 
 --- Check if a user has a display name.
@@ -602,7 +627,7 @@ end
 --- @return string The display name of the user.
 M.get_display_name_or_fetch = function(user_id)
 	if client.client.display_names[user_id] then
-		return client.client.display_names[user_id]
+		return client.client.display_names[user_id].display_name
 	end
 	return fetch_display_name(user_id)
 end
@@ -923,7 +948,11 @@ M.fetch_joined_members = function(room_id, callback)
 			local data = d
 			for id, member in pairs(data.joined) do
 				if member.display_name and member.display_name ~= vim.NIL then
-					client.client.display_names[id] = member.display_name
+					client.client.display_names[id] = {
+						user_id = id,
+						display_name = member.display_name,
+						timestamp = os.time(),
+					}
 				end
 				client.get_room(room_id).members[id] = id
 			end
