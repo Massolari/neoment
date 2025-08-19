@@ -202,6 +202,9 @@ M.from_html = function(html)
 	-- Strip Matrix reply blocks as we support rich replies
 	markdown = markdown:gsub("<mx%-reply>%s*<blockquote>(.-)</blockquote>%s*</mx%-reply>", "")
 
+	-- Apply our own forwarded header
+	markdown = markdown:gsub("<p data%-mx%-forwarded%-notice>(.-)</p>", "_↪️ Forwarded:_\n\n")
+
 	-- Convert Matrix <span data-mx-spoiler> spoiler blocks to markdown
 	-- markdown = markdown:gsub("<span data%-mx%-spoiler>(.-)</span>", "[Spoiler](<%1>)")
 	-- markdown = markdown:gsub('<span data%-mx%-spoiler="([^"]*)">(.-)</span>', "[Spoiler for %1](<%2>)")
