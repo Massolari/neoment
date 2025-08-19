@@ -36,6 +36,7 @@ local user_highlight_groups = {
 local SENDER_NAME_LENGTH = 19
 local TIME_FORMAT = "%H:%M:%S"
 local SEPARATOR_LENGTH = 60
+local SEPARATOR_HIGHLIGHT = "Title"
 local ns_id = api.nvim_create_namespace("neoment_highlight")
 local HEADER_LENGTH = string.len(TIME_FORMAT .. " ") + SENDER_NAME_LENGTH + 3 -- Time + sender name + separator
 
@@ -474,7 +475,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 					-- Apply Comment highlight for membership events and no header
 					api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, 0, {
 						virt_text = {
-							{ string.rep(" ", 28) .. " │ ", "Title" },
+							{ string.rep(" ", 28) .. " │ ", SEPARATOR_HIGHLIGHT },
 						},
 						virt_text_pos = "inline",
 					})
@@ -506,7 +507,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 						virt_text = {
 							{ time .. " ", "Normal" },
 							{ sender_name, hl_group },
-							{ " │ ", "FloatBorder" },
+							{ " │ ", SEPARATOR_HIGHLIGHT },
 						},
 						virt_text_pos = "inline",
 					})
@@ -571,7 +572,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 				-- Apply highlight to the user's name
 				api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, 0, {
 					virt_text = {
-						{ string.rep(" ", 28) .. " │ ", "FloatBorder" },
+						{ string.rep(" ", 28) .. " │ ", SEPARATOR_HIGHLIGHT },
 					},
 					virt_text_pos = "inline",
 				})
@@ -720,7 +721,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 
 		api.nvim_buf_set_extmark(buffer_id, ns_id, #lines - 1, 0, {
 			virt_lines = {
-				{ { string.rep(" ", 28) .. " │ ", "Title" }, { typing_line, "Comment" } },
+				{ { string.rep(" ", 28) .. " │ ", SEPARATOR_HIGHLIGHT }, { typing_line, "Comment" } },
 			},
 		})
 	end
