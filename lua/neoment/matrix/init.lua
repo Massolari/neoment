@@ -817,22 +817,31 @@ M.set_room_read_marker = function(room_id, markers, callback)
 	})
 end
 
---- Join a room by ID.
---- @param room_id string The ID of the room to join.
+--- Join a room by ID or alias.
+--- @param room_id_or_alias string The ID or alias of the room to join.
 --- @param callback fun(data: neoment.Error<string, neoment.matrix.api.Error>): any The callback function to handle the response. The response will be the room ID of the joined room.
-M.join_room = function(room_id, callback)
-	api.post(client.client.homeserver .. "/_matrix/client/v3/rooms/" .. room_id .. "/join", nil, function(response)
-		local result = error.map(response, function(data)
-			client.get_invited_rooms()[room_id] = nil
-			return data.room_id
-		end) --[[@as neoment.Error<string, neoment.matrix.api.Error>]]
+M.join_room = function(room_id_or_alias, callback)
+	api.post(
+		client.client.homeserver
+			.. "/_matrix/client/v3/join/"
+			.. vim.uri_encode(room_id_or_alias)
+			.. "?via="
+			.. vim.uri_encode(client.client.homeserver),
+		nil,
+		function(response)
+			local result = error.map(response, function(data)
+				client.get_invited_rooms()[data.room_id] = nil
+				return data.room_id
+			end) --[[@as neoment.Error<string, neoment.matrix.api.Error>]]
 
-		callback(result)
-	end, {
-		headers = {
-			Authorization = "Bearer " .. client.client.access_token,
-		},
-	})
+			callback(result)
+		end,
+		{
+			headers = {
+				Authorization = "Bearer " .. client.client.access_token,
+			},
+		}
+	)
 end
 
 --- Leave a room by ID.
@@ -841,8 +850,9 @@ end
 M.leave_room = function(room_id, callback)
 	api.post(client.client.homeserver .. "/_matrix/client/v3/rooms/" .. room_id .. "/leave", nil, function(response)
 		local result = error.map(response, function()
-			-- If the room is invited, remove it from the list of invited rooms
+			-- Remove the room from the client's room list
 			client.get_invited_rooms()[room_id] = nil
+			client.get_rooms()[room_id] = nil
 			return nil
 		end) --[[@as neoment.Error<nil, neoment.matrix.api.Error>]]
 

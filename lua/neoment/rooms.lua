@@ -94,8 +94,8 @@ local function get_logged_user_info()
 	return display_name, status_text
 end
 
---- Join a room by its ID
-local function open_room(room_id)
+--- Open a room in a new window
+M.open_room = function(room_id)
 	-- If the current buffer is the room list buffer
 	local current_buf = api.nvim_get_current_buf()
 	if current_buf == rooms_buffer_id then
@@ -132,7 +132,7 @@ local function handle_invited_room(room_id)
 		matrix.join_room(room_id, function(response)
 			error.match(response, function()
 				vim.schedule(function()
-					open_room(room_id)
+					M.open_room(room_id)
 				end)
 				return nil
 			end, function(err)
@@ -164,7 +164,7 @@ M.open_selected_room = function()
 		handle_invited_room(mark.room_id)
 		return
 	end
-	open_room(mark.room_id)
+	M.open_room(mark.room_id)
 end
 
 --- Toggle the section fold at the cursor position
@@ -605,7 +605,7 @@ end
 --- Select a room from the list using a picker
 M.pick = function()
 	M.pick_room(function(choice)
-		open_room(choice.id)
+		M.open_room(choice.id)
 	end)
 end
 

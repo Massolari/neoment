@@ -54,13 +54,13 @@ local function login()
 
 	matrix.login(username, password, function(data)
 		if error.is_error(data) then
-    		vim.schedule(function()
+			vim.schedule(function()
 				vim.notify("Error logging in: " .. data.error.error, vim.log.levels.ERROR)
 			end)
 			return
 		end
 
-    	vim.schedule(function()
+		vim.schedule(function()
 			vim.notify("Login successful as " .. matrix.client.user_id, vim.log.levels.INFO)
 		end)
 
@@ -88,6 +88,27 @@ M.init = function()
 	else
 		login()
 	end
+end
+
+--- Join a room by its ID or alias
+--- @param room_id_or_alias string The room ID (!room:server.com) or alias (#alias:server.com)
+M.join_room = function(room_id_or_alias)
+	if not matrix.is_logged_in() then
+		vim.notify("Not logged in", vim.log.levels.ERROR)
+		return
+	end
+
+	matrix.join_room(room_id_or_alias, function(join_response)
+		error.match(join_response, function(room_id)
+			vim.notify("Successfully joined room " .. room_id_or_alias, vim.log.levels.INFO)
+			vim.schedule(function()
+				rooms.open_room(room_id)
+			end)
+			return nil
+		end, function(err)
+			vim.notify("Failed to join room " .. room_id_or_alias .. ": " .. err.error, vim.log.levels.ERROR)
+		end)
+	end)
 end
 
 --- Logout from the Matrix server

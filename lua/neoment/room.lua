@@ -1446,6 +1446,32 @@ M.go_to_replied_message = function()
 	end)
 end
 
+--- Leave the current room
+M.leave_room = function()
+	local buffer_id = vim.api.nvim_get_current_buf()
+	local room_id = vim.b[buffer_id].room_id
+	local room_name = matrix.get_room_display_name(room_id)
+	local choice =
+		vim.fn.confirm(string.format("Are you sure you want to leave the room %s?", room_name), "&Yes\n&No", 2)
+
+	if choice ~= 1 then
+		return
+	end
+
+	matrix.leave_room(room_id, function(response)
+		error.match(response, function()
+			vim.schedule(function()
+				vim.notify("Left room " .. room_name, vim.log.levels.INFO)
+				vim.cmd("bdelete! " .. buffer_id)
+				require("neoment.rooms").update_room_list()
+			end)
+			return nil
+		end, function(err)
+			vim.notify("Error leaving room: " .. err.error, vim.log.levels.ERROR)
+		end)
+	end)
+end
+
 -- Expose for testing
 M._update_buffer_lines_diff = update_buffer_lines_diff
 

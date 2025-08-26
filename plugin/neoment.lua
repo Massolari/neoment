@@ -51,6 +51,13 @@ vim.api.nvim_create_user_command("Neoment", function(opts)
 		require("neoment.sync").stop()
 	elseif subcommand == "clear" then
 		require("neoment.storage").clear_cache()
+	elseif subcommand == "join" then
+		local room_id = opts.fargs[2]
+		if not room_id then
+			vim.notify("Usage: :Neoment join <room_id_or_alias>", vim.log.levels.ERROR)
+			return
+		end
+		require("neoment").join_room(room_id)
 	elseif subcommand == "logout" then
 		local choice = vim.fn.confirm(
 			"Are you sure you want to log out?\nAll saved data will be lost.",
@@ -66,13 +73,13 @@ vim.api.nvim_create_user_command("Neoment", function(opts)
 		end
 	else
 		vim.notify("Unknown subcommand: " .. subcommand, vim.log.levels.ERROR)
-		vim.notify("Available subcommands: rooms, stop, clear, logout", vim.log.levels.INFO)
+		vim.notify("Available subcommands: rooms, stop, clear, logout, join", vim.log.levels.INFO)
 	end
 end, {
 	desc = "Neoment Matrix client",
 	nargs = "*",
 	complete = function(arglead)
-		local subcommands = { "rooms", "stop", "clear", "logout" }
+		local subcommands = { "rooms", "stop", "clear", "logout", "join" }
 		if arglead == "" then
 			return subcommands
 		end
