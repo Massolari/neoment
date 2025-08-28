@@ -101,7 +101,12 @@ local function add_pending_event(room_id, target_event_id, event)
 
 	-- Remove the event in the room's events table and add to the pending events table
 	room.events[event.event_id] = nil
-	room.pending_events[target_event_id] = event
+	local existing_pending = room.pending_events[target_event_id]
+	if existing_pending then
+		existing_pending[event.event_id] = event
+	else
+		room.pending_events[target_event_id] = { [event.event_id] = event }
+	end
 end
 
 --- Fetch a room event by its ID.
@@ -344,49 +349,58 @@ local function handle_redaction(room_id, event)
 	---@type string
 	local redacted_event_id = event.content.redacts
 	local event_redacted = client.get_room(room_id).events[redacted_event_id]
-	if event_redacted and not vim.tbl_isempty(event_redacted.content) then
-		if event_redacted.type == "m.room.message" then
-			local relates_to = event_redacted.content["m.relates_to"]
-			if relates_to and relates_to.rel_type == "m.replace" and relates_to.event_id then
-				client.get_room(room_id).messages[relates_to.event_id] = nil
-			else
-				local reason = event.content.reason
-				local content = "[Redacted]"
-				if reason then
-					content = string.format("[Redacted: %s]", reason)
+
+	-- If the event to be redacted is not found, store the redaction event in pending events so it can be processed later when the event is available
+	if not event_redacted then
+		add_pending_event(room_id, redacted_event_id, event)
+		return false
+	end
+
+	-- If the event is already redacted, do nothing
+	if vim.tbl_isempty(event_redacted.content) then
+		return false
+	end
+
+	if event_redacted.type == "m.room.message" then
+		local relates_to = event_redacted.content["m.relates_to"]
+		if relates_to and relates_to.rel_type == "m.replace" and relates_to.event_id then
+			client.get_room(room_id).messages[relates_to.event_id] = nil
+		else
+			local reason = event.content.reason
+			local content = "[Redacted]"
+			if reason then
+				content = string.format("[Redacted: %s]", reason)
+			end
+			client.get_room(room_id).messages[redacted_event_id].content = content
+			client.get_room(room_id).messages[redacted_event_id].formatted_content = content
+			client.get_room(room_id).messages[redacted_event_id].was_redacted = true
+		end
+		return true
+	elseif event_redacted.type == "m.reaction" then
+		local relates_to = event_redacted.content["m.relates_to"]
+
+		local reaction = relates_to.key
+		local message_id = relates_to.event_id
+		local message = client.get_room(room_id).messages[message_id]
+		if message and message.reactions[reaction] then
+			local reaction_list = message.reactions[reaction]
+			for i, r in ipairs(reaction_list) do
+				--- @type neoment.matrix.client.MessageReaction
+				local reaction_data = r
+				if reaction_data.event_id == event_redacted.event_id then
+					table.remove(reaction_list, i)
+					break
 				end
-				client.get_room(room_id).messages[redacted_event_id].content = content
-				client.get_room(room_id).messages[redacted_event_id].formatted_content = content
-				client.get_room(room_id).messages[redacted_event_id].was_redacted = true
+			end
+			if #reaction_list == 0 then
+				message.reactions[reaction] = nil
+			else
+				message.reactions[reaction] = reaction_list
 			end
 			return true
-		elseif event_redacted.type == "m.reaction" then
-			local relates_to = event_redacted.content["m.relates_to"]
-
-			local reaction = relates_to.key
-			local message_id = relates_to.event_id
-			local message = client.get_room(room_id).messages[message_id]
-			if message and message.reactions[reaction] then
-				local reaction_list = message.reactions[reaction]
-				for i, r in ipairs(reaction_list) do
-					--- @type neoment.matrix.client.MessageReaction
-					local reaction_data = r
-					if reaction_data.event_id == event_redacted.event_id then
-						table.remove(reaction_list, i)
-						break
-					end
-				end
-				if #reaction_list == 0 then
-					message.reactions[reaction] = nil
-				else
-					message.reactions[reaction] = reaction_list
-				end
-				return true
-			end
 		end
 	end
 
-	add_pending_event(room_id, redacted_event_id, event)
 	return false
 end
 
@@ -558,14 +572,11 @@ M.handle_multiple = function(room_id, events)
 		end
 
 		-- Handle pending actions
-		local pending_event = client.get_room(room_id).pending_events[event.event_id]
-		if pending_event then
-			if M.handle(room_id, pending_event) then
-				client.get_room(room_id).pending_events[event.event_id] = nil
-				handled = true
-			end
+		local pending_events = client.get_room(room_id).pending_events[event.event_id] or {}
+		if not vim.tbl_isempty(pending_events) then
+			M.handle_multiple(room_id, vim.tbl_values(pending_events))
+			client.get_room(room_id).pending_events[event.event_id] = nil
 		end
-
 		::continue::
 	end
 

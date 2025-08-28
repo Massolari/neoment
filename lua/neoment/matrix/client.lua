@@ -18,8 +18,8 @@ M.client = nil
 --- @field name string The name of the room.
 --- @field topic string The topic of the room.
 --- @field members table<string, string> A table to store members of the room, mapped as user ID to display name.
---- @field events table<string, neoment.matrix.ClientEventWithoutRoomID> A table to store events associated with the room.
---- @field pending_events table<string, neoment.matrix.ClientEventWithoutRoomID> A table to store pending events associated with the room.
+--- @field events neoment.matrix.client.Events A table to store events associated with the room.
+--- @field pending_events table<string, neoment.matrix.client.Events> A table to store pending events associated with the room.
 --- @field messages table<string, neoment.matrix.client.Message> A table to store messages associated with the room.
 --- @field prev_batch? neoment.matrix.client.PreviousBatch The previous batch token for the room.
 --- @field last_activity? neoment.matrix.client.LastActivity The last activity in the room, containing the timestamp and event ID.
@@ -33,6 +33,8 @@ M.client = nil
 --- @field unread_highlights integer The number of unread highlights for this room.
 --- @field unread boolean Indicates if the room was marked as unread.
 --- @field read_receipt? neoment.matrix.client.ReadReceipt The read receipt of the user in the room, containing the event ID and timestamp of the last read event.
+
+--- @alias neoment.matrix.client.Events table<string, neoment.matrix.ClientEventWithoutRoomID>
 
 --- @class neoment.matrix.client.InvitedRoom
 --- @field id string The ID of the room.
