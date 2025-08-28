@@ -606,14 +606,14 @@ local function apply_highlights(buffer_id, room_id, lines)
 			if message.is_reaction then
 				local reaction_start = line:find("")
 				local emoji = require("neoment.emoji")
+				local reaction_index = 1
+				local reactions_list = vim.tbl_keys(message.reactions)
 				while reaction_start do
 					local reaction_end = line:find("", reaction_start)
 					if reaction_end then
-						-- Check if the user sent this reaction
-						-- We need to ge the emoji to get the reaction users
-						local content = line:sub(reaction_start + 3, reaction_end - 1)
-						-- Remove spaces and digits from the content
-						content = content:gsub("[%s%d]+", "")
+						-- Check if the user sent this reaction to change the highlight group
+						-- We need to get the emoji to get the reaction users
+						local content = reactions_list[reaction_index]
 						local message_reactions = message.reactions[content] or {}
 						--- @type table<string>
 						local reaction_users = vim.tbl_map(function(r)
@@ -659,6 +659,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 						new_extmarks_data[right_border_id] = reaction_data
 
 						reaction_start = line:find("", reaction_end)
+						reaction_index = reaction_index + 1
 					else
 						break
 					end
