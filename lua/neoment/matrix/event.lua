@@ -139,6 +139,18 @@ local function event_to_message(event, replying_to)
 		formatted_content = event.content["m.new_content"].formatted_body or formatted_content
 	end
 
+	if event.unsigned and event.unsigned["redacted_because"] then
+		local redacted_by = event.unsigned["redacted_because"].sender
+		local redacted_by_text = ""
+		if redacted_by ~= event.sender then
+			local redacted_by_name = require("neoment.matrix").get_display_name(redacted_by)
+			redacted_by_text = " by " .. redacted_by_name
+		end
+
+		content = string.format("[Redacted%s]", redacted_by_text)
+		formatted_content = content
+	end
+
 	local mentions = {}
 	if event.content["m.mentions"] then
 		mentions = event.content["m.mentions"].user_ids or {}
