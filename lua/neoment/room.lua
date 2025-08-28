@@ -453,9 +453,9 @@ local function apply_highlights(buffer_id, room_id, lines)
 		--- @type string
 		local line = l
 		-- Apply styles for the vertical bar
-		local quote_start = string.find(line, "┃")
-		if quote_start then
-			vim.hl.range(buffer_id, ns_id, "Comment", { index - 1, quote_start }, { index - 1, -1 })
+		local is_quote = line:sub(1, 3) == "┃"
+		if is_quote then
+			vim.hl.range(buffer_id, ns_id, "Comment", { index - 1, 0 }, { index - 1, -1 })
 		end
 
 		-- Mentions
