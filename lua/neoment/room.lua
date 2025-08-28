@@ -213,6 +213,20 @@ M.update_room = function(room_id)
 	end
 end
 
+--- Check if there are more messages after the given index
+--- @param index number The index of the current message
+--- @param messages table<string, neoment.matrix.client.Message> The list of messages
+--- @return boolean True if there are more messages, false otherwise
+local function are_there_more_messages(index, messages)
+	for message_index = index + 1, #messages do
+		local message = messages[message_index]
+		if not message.was_redacted and not message.is_state then
+			return true
+		end
+	end
+	return false
+end
+
 --- Get a separator line with a text
 --- @param text string The text to display
 --- @return string The separator line with the text
@@ -349,7 +363,7 @@ local function messages_to_lines(buffer_id)
 			table.insert(content_lines, "")
 		end
 
-		local is_last_read = message.id == last_read and index < #messages
+		local is_last_read = message.id == last_read and are_there_more_messages(index, messages)
 		-- Mark the first line as containing the user's name
 		table.insert(lines, content_lines[1])
 		line_to_message[line_index] = vim.tbl_extend("force", message, {
