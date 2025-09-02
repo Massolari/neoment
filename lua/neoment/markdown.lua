@@ -1,5 +1,7 @@
 local M = {}
 
+local constants = require("neoment.constants")
+
 -- Tabela para mapear elementos Markdown para HTML
 local markdown_patterns = {
 	-- Bold: **text** or __text__
@@ -95,15 +97,39 @@ M.to_html = function(markdown_text)
 
 	html = table.concat(lines, "\n")
 
+	local preserved_blocks = {}
+	local preserved_count = 0
+
 	-- Handle blockquotes with specified language
 	html = html:gsub("```(%w+)\n(.-)\n```", function(lang, code)
-		return '<pre><code class="language-' .. lang .. '">' .. code .. "</code></pre>"
+		preserved_count = preserved_count + 1
+		local placeholder = "{{CODEBLOCK" .. preserved_count .. "}}"
+		preserved_blocks[placeholder] = '<pre><code class="language-' .. lang .. '">' .. code .. "</code></pre>"
+		return placeholder
 	end)
 
 	-- Handle code blocks without specified language
 	html = html:gsub("```(.-)```", function(code)
-		-- Remover qualquer formatação HTML dentro de blocos de código
-		return "<pre><code>" .. code .. "</code></pre>"
+		preserved_count = preserved_count + 1
+		local placeholder = "{{CODEBLOCK" .. preserved_count .. "}}"
+		preserved_blocks[placeholder] = "<pre><code>" .. code .. "</code></pre>"
+		return placeholder
+	end)
+
+	-- Handle inline code
+	html = html:gsub("`(.-)`", function(code)
+		preserved_count = preserved_count + 1
+		local placeholder = "{{INLINECODE" .. preserved_count .. "}}"
+		preserved_blocks[placeholder] = "<code>" .. code .. "</code>"
+		return placeholder
+	end)
+
+	-- Handle mentions
+	html = html:gsub(constants.MENTION_REGEX, function(mention)
+		preserved_count = preserved_count + 1
+		local placeholder = "{{MENTION" .. preserved_count .. "}}"
+		preserved_blocks[placeholder] = mention
+		return placeholder
 	end)
 
 	-- First, preserve link content but process markdown within link text
@@ -134,31 +160,11 @@ M.to_html = function(markdown_text)
 		html = html:gsub(placeholder, link)
 	end
 
-	-- Primeiro preservamos blocos de código para não substituir quebras de linha dentro deles
-	local code_blocks = {}
-	local code_count = 0
-
-	-- Preservar blocos de código com classe de linguagem
-	html = html:gsub('(<pre><code class="language%-[^"]+">.-)([^<]*)(</code></pre>)', function(pre, content, post)
-		code_count = code_count + 1
-		local placeholder = "{{CODE_BLOCK_" .. code_count .. "}}"
-		code_blocks[placeholder] = pre .. content .. post
-		return placeholder
-	end)
-
-	-- Preservar blocos de código sem classe de linguagem
-	html = html:gsub("(<pre><code>.-)([^<]*)(</code></pre>)", function(pre, content, post)
-		code_count = code_count + 1
-		local placeholder = "{{CODE_BLOCK_" .. code_count .. "}}"
-		code_blocks[placeholder] = pre .. content .. post
-		return placeholder
-	end)
-
 	-- Convert line breaks to <br /> tags (except in code blocks)
 	html = html:gsub("\n", "<br />")
 
 	-- Restaurar os blocos de código
-	for placeholder, code_block in pairs(code_blocks) do
+	for placeholder, code_block in pairs(preserved_blocks) do
 		html = html:gsub(placeholder, code_block)
 	end
 

@@ -6,6 +6,7 @@ local markdown = require("neoment.markdown")
 local util = require("neoment.util")
 local event = require("neoment.matrix.event")
 local client = require("neoment.matrix.client")
+local constants = require("neoment.constants")
 
 --- Create a new Matrix client.
 M.new = client.new
@@ -461,7 +462,7 @@ M.send_message = function(room_id, params, callback)
 	local mentions = {}
 	local formatted_body = markdown.to_html(params.message)
 
-	formatted_body = formatted_body:gsub("(@[^%s]+:[^%s]+)", function(user_id)
+	formatted_body = formatted_body:gsub(constants.MENTION_REGEX, function(user_id)
 		local display_name = M.get_display_name_or_fetch(user_id)
 
 		-- If we didn't find a display name, maybe it's not a valid user ID
@@ -923,7 +924,7 @@ M.get_room_members = function(room_id)
 		if not displayname or displayname == vim.NIL then
 			return id
 		end
-		return displayname
+		return displayname.display_name
 	end, client.get_room(room_id).members)
 end
 

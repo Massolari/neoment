@@ -987,7 +987,7 @@ M.load_more_messages = function(buffer_id)
 
 		vim.notify(notify.message, notify.level, {
 			-- For snacks
-			id = notification and notification.id,
+			id = notification and (type(notification) == "table" and notification.id or notification),
 			-- For nvim-notify
 			replace = notification,
 			timeout = 3000,

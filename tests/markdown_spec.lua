@@ -10,7 +10,7 @@ local it = busted.it
 
 local markdown = require("neoment.markdown")
 
-describe("Markdown", function()
+describe("markdown: to_html", function()
 	it("should convert bold text to HTML", function()
 		local input = "**bold** __text__"
 		local expected_output = "<strong>bold</strong> <strong>text</strong>"
@@ -118,7 +118,28 @@ describe("Markdown", function()
 		assert.are.same(expected_output, result)
 	end)
 
-	describe("from_html", function()
+	it("should preserve underlines inside code blocks", function()
+		local input = "```\nThis_is_a_test\n```"
+		local expected_output = "<pre><code>\nThis_is_a_test\n</code></pre>"
+		local result = markdown.to_html(input)
+		assert.are.same(expected_output, result)
+	end)
+
+	it("should preserve underlines when one of the pairs is inside code blocks", function()
+		local input = "this is_: `print('a_test')`"
+		local expected_output = "this is_: <code>print('a_test')</code>"
+		local result = markdown.to_html(input)
+		assert.are.same(expected_output, result)
+	end)
+
+	it("should preserve underlines when one of the pairs is a mention", function()
+		local input = "@user_name:server.com how are_you?"
+		local expected_output = "@user_name:server.com how are_you?"
+		local result = markdown.to_html(input)
+		assert.are.same(expected_output, result)
+	end)
+
+	describe("markdown: from_html", function()
 		it("should convert bold HTML tags to Markdown", function()
 			local input = "<strong>bold text</strong> and <b>more bold</b>"
 			local expected_output = "**bold text** and **more bold**"
