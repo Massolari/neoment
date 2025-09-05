@@ -1253,7 +1253,7 @@ M.handle_cursor_hold = function(buffer_id)
 				table.insert(lines, display_name)
 				max_length = math.max(max_length, vim.fn.strdisplaywidth(display_name))
 			end
-			local height = math.min(5, #lines)
+			local height = #lines
 
 			local float_buf = util.open_float(lines, {
 				width = max_length,
