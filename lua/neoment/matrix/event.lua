@@ -199,8 +199,8 @@ local function state_event_to_message(event)
 		if prev_content and prev_content.membership == "join" then
 			if event.content.displayname ~= prev_content.displayname then
 				if event.content.displayname then
-					message_action = "changed display name from "
-						.. prev_content.displayname
+					message_action = "changed display name"
+						.. (prev_content.displayname and " from " .. prev_content.displayname or "")
 						.. " to "
 						.. event.content.displayname
 				else
