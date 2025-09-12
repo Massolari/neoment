@@ -309,7 +309,8 @@ local function handle_message(room_id, event)
 				if new_content then
 					replaced_message.content = new_content.body
 					replaced_message.formatted_content = new_content.formatted_body
-					replaced_message.was_edited = true
+					replaced_message.edited_id = replaced_event_id
+					replaced_message.id = event.event_id
 					return true
 				end
 			else

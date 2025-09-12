@@ -54,7 +54,7 @@ M.client = nil
 --- @field formatted_content? string The formatted content of the message, if available.
 --- @field timestamp integer The timestamp of when the message was sent.
 --- @field age? number The age of the message in milliseconds.
---- @field was_edited boolean Indicates if the message was edited.
+--- @field edited_id string|nil The ID of the edit event, if the message was edited.
 --- @field was_redacted boolean Indicates if the message was redacted.
 --- @field mentions table<string> A table to store mentions in the message, it contains the user IDs of users mentioned in the message.
 --- @field replying_to? neoment.matrix.client.Message The message being replied to, if available.
