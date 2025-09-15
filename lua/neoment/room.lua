@@ -1064,6 +1064,27 @@ local function get_message_under_cursor()
 	return error.ok(message)
 end
 
+M.set_read_mark = function()
+	local error_message = get_message_under_cursor()
+	local buffer_id = vim.api.nvim_get_current_buf()
+	local room_id = vim.b[buffer_id].room_id
+
+	error.map(error_message, function(message)
+		matrix.set_room_read_marker(room_id, {
+			read = message.id,
+			fully_read = message.id,
+		}, function(response)
+			error.map(response, function()
+				vim.schedule(function()
+					M.update_buffer(buffer_id)
+				end)
+				return nil
+			end)
+		end)
+		return nil
+	end)
+end
+
 --- Edit the message under the cursor
 M.edit_message = function()
 	local error_message = get_message_under_cursor()
