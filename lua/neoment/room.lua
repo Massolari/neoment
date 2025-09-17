@@ -824,7 +824,7 @@ local function send_message(room_id, message, message_params)
 		if relation.relation == "reply" then
 			params.reply_to = relation.message.id
 		elseif relation.relation == "replace" then
-			params.replace = relation.message.id
+			params.replace = relation.message.edited_id or relation.message.id
 		end
 	end
 
