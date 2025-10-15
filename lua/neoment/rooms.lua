@@ -733,6 +733,7 @@ local function toggle_room_tag(tag)
 	local room_name = matrix.get_room_display_name(room.id)
 
 	local action = {
+		kind = "add",
 		operation = matrix.add_room_tag,
 		success = "added to",
 		error = "adding " .. room_name .. " to",
@@ -743,6 +744,7 @@ local function toggle_room_tag(tag)
 
 	if is_already_tagged then
 		action = {
+			kind = "remove",
 			operation = matrix.remove_room_tag,
 			success = "removed from",
 			error = "removing " .. room_name .. " from",
@@ -751,6 +753,13 @@ local function toggle_room_tag(tag)
 
 	action.operation(room.id, tag, nil, function(response)
 		error.match(response, function()
+			if action.kind == "remove" then
+				if tag == "m.favourite" then
+					matrix.set_room_favorite(room.id, false)
+				elseif tag == "m.lowpriority" then
+					matrix.set_room_lowpriority(room.id, false)
+				end
+			end
 			vim.schedule(function()
 				M.update_room_list()
 			end)

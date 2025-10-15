@@ -1233,6 +1233,20 @@ M.get_space_name = function(room_id)
 	return M.get_room_display_name(space.id)
 end
 
+--- Set the favorite status of a room
+--- @param room_id string The ID of the room.
+--- @param is_favorite boolean True to mark the room as favorite, false to unmark it.
+M.set_room_favorite = function(room_id, is_favorite)
+	client.get_room(room_id).is_favorite = is_favorite
+end
+
+--- Set the low priority status of a room
+--- @param room_id string The ID of the room.
+--- @param is_lowpriority boolean True to mark the room as low priority, false to unmark it.
+M.set_room_lowpriority = function(room_id, is_lowpriority)
+	client.get_room(room_id).is_lowpriority = is_lowpriority
+end
+
 --- @type neoment.matrix.client.Client
 M.client = nil
 M.get_room = client.get_room
