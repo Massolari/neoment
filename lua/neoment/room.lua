@@ -697,30 +697,34 @@ local function apply_highlights(buffer_id, room_id, lines)
 		end
 	end
 
-	for _, image in ipairs(images) do
-		local dimensions = get_image_dimensions(image.width, image.height, false)
+	if Snacks and #images > 0 then
+		require("snacks.image.terminal").detect(function()
+			for _, image in ipairs(images) do
+				local dimensions = get_image_dimensions(image.width, image.height, false)
 
-		--- @type snacks.image.Opts
-		local opts = {
-			pos = { image.line, 33 },
-			height = dimensions.height,
-			width = dimensions.width,
-			inline = true,
-			type = "image",
-		}
+				--- @type snacks.image.Opts
+				local opts = {
+					pos = { image.line, HEADER_LENGTH },
+					height = dimensions.height,
+					width = dimensions.width,
+					inline = true,
+					type = "image",
+				}
 
-		local placement = Snacks.image.placement.new(buffer_id, image.url, opts)
-		--- @type neoment.room.ImagePlacement
-		local image_placement = {
-			placement = placement,
-			height = image.height,
-			width = image.width,
-			zoom = false,
-		}
-		table.insert(get_buffer_data(buffer_id).image_placements, image_placement)
+				local placement = Snacks.image.placement.new(buffer_id, image.url, opts)
+				--- @type neoment.room.ImagePlacement
+				local image_placement = {
+					placement = placement,
+					height = image.height,
+					width = image.width,
+					zoom = false,
+				}
+				table.insert(get_buffer_data(buffer_id).image_placements, image_placement)
 
-		vim.schedule(function()
-			placement:show()
+				-- vim.schedule(function()
+				-- 	placement:update()
+				-- end)
+			end
 		end)
 	end
 
