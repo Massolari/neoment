@@ -433,10 +433,8 @@ local function apply_highlights(buffer_id, room_id, lines)
 	local new_extmarks_data = {}
 	get_buffer_data(buffer_id).extmarks_data = new_extmarks_data
 	-- Clear previous images
-	for _, p in pairs(get_buffer_data(buffer_id).image_placements) do
-		--- @type neoment.room.ImagePlacement
-		local placement = p
-		placement.placement:close()
+	if Snacks then
+		Snacks.image.placement.clean(buffer_id)
 	end
 	get_buffer_data(buffer_id).image_placements = {}
 
