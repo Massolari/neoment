@@ -527,32 +527,16 @@ local function apply_highlights(buffer_id, room_id, lines)
 
 				if message.attachment then
 					if Snacks then
-						if message.attachment.type == "image" then
-							--- @type neoment.room.Image
+						local image_data = message.attachment.thumbnail or message.attachment
+						--- @type neoment.room.Image
+						if image_data then
 							local image = {
 								line = index,
-								url = message.attachment.url,
-								height = message.attachment.height,
-								width = message.attachment.width,
+								url = image_data.url,
+								height = image_data.height,
+								width = image_data.width,
 							}
-
 							table.insert(images, image)
-						end
-
-						if message.attachment.type == "location" or message.attachment.type == "video" then
-							local thumbnail = message.attachment.thumbnail
-
-							if thumbnail then
-								--- @type neoment.room.Image
-								local image = {
-									line = index,
-									url = thumbnail.url,
-									height = thumbnail.height,
-									width = thumbnail.width,
-								}
-
-								table.insert(images, image)
-							end
 						end
 					end
 				end
