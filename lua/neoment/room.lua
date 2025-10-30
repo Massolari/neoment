@@ -58,7 +58,7 @@ local buffer_data = {}
 --- @field extmarks_data table<number, neoment.room.ExtmarkData> The extmarks data for the room
 
 --- @class neoment.room.ImagePlacement
---- @field placement Image The image placement object
+--- @field placement snacks.image.Placement The image placement object
 --- @field height number The image height
 --- @field width number The image width
 --- @field zoom boolean Whether the image is zoomed or not
@@ -436,7 +436,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 	for _, p in pairs(get_buffer_data(buffer_id).image_placements) do
 		--- @type neoment.room.ImagePlacement
 		local placement = p
-		placement.placement:clear()
+		placement.placement:close()
 	end
 	get_buffer_data(buffer_id).image_placements = {}
 
@@ -528,8 +528,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 				end
 
 				if message.attachment then
-					local has_image_nvim, _ = pcall(require, "image")
-					if has_image_nvim then
+					if Snacks then
 						if message.attachment.type == "image" then
 							--- @type neoment.room.Image
 							local image = {
@@ -701,37 +700,27 @@ local function apply_highlights(buffer_id, room_id, lines)
 	for _, image in ipairs(images) do
 		local dimensions = get_image_dimensions(image.width, image.height, false)
 
-		--- @type ImageOptions
+		--- @type snacks.image.Opts
 		local opts = {
-			buffer = buffer_id,
-			window = vim.fn.bufwinid(buffer_id),
-			y = image.line,
-			x = 3,
+			pos = { image.line, 33 },
 			height = dimensions.height,
 			width = dimensions.width,
-			with_virtual_padding = true,
 			inline = true,
-			render_offset_top = 1,
+			type = "image",
 		}
 
-		--- @type API
-		local image_nvim = require("image")
-		image_nvim.from_url(image.url, opts, function(img)
-			if not img then
-				return
-			end
-			--- @type neoment.room.ImagePlacement
-			local image_placement = {
-				placement = img,
-				height = img.image_height,
-				width = img.image_width,
-				zoom = false,
-			}
-			table.insert(get_buffer_data(buffer_id).image_placements, image_placement)
+		local placement = Snacks.image.placement.new(buffer_id, image.url, opts)
+		--- @type neoment.room.ImagePlacement
+		local image_placement = {
+			placement = placement,
+			height = image.height,
+			width = image.width,
+			zoom = false,
+		}
+		table.insert(get_buffer_data(buffer_id).image_placements, image_placement)
 
-			vim.schedule(function()
-				img:render()
-			end)
+		vim.schedule(function()
+			placement:show()
 		end)
 	end
 
@@ -1307,10 +1296,12 @@ M.toggle_image_zoom = function()
 	for _, p in ipairs(image_placements) do
 		--- @type neoment.room.ImagePlacement
 		local placement = p
-		if placement.placement.geometry.y == line_number then
+		if placement.placement.opts.pos[1] == line_number then
 			placement.zoom = not placement.zoom
 			local dimensions = get_image_dimensions(placement.width, placement.height, placement.zoom)
-			placement.placement:render({ width = dimensions.width, height = dimensions.height })
+			placement.placement.opts.height = dimensions.height
+			placement.placement.opts.width = dimensions.width
+			placement.placement:update()
 			return
 		end
 	end
