@@ -1164,21 +1164,26 @@ end
 M.redact_message = function()
 	local error_message = get_message_under_cursor()
 	error.map(error_message, function(message)
-		local reason = vim.fn.input("Redact message reason: ")
+		vim.ui.input({
+			prompt = "Redact message reason: ",
+		}, function(reason)
+			if reason == nil then
+				return
+			end
 
-		local current_buf = vim.api.nvim_get_current_buf()
-		matrix.redact_event(vim.b[current_buf].room_id, message.id, reason, function(response)
-			error.match(response, function()
-				vim.schedule(function()
-					M.update_buffer(current_buf)
+			local current_buf = vim.api.nvim_get_current_buf()
+			matrix.redact_event(vim.b[current_buf].room_id, message.id, reason, function(response)
+				error.match(response, function()
+					vim.schedule(function()
+						M.update_buffer(current_buf)
+					end)
+					return nil
+				end, function(err)
+					vim.notify("Error redacting message: " .. err.error, vim.log.levels.ERROR)
+					return nil
 				end)
-				return nil
-			end, function(err)
-				vim.notify("Error redacting message: " .. err.error, vim.log.levels.ERROR)
-				return nil
 			end)
 		end)
-
 		return nil
 	end)
 end
