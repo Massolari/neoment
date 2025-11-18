@@ -732,8 +732,6 @@ local function apply_highlights(buffer_id, room_id, lines)
 			if message.is_thread_indicator then
 				local bubble = get_thread_bubble(message)
 				local bubble_length = string.len(bubble)
-				print(bubble_length)
-				-- vim.hl.range(buffer_id, ns_id, "Comment", { index - 1, 0 }, { index - 1, -1 })
 				vim.hl.range(buffer_id, ns_id, "NeomentBubbleBorder", { index - 1, 0 }, { index - 1, 1 })
 				vim.hl.range(
 					buffer_id,
