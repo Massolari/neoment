@@ -61,6 +61,8 @@ M.client = nil
 --- @field reactions table<string, table<neoment.matrix.client.MessageReaction>> A table to store reactions to the message, it contains the reaction strings as keys and the user IDs of users who reacted as values.
 --- @field attachment? neoment.matrix.client.MessageAttachment The attachment of the message, if available.
 --- @field is_state boolean Indicates if the message is a state event.
+--- @field thread_root_id? string The ID of the thread root event, if this message is part of a thread.
+--- @field thread_replies_count? number The number of replies in the thread, if this is a thread root.
 
 --- @class neoment.matrix.client.PreviousBatchToken
 --- @field token string The previous batch token for the room.
@@ -208,7 +210,7 @@ end
 
 --- Get the list of messages in a room.
 ---- @param room_id string The ID of the room.
---- @return table<string, neoment.matrix.client.Message> The list of messages in the room.
+--- @return table<neoment.matrix.client.Message> The list of messages in the room.
 M.get_room_messages = function(room_id)
 	local messages = vim.tbl_values(M.get_room(room_id).messages)
 

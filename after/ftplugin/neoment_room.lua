@@ -40,7 +40,10 @@ vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
 		vim.wo.showbreak = string.rep(" ", 29) .. "│ "
 		local winbar = require("neoment.matrix").get_room_name(room_id)
 		local topic = require("neoment.matrix").get_room_topic(room_id)
-		if topic ~= "" then
+		local thread_root_id = vim.b[buffer_id].thread_root_id
+		if thread_root_id then
+			winbar = "🧵 Thread in " .. winbar
+		elseif topic ~= "" then
 			winbar = winbar .. " - " .. topic
 		end
 		vim.api.nvim_set_option_value("winbar", winbar, { win = vim.api.nvim_get_current_win() })
@@ -55,6 +58,9 @@ vim.wo.relativenumber = false
 vim.api.nvim_create_autocmd("BufDelete", {
 	buffer = buffer_id,
 	callback = function()
+		if vim.b[buffer_id].thread_root_id then
+			return
+		end
 		vim.schedule(function()
 			require("neoment.room").close(buffer_id, room_id)
 		end)
@@ -108,6 +114,9 @@ end, vim.tbl_extend("error", opts, { desc = "[R]eply message" }))
 vim.keymap.set("n", "<localleader>R", function()
 	require("neoment.room").go_to_replied_message()
 end, vim.tbl_extend("error", opts, { desc = "Go to [R]eplied message" }))
+vim.keymap.set("n", "<localleader>t", function()
+	require("neoment.room").open_thread()
+end, vim.tbl_extend("error", opts, { desc = "Open [t]hread" }))
 vim.keymap.set("n", "<localleader>s", function()
 	require("neoment.room").save_attachment()
 end, vim.tbl_extend("error", opts, { desc = "[S]ave attachment" }))

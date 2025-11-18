@@ -240,10 +240,22 @@ local function get_separator_line(text)
 	return line1 .. text .. line2
 end
 
+--- Get the bubble for a thread message
+--- @param message neoment.matrix.client.Message The message to get the bubble for
+--- @return string The bubble for the thread message
+local function get_thread_bubble(message)
+	return string.format(
+		"↳ %d %s",
+		message.thread_replies_count,
+		message.thread_replies_count == 1 and "reply" or "replies"
+	)
+end
+
 ---@class neoment.room.LineMessage : neoment.matrix.client.Message
 ---@field is_header boolean Whether the line is a header or not
 ---@field is_last_read? boolean Whether the line is the last read message or not
 ---@field is_reaction? boolean Whether the line is a reaction or not
+---@field is_thread_indicator? boolean Whether the line is a thread indicator or not
 ---@field is_date? boolean Whether the line is the date or not
 
 --- Generate the lines from the room messages
@@ -251,9 +263,37 @@ end
 --- @return table The list of lines to display
 local function messages_to_lines(buffer_id)
 	local room_id = vim.b[buffer_id].room_id
+	local thread_root_id = vim.b[buffer_id].thread_root_id
+
 	local messages = matrix.get_room_messages(room_id)
 	if vim.tbl_count(messages) == 0 then
 		return {}
+	end
+
+	-- If this is a thread buffer, filter to show thread root + thread replies
+	if thread_root_id then
+		local thread_messages = {}
+		local thread_root = matrix.get_room_message(room_id, thread_root_id)
+		if thread_root then
+			table.insert(thread_messages, thread_root)
+		end
+		for _, msg in ipairs(messages) do
+			if msg.thread_root_id == thread_root_id then
+				table.insert(thread_messages, msg)
+			end
+		end
+		messages = thread_messages
+	else
+		-- If this is a regular room buffer, filter OUT thread replies (only show thread roots and non-thread messages)
+		local room_messages = {}
+		for _, msg in ipairs(messages) do
+			-- Only include messages that are NOT thread replies
+			-- (thread replies have thread_root_id set but are not the root themselves)
+			if not msg.thread_root_id then
+				table.insert(room_messages, msg)
+			end
+		end
+		messages = room_messages
 	end
 
 	local lines = {}
@@ -406,6 +446,17 @@ local function messages_to_lines(buffer_id)
 			line_to_message[line_index] = vim.tbl_extend("force", message, {
 				is_header = false,
 				is_reaction = true,
+			})
+			line_index = line_index + 1
+		end
+
+		-- Thread indicator (only show in regular room buffers, not in thread buffers)
+		if not thread_root_id and message.thread_replies_count and message.thread_replies_count > 0 then
+			local thread_text = get_thread_bubble(message)
+			table.insert(lines, thread_text)
+			line_to_message[line_index] = vim.tbl_extend("force", message, {
+				is_header = false,
+				is_thread_indicator = true,
 			})
 			line_index = line_index + 1
 		end
@@ -676,6 +727,29 @@ local function apply_highlights(buffer_id, room_id, lines)
 					)
 				end
 			end
+
+			-- Thread indicator
+			if message.is_thread_indicator then
+				local bubble = get_thread_bubble(message)
+				local bubble_length = string.len(bubble)
+				print(bubble_length)
+				-- vim.hl.range(buffer_id, ns_id, "Comment", { index - 1, 0 }, { index - 1, -1 })
+				vim.hl.range(buffer_id, ns_id, "NeomentBubbleBorder", { index - 1, 0 }, { index - 1, 1 })
+				vim.hl.range(
+					buffer_id,
+					ns_id,
+					"NeomentBubbleContent",
+					{ index - 1, 1 },
+					{ index - 1, bubble_length - 3 }
+				)
+				vim.hl.range(
+					buffer_id,
+					ns_id,
+					"NeomentBubbleBorder",
+					{ index - 1, bubble_length - 3 },
+					{ index - 1, -1 }
+				)
+			end
 		end
 	end
 
@@ -814,6 +888,11 @@ local function send_message(room_id, message, message_params)
 		end
 	end
 
+	-- Add thread relation if we're in a thread buffer
+	if message_params.thread_root_id then
+		params.thread_root_id = message_params.thread_root_id
+	end
+
 	params.attachment = message_params.attachment
 
 	matrix.send_message(room_id, params, function(response)
@@ -827,6 +906,7 @@ end
 --- @class neoment.room.PromptMessageParams
 --- @field relation? neoment.room.MessageRelation The relation to the message
 --- @field attachment? neoment.room.MessageAttachment The attachment to send with the message
+--- @field thread_root_id? string The thread root ID if sending to a thread
 
 --- @class neoment.room.MessageAttachment
 --- @field filename string The name of the file
@@ -837,7 +917,9 @@ end
 --- Prompt the user for a message and send it to the room using a dedicated buffer
 --- @param params? neoment.room.PromptMessageParams The relation to the message
 M.prompt_message = function(params)
-	local room_id = vim.b.room_id
+	local current_buf = vim.api.nvim_get_current_buf()
+	local room_id = vim.b[current_buf].room_id
+	local thread_root_id = params and params.thread_root_id or vim.b[current_buf].thread_root_id
 	local room_win = vim.api.nvim_get_current_win()
 
 	if not room_id then
@@ -847,11 +929,15 @@ M.prompt_message = function(params)
 
 	local room_name = matrix.get_room_name(room_id)
 	local buffer_name = "neoment://Sending to " .. room_name
+	if thread_root_id then
+		buffer_name = "neoment://Sending to thread in " .. room_name
+	end
 
 	-- Create a new buffer for input
 	local input_buf = vim.api.nvim_create_buf(false, true) -- listed=false, scratch=true
 	-- Store room_id and parent buffer in buffer variables
 	vim.b[input_buf].room_id = room_id
+	vim.b[input_buf].thread_root_id = thread_root_id
 	vim.b[input_buf].room_win = room_win
 	vim.b[input_buf].members = matrix.get_room_other_members(room_id)
 
@@ -904,6 +990,7 @@ M.send_and_close_compose = function(compose_buf)
 	local lines = vim.api.nvim_buf_get_lines(compose_buf, 0, -1, false)
 	local message = table.concat(lines, "\n")
 	local room_id = vim.b[compose_buf].room_id
+	local thread_root_id = vim.b[compose_buf].thread_root_id
 	local room_win = vim.b[compose_buf].room_win
 
 	if not room_id then
@@ -919,6 +1006,7 @@ M.send_and_close_compose = function(compose_buf)
 	local params = {
 		relation = vim.b[compose_buf].relation,
 		attachment = vim.b[compose_buf].attachment,
+		thread_root_id = thread_root_id,
 	}
 
 	send_message(room_id, message, params)
@@ -1499,7 +1587,77 @@ M.leave_room = function()
 	end)
 end
 
--- Expose for testing
-M._update_buffer_lines_diff = update_buffer_lines_diff
+--- Open a thread buffer for the message under the cursor
+M.open_thread = function()
+	local error_message = get_message_under_cursor()
+	error.map(error_message, function(message)
+		-- Check if this is a thread root or a thread indicator line
+		local thread_root_id = message.thread_replies_count and message.id or message.thread_root_id
+
+		if not thread_root_id then
+			-- This message is not part of a thread yet, so start a new thread
+			M.prompt_message({
+				thread_root_id = message.id,
+			})
+			return nil
+		end
+
+		local buffer_id = vim.api.nvim_get_current_buf()
+		local room_id = vim.b[buffer_id].room_id
+
+		-- Check if thread buffer already exists and find its window
+		local bufs = api.nvim_list_bufs()
+		for _, buf in ipairs(bufs) do
+			if api.nvim_buf_is_loaded(buf) then
+				if vim.b[buf].room_id == room_id and vim.b[buf].thread_root_id == thread_root_id then
+					-- Find if there's a window showing this buffer
+					local wins = vim.fn.win_findbuf(buf)
+					if #wins > 0 then
+						-- Focus the existing window
+						api.nvim_set_current_win(wins[1])
+					else
+						-- Buffer exists but not visible, open it in a new split to the right
+						vim.cmd("rightbelow vsplit")
+						api.nvim_set_current_buf(buf)
+						-- Update buffer in case messages were added since it was closed
+						M.update_buffer(buf)
+					end
+					return nil
+				end
+			end
+		end
+
+		-- Get the thread root message
+		local thread_root_message = message.thread_replies_count and message
+			or matrix.get_room_message(room_id, thread_root_id)
+		if not thread_root_message then
+			vim.notify("Thread root message not found", vim.log.levels.ERROR)
+			return nil
+		end
+
+		-- Create a new buffer for the thread
+		local thread_root_sender = matrix.get_display_name(thread_root_message.sender)
+		local buffer_name = string.format("neoment://Thread: %s", thread_root_sender)
+		local thread_buffer_id = api.nvim_create_buf(true, false)
+		api.nvim_buf_set_name(thread_buffer_id, buffer_name)
+		vim.b[thread_buffer_id].room_id = room_id
+		vim.b[thread_buffer_id].thread_root_id = thread_root_id
+		api.nvim_set_option_value("filetype", "neoment_room", { buf = thread_buffer_id })
+		api.nvim_set_option_value("buftype", "nofile", { buf = thread_buffer_id })
+		api.nvim_buf_set_lines(thread_buffer_id, 0, -1, false, { string.rep(" ", 28) .. " │ Loading thread..." })
+
+		-- Open in a vertical split to the right
+		vim.cmd("rightbelow vsplit")
+		api.nvim_set_current_buf(thread_buffer_id)
+
+		-- First, update buffer with any messages we already have in cache
+		-- Use vim.schedule to ensure buffer is fully set up
+		vim.schedule(function()
+			M.update_buffer(thread_buffer_id)
+		end)
+
+		return nil
+	end)
+end
 
 return M

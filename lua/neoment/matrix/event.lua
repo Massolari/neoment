@@ -168,6 +168,18 @@ local function event_to_message(event, replying_to)
 		attachment = get_attachment(event, attachment_type)
 	end
 
+	-- Check if this message is part of a thread
+	local thread_root_id
+	if event.content["m.relates_to"] and event.content["m.relates_to"].rel_type == "m.thread" then
+		thread_root_id = event.content["m.relates_to"].event_id
+	end
+
+	-- Check if this message is a thread root with replies
+	local thread_replies_count
+	if event.unsigned and event.unsigned["m.relations"] and event.unsigned["m.relations"]["m.thread"] then
+		thread_replies_count = event.unsigned["m.relations"]["m.thread"].count or 0
+	end
+
 	--- @type neoment.matrix.client.Message
 	return {
 		id = event.event_id,
@@ -183,6 +195,8 @@ local function event_to_message(event, replying_to)
 		reactions = {},
 		attachment = attachment,
 		is_state = false,
+		thread_root_id = thread_root_id,
+		thread_replies_count = thread_replies_count,
 	}
 end
 
@@ -281,6 +295,8 @@ local function state_event_to_message(event)
 		reactions = {},
 		attachment = nil,
 		is_state = true,
+		thread_root_id = nil,
+		thread_replies_count = nil,
 	}
 end
 
@@ -335,7 +351,16 @@ local function handle_message(room_id, event)
 		end
 	end
 
-	client.add_room_message(room_id, event_to_message(event, replying_to))
+	local new_message = event_to_message(event, replying_to)
+	client.add_room_message(room_id, new_message)
+
+	-- If this message is a thread reply, increment the thread root's reply count
+	if new_message.thread_root_id then
+		local thread_root = client.get_room_message(room_id, new_message.thread_root_id)
+		if thread_root then
+			thread_root.thread_replies_count = (thread_root.thread_replies_count or 0) + 1
+		end
+	end
 
 	-- Check if the events contains a "m.replace" relation applied to it
 	-- If so, handle the replacement event

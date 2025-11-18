@@ -451,6 +451,7 @@ end
 --- @field reply_to? string The ID of the message being replied to.
 --- @field replace? string The ID of the message being replaced.
 --- @field attachment? {url: string, mimetype: string, filename: string, size: number} The attachment to send with the message.
+--- @field thread_root_id? string The ID of the root message of the thread to send the message in.threa
 
 --- Send a message to a room.
 --- @param room_id string The ID of the room to send the message to.
@@ -492,6 +493,23 @@ M.send_message = function(room_id, params, callback)
 				event_id = params.reply_to,
 			},
 		}
+	end
+
+	-- Thread support: if thread_root_id is provided, add thread relation
+	if params.thread_root_id then
+		if not content["m.relates_to"] then
+			content["m.relates_to"] = {}
+		end
+		content["m.relates_to"].rel_type = "m.thread"
+		content["m.relates_to"].event_id = params.thread_root_id
+		-- Thread replies should also include is_falling_back for clients that don't support threads
+		content["m.relates_to"].is_falling_back = true
+		-- If replying in a thread, also preserve the reply structure
+		if params.reply_to then
+			content["m.relates_to"]["m.in_reply_to"] = {
+				event_id = params.reply_to,
+			}
+		end
 	end
 
 	if params.replace then
@@ -1257,6 +1275,7 @@ M.set_room = client.set_room
 M.set_invited_room = client.set_invited_room
 M.set_room_tracked = client.set_room_tracked
 M.get_room_messages = client.get_room_messages
+M.get_room_message = client.get_room_message
 M.get_room_last_message = client.get_room_last_message
 M.get_room_unread_mark = client.get_room_unread_mark
 M.has_room = client.has_room
