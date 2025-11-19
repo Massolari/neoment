@@ -155,9 +155,15 @@ local function event_to_message(event, replying_to)
 	if event.content["m.mentions"] then
 		mentions = event.content["m.mentions"].user_ids or {}
 	end
+
+	local actual_replying_to = replying_to
 	if replying_to then
-		for _, mention in ipairs(replying_to.mentions) do
-			table.insert(mentions, mention)
+		if event["content"]["m.relates_to"]["is_falling_back"] == true then
+			actual_replying_to = nil
+		else
+			for _, mention in ipairs(replying_to.mentions) do
+				table.insert(mentions, mention)
+			end
 		end
 	end
 

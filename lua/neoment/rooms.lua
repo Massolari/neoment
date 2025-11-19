@@ -159,6 +159,12 @@ M.open_selected_room = function()
 		return
 	end
 
+	-- Check if it's a space
+	if mark.is_space then
+		require("neoment.space").open_space(mark.room_id)
+		return
+	end
+
 	-- Check if the current line corresponds to a room
 	if mark.is_invited then
 		handle_invited_room(mark.room_id)
@@ -348,6 +354,7 @@ local function render_room(room, lines, line_index, extmarks, opts)
 		is_invited = opts.section == "invited",
 		has_unread = (room.unread_notifications and room.unread_notifications > 0)
 			or (room.unread_highlights and room.unread_highlights > 0),
+		is_space = false,
 	}
 	table.insert(extmarks, extmark)
 end
@@ -365,6 +372,18 @@ local function render_space(space, lines, line_index, extmarks, indentation_leve
 	local space_name = matrix.get_room_display_name(space.id)
 	local indentation = string.rep("  ", indentation_level)
 	table.insert(lines, string.format("%s%s %s", indentation, fold_arrow, space_name))
+
+	-- Add extmark for the space line so it's clickable
+	--- @type neoment.rooms.RoomMark
+	local space_mark = {
+		line = line_index,
+		room_id = space.id,
+		is_buffer = false,
+		is_invited = false,
+		has_unread = false,
+		is_space = true,
+	}
+	table.insert(extmarks, space_mark)
 
 	M.section_lines[space.id] = line_index
 	local new_line_index = line_index + 1
@@ -476,6 +495,7 @@ M.update_room_list = function()
 	--- @field is_buffer boolean
 	--- @field is_invited boolean
 	--- @field has_unread boolean
+	--- @field is_space boolean
 
 	--- @type table<neoment.rooms.RoomMark>
 	local extmarks = {}
