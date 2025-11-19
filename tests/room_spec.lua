@@ -1,9 +1,7 @@
 local assert = require("luassert.assert")
-local mock = require("luassert.mock")
 local spy = require("luassert.spy")
 local busted = require("plenary.busted")
 local describe = busted.describe
-local before_each = busted.before_each
 local it = busted.it
 
 local room = require("neoment.room")
