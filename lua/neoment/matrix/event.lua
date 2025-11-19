@@ -197,7 +197,7 @@ local function event_to_message(event, replying_to)
 		was_edited = false,
 		was_redacted = false,
 		mentions = mentions,
-		replying_to = replying_to,
+		replying_to = actual_replying_to,
 		reactions = {},
 		attachment = attachment,
 		is_state = false,
