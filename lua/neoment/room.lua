@@ -1658,4 +1658,7 @@ M.open_thread = function()
 	end)
 end
 
+-- Expose for testing
+M._update_buffer_lines_diff = update_buffer_lines_diff
+
 return M
