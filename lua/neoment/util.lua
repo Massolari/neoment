@@ -78,6 +78,19 @@ M.buffer_write = function(buf, lines, start, end_line)
 	vim.api.nvim_set_option_value("modified", false, { buf = buf })
 end
 
+--- Get the existing buffer from a predicate
+--- @param predicate fun(buf: number): boolean The predicate function to check each buffer
+--- @return number|nil The buffer number if found, nil otherwise
+M.get_existing_buffer = function(predicate)
+	local bufs = vim.api.nvim_list_bufs()
+	for _, buf in ipairs(bufs) do
+		if vim.api.nvim_buf_is_loaded(buf) and predicate(buf) then
+			return buf
+		end
+	end
+	return nil
+end
+
 --- Open a float window
 --- @param lines table The lines to display in the float window
 --- @param opts vim.api.keyset.win_config The options for the float window

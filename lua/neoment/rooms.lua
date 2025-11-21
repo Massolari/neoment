@@ -1,5 +1,6 @@
 local M = {}
 
+local icon = require("neoment.icon")
 local api = vim.api
 local sync = require("neoment.sync")
 local matrix = require("neoment.matrix")
@@ -242,7 +243,7 @@ end
 --- Get the fold arrow for the section
 --- @param is_folded boolean Whether the section is folded
 local function get_section_fold_arrow(is_folded)
-	return is_folded and "" or ""
+	return is_folded and icon.right_arrow or icon.down_arrow
 end
 
 --- Get the icon for the section
@@ -250,19 +251,19 @@ end
 --- @return string The icon for the section
 local function get_section_icon(section)
 	if section == "invited" then
-		return ""
+		return icon.invite
 	elseif section == "buffers" then
-		return "󰮫"
+		return icon.buffer
 	elseif section == "favorites" then
-		return ""
+		return icon.favorite
 	elseif section == "people" then
-		return ""
+		return icon.people
 	elseif section == "spaces" then
-		return "󰴖"
+		return icon.space
 	elseif section == "rooms" then
-		return "󰮧"
+		return icon.room
 	elseif section == "low_priority" then
-		return "󰘄"
+		return icon.low_priority
 	else
 		return ""
 	end
@@ -282,13 +283,16 @@ local function get_room_line(room, show_space)
 	if last_activity and last_activity.timestamp > 0 then
 		local time = os.date("%H:%M", math.floor(last_activity.timestamp / 1000))
 		display = display .. " [" .. time .. "]"
+		local display_icon = nil
 		if room.unread_highlights and room.unread_highlights > 0 then
-			display = display .. " 󰵛"
+			display_icon = icon.bell
 		elseif room.unread_notifications and room.unread_notifications > 0 then
-			display = display .. " "
+			display_icon = icon.dot_circle
 		elseif matrix.is_room_unread(room.id) then
-			display = display .. " ⏺"
+			display_icon = icon.dot
 		end
+
+		display = display_icon and (display .. " " .. display_icon) or display
 	end
 
 	return display
@@ -567,9 +571,12 @@ M.update_room_list = function()
 	local user_display_name, user_status_text = get_logged_user_info()
 	api.nvim_buf_set_extmark(rooms_buffer_id, ns_id, 1, 0, {
 		virt_text = {
-			{ "", "NeomentBubbleBorder" }, -- Left border
-			{ user_display_name .. " │ " .. user_status_text, "NeomentBubbleContent" }, -- Use a nice highlight group for username
-			{ "", "NeomentBubbleBorder" }, -- Right border
+			{ icon.border_left, "NeomentBubbleBorder" }, -- Left border
+			{
+				string.format("%s %s %s", user_display_name, icon.vertical_bar, user_status_text),
+				"NeomentBubbleContent",
+			}, -- Use a nice highlight group for username
+			{ icon.border_right, "NeomentBubbleBorder" }, -- Right border
 		},
 		virt_text_pos = "inline",
 	})
@@ -602,16 +609,15 @@ end
 M.pick_room = function(callback, options)
 	options = options or {}
 	local rooms_and_spaces = vim.tbl_values(matrix.get_rooms())
-	local rooms = vim.iter(rooms_and_spaces)
-		:filter(function(room)
-			return not matrix.is_space(room.id)
-		end)
-		:totable()
 
-	vim.ui.select(rooms, {
+	vim.ui.select(rooms_and_spaces, {
 		prompt = options.prompt or "Rooms",
 		format_item = function(room)
-			return get_room_line(room, true)
+			if matrix.is_space(room.id) then
+				return icon.space .. "  " .. matrix.get_room_display_name(room.id)
+			end
+			local room_icon = room.is_direct and icon.people or icon.room
+			return room_icon .. "  " .. get_room_line(room, true)
 		end,
 	}, function(c)
 		--- @type neoment.matrix.client.Room|nil
@@ -625,6 +631,10 @@ end
 --- Select a room from the list using a picker
 M.pick = function()
 	M.pick_room(function(choice)
+		if matrix.is_space(choice.id) then
+			require("neoment.space").open_space(choice.id)
+			return
+		end
 		M.open_room(choice.id)
 	end)
 end

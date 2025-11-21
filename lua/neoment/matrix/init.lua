@@ -839,13 +839,15 @@ end
 --- Join a room by ID or alias.
 --- @param room_id_or_alias string The ID or alias of the room to join.
 --- @param callback fun(data: neoment.Error<string, neoment.matrix.api.Error>): any The callback function to handle the response. The response will be the room ID of the joined room.
-M.join_room = function(room_id_or_alias, callback)
+--- @param via? table<string> The list of servers to try and join through.
+M.join_room = function(room_id_or_alias, callback, via)
 	api.post(
 		client.client.homeserver
 			.. "/_matrix/client/v3/join/"
 			.. vim.uri_encode(room_id_or_alias)
 			.. "?via="
-			.. vim.uri_encode(client.client.homeserver),
+			.. vim.uri_encode(client.client.homeserver)
+			.. (via and #via > 0 and "&via=" .. table.concat(via, "&via=") or ""),
 		nil,
 		function(response)
 			local result = error.map(response, function(data)
@@ -1091,6 +1093,39 @@ M.get_room_display_name = function(room_id)
 	end
 
 	return displayname
+end
+
+--- @class neoment.matrix.RoomsHierarchy
+--- @field next_batch? string The token to fetch the next batch of rooms.
+--- @field rooms table<neoment.matrix.SpaceHierarchyRoomsChunk> The list of rooms in the hierarchy.
+
+--- @class neoment.matrix.SpaceHierarchyRoomsChunk
+--- @field allowed_room_ids? table<string> If the room is a restricted room, these are the room IDs which are specified by the join rules. Empty or omitted otherwise.
+--- @field avatar_url? string The URL for the room's avatar, if one is set.
+--- @field canonical_alias? string The canonical alias of the room, if any.
+--- @field children_state table<neoment.matrix.StrippedStateEvent> The m.space.child events of the space-room, represented as Stripped State Events with an added origin_server_ts key. If the room is not a space-room, this should be empty.
+--- @field encryption? string The encryption algorithm to be used to encrypt messages sent in the room. One of: [m.megolm.v1.aes-sha2].
+--- @field guest_can_join boolean Whether guest users may join the room and participate in it. If they can, they will be subject to ordinary power level rules like any other user.
+--- @field join_rule? string The room's join rule. When not present, the room is assumed to be public.
+--- @field name? string The name of the room, if any.
+--- @field num_joined_members integer The number of members joined to the room.
+--- @field room_id string The ID of the room.
+--- @field room_type? string The type of room (from m.room.create), if any.
+--- @field room_version? string The version of the room.
+--- @field topic? string The plain text topic of the room. Omitted if no text/plain mimetype exists in m.room.topic.
+--- @field world_readable boolean Whether the room may be viewed by users without joining.
+
+--- Fetch space hierarchy and cache room names from it
+--- @param space_id string The ID of the space
+--- @param callback fun(success: neoment.matrix.api.Error<neoment.matrix.RoomsHierarchy, neoment.matrix.api.Error>) Optional callback when hierarchy is fetched
+M.fetch_space_hierarchy = function(space_id, callback)
+	local endpoint = string.format("%s/_matrix/client/v1/rooms/%s/hierarchy", client.client.homeserver, space_id)
+
+	api.get(endpoint, callback, {
+		headers = {
+			["Authorization"] = "Bearer " .. client.client.access_token,
+		},
+	})
 end
 
 --- Upload a file to the Matrix server.

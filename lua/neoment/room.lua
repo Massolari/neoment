@@ -1,5 +1,7 @@
 local M = {}
 
+local constants = require("neoment.constants")
+local icon = require("neoment.icon")
 local markdown = require("neoment.markdown")
 local util = require("neoment.util")
 local matrix = require("neoment.matrix")
@@ -7,6 +9,7 @@ local error = require("neoment.error")
 local storage = require("neoment.storage")
 
 local api = vim.api
+local separator = " " .. icon.vertical_bar .. " "
 
 -- Constants
 -- Highlight groups for the members of the room
@@ -37,7 +40,6 @@ local SENDER_NAME_LENGTH = 19
 local TIME_FORMAT = "%H:%M:%S"
 local SEPARATOR_LENGTH = 60
 local SEPARATOR_HIGHLIGHT = "Title"
-local ns_id = api.nvim_create_namespace("neoment_highlight")
 local HEADER_LENGTH = string.len(TIME_FORMAT .. " ") + SENDER_NAME_LENGTH + 3 -- Time + sender name + separator
 
 --- @class neoment.room.MessageRelation
@@ -121,15 +123,13 @@ end
 --- @return number The ID of the created buffer
 M.open_room = function(room_id)
 	-- Check if the buffer already exists
-	local bufs = api.nvim_list_bufs()
-	for _, buf in ipairs(bufs) do
-		if api.nvim_buf_is_loaded(buf) then
-			if vim.b[buf].room_id == room_id then
-				api.nvim_set_current_buf(buf)
-				M.update_buffer(buf)
-				return buf
-			end
-		end
+	local existing_buffer = util.get_existing_buffer(function(buf)
+		return vim.b[buf].room_id == room_id
+	end)
+	if existing_buffer then
+		api.nvim_set_current_buf(existing_buffer)
+		M.update_buffer(existing_buffer)
+		return existing_buffer
 	end
 
 	-- Create a new buffer for the room
@@ -139,7 +139,7 @@ M.open_room = function(room_id)
 	vim.b[buffer_id].room_id = room_id
 	api.nvim_set_option_value("filetype", "neoment_room", { buf = buffer_id })
 	api.nvim_set_option_value("buftype", "nofile", { buf = buffer_id })
-	api.nvim_buf_set_lines(buffer_id, 0, -1, false, { string.rep(" ", 28) .. " │ Loading..." })
+	api.nvim_buf_set_lines(buffer_id, 0, -1, false, { string.rep(" ", 28) .. separator .. "Loading..." })
 
 	api.nvim_set_current_buf(buffer_id)
 
@@ -245,9 +245,12 @@ end
 --- @return string The bubble for the thread message
 local function get_thread_bubble(message)
 	return string.format(
-		"↳ %d %s",
+		"%s%s %d %s%s",
+		icon.border_left,
+		icon.reply,
 		message.thread_replies_count,
-		message.thread_replies_count == 1 and "reply" or "replies"
+		message.thread_replies_count == 1 and "reply" or "replies",
+		icon.border_right
 	)
 end
 
@@ -343,32 +346,40 @@ local function messages_to_lines(buffer_id)
 			end
 
 			if message.attachment.type == "image" then
-				content = string.format("󰋩  Image%s%s", filename, caption)
+				content = icon.border_left .. icon.image .. "  Image" .. filename .. icon.border_right .. caption
 			elseif message.attachment.type == "file" then
-				content = string.format(
-					"󰈙  File%s │ %s%s",
-					filename,
-					util.format_bytes(message.attachment.size),
-					caption
-				)
+				content = icon.border_left
+					.. icon.file
+					.. "  File"
+					.. filename
+					.. separator
+					.. util.format_bytes(message.attachment.size)
+					.. icon.border_right
+					.. caption
 			elseif message.attachment.type == "audio" then
-				content = string.format(
-					"  Audio%s │ %s │ %s%s",
-					filename,
-					util.format_milliseconds(message.attachment.duration),
-					util.format_bytes(message.attachment.size),
-					caption
-				)
+				content = icon.border_left
+					.. icon.audio
+					.. "  Audio"
+					.. filename
+					.. separator
+					.. util.format_milliseconds(message.attachment.duration)
+					.. separator
+					.. util.format_bytes(message.attachment.size)
+					.. icon.border_right
+					.. caption
 			elseif message.attachment.type == "location" then
-				content = string.format("󰍎  Location", content)
+				content = icon.border_left .. icon.location .. "  Location" .. icon.border_right
 			elseif message.attachment.type == "video" then
-				content = string.format(
-					"  Video%s │ %s │ %s%s",
-					filename,
-					util.format_milliseconds(message.attachment.duration),
-					util.format_bytes(message.attachment.size),
-					caption
-				)
+				content = icon.border_left
+					.. icon.video
+					.. "  Video"
+					.. filename
+					.. separator
+					.. util.format_milliseconds(message.attachment.duration)
+					.. separator
+					.. util.format_bytes(message.attachment.size)
+					.. icon.border_right
+					.. caption
 			end
 		end
 
@@ -384,9 +395,9 @@ local function messages_to_lines(buffer_id)
 
 			reply_content = reply_content:gsub("%z", "") -- Remove null characters
 
-			table.insert(content_lines, "┃ " .. reply_sender .. ":")
+			table.insert(content_lines, icon.vertical_bar_thick .. " " .. reply_sender .. ":")
 			for line in reply_content:gmatch("[^\n]+") do
-				table.insert(content_lines, "┃ " .. line)
+				table.insert(content_lines, icon.vertical_bar_thick .. " " .. line)
 			end
 		end
 
@@ -439,7 +450,7 @@ local function messages_to_lines(buffer_id)
 				if #users > 1 then
 					reaction_count = " " .. #users
 				end
-				reactions_line = reactions_line .. string.format(" %s%s", reaction, reaction_count)
+				reactions_line = reactions_line .. icon.border_left .. reaction .. reaction_count .. icon.border_right
 			end
 
 			table.insert(lines, vim.trim(reactions_line))
@@ -469,7 +480,7 @@ end
 --- @param buffer_id number The ID of the buffer to add the edit text to
 --- @param line_index number The index of the line to add the edit text to
 local function add_edit_text(buffer_id, line_index)
-	api.nvim_buf_set_extmark(buffer_id, ns_id, line_index - 1, 0, {
+	api.nvim_buf_set_extmark(buffer_id, constants.ns_id, line_index - 1, 0, {
 		virt_text = { { "(edited)", "Comment" } },
 	})
 end
@@ -479,7 +490,7 @@ end
 --- @param room_id string The ID of the room to apply highlights to
 --- @param lines table The lines to apply highlights to
 local function apply_highlights(buffer_id, room_id, lines)
-	api.nvim_buf_clear_namespace(buffer_id, ns_id, 0, -1)
+	api.nvim_buf_clear_namespace(buffer_id, constants.ns_id, 0, -1)
 	--- @type table<number, neoment.room.ExtmarkData>
 	local new_extmarks_data = {}
 	get_buffer_data(buffer_id).extmarks_data = new_extmarks_data
@@ -502,9 +513,9 @@ local function apply_highlights(buffer_id, room_id, lines)
 		--- @type string
 		local line = l
 		-- Apply styles for the vertical bar
-		local is_quote = line:sub(1, 3) == "┃"
+		local is_quote = line:sub(1, 3) == icon.vertical_bar_thick
 		if is_quote then
-			vim.hl.range(buffer_id, ns_id, "Comment", { index - 1, 0 }, { index - 1, -1 })
+			vim.hl.range(buffer_id, constants.ns_id, "Comment", { index - 1, 0 }, { index - 1, -1 })
 		end
 
 		-- Mentions
@@ -516,7 +527,13 @@ local function apply_highlights(buffer_id, room_id, lines)
 					hlgroup = "NeomentMentionUser"
 				end
 
-				vim.hl.range(buffer_id, ns_id, hlgroup, { index - 1, mention_start - 1 }, { index - 1, mention_end })
+				vim.hl.range(
+					buffer_id,
+					constants.ns_id,
+					hlgroup,
+					{ index - 1, mention_start - 1 },
+					{ index - 1, mention_end }
+				)
 			end
 		end
 
@@ -536,9 +553,9 @@ local function apply_highlights(buffer_id, room_id, lines)
 				-- Special handling for membership events
 				if message.is_state then
 					-- Apply Comment highlight for membership events and no header
-					api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, 0, {
+					api.nvim_buf_set_extmark(buffer_id, constants.ns_id, index - 1, 0, {
 						virt_text = {
-							{ string.rep(" ", 28) .. " │ ", SEPARATOR_HIGHLIGHT },
+							{ string.rep(" ", 28) .. " " .. icon.vertical_bar .. " ", SEPARATOR_HIGHLIGHT },
 						},
 						virt_text_pos = "inline",
 					})
@@ -566,11 +583,11 @@ local function apply_highlights(buffer_id, room_id, lines)
 					local sender_name = get_formatted_sender_name(message.sender)
 
 					-- Apply highlight to the user's name
-					api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, 0, {
+					api.nvim_buf_set_extmark(buffer_id, constants.ns_id, index - 1, 0, {
 						virt_text = {
 							{ time .. " ", "Normal" },
 							{ sender_name, hl_group },
-							{ " │ ", SEPARATOR_HIGHLIGHT },
+							{ string.format(" %s ", icon.vertical_bar), SEPARATOR_HIGHLIGHT },
 						},
 						virt_text_pos = "inline",
 					})
@@ -593,7 +610,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 				end
 
 				if message.was_redacted or message.is_state then
-					vim.hl.range(buffer_id, ns_id, "Comment", { index - 1, 0 }, { index - 1, -1 })
+					vim.hl.range(buffer_id, constants.ns_id, "Comment", { index - 1, 0 }, { index - 1, -1 })
 				end
 
 				if message.is_date then
@@ -601,14 +618,15 @@ local function apply_highlights(buffer_id, room_id, lines)
 					local text = " " .. display_date .. " "
 					local text_with_line = get_separator_line(text)
 					-- The first message is on index 2 (index 1 is the empty line to add the date)
-					local virtual_text = { { string.rep(" ", 28) .. " ├", "Title" }, { text_with_line, "Comment" } }
+					local virtual_text =
+						{ { string.rep(" ", 28) .. " " .. icon.tree_branch, "Title" }, { text_with_line, "Comment" } }
 					if index == 2 then
-						api.nvim_buf_set_extmark(buffer_id, ns_id, 0, 0, {
+						api.nvim_buf_set_extmark(buffer_id, constants.ns_id, 0, 0, {
 							virt_text = virtual_text,
 							virt_text_pos = "inline",
 						})
 					else
-						api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, 0, {
+						api.nvim_buf_set_extmark(buffer_id, constants.ns_id, index - 1, 0, {
 							virt_lines = { virtual_text },
 							virt_lines_above = true,
 						})
@@ -617,32 +635,32 @@ local function apply_highlights(buffer_id, room_id, lines)
 				-- Check if the message is the last read message and not the last message
 			else
 				-- Apply highlight to the user's name
-				api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, 0, {
+				api.nvim_buf_set_extmark(buffer_id, constants.ns_id, index - 1, 0, {
 					virt_text = {
-						{ string.rep(" ", 28) .. " │ ", SEPARATOR_HIGHLIGHT },
+						{ string.rep(" ", 28) .. separator, SEPARATOR_HIGHLIGHT },
 					},
 					virt_text_pos = "inline",
 				})
 			end
 
 			if message.is_last_read then
-				local text = "  New messages  "
+				local text = icon.down_arrow_circle .. "  New messages " .. icon.down_arrow_circle .. " "
 				local text_with_line = get_separator_line(text)
-				api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, 0, {
+				api.nvim_buf_set_extmark(buffer_id, constants.ns_id, index - 1, 0, {
 					virt_lines = {
-						{ { string.rep(" ", 28) .. " ├" .. text_with_line, "Title" } },
+						{ { string.rep(" ", 28) .. " " .. icon.tree_branch .. text_with_line, "Title" } },
 					},
 				})
 			end
 
 			-- Reactions
 			if message.is_reaction then
-				local reaction_start = line:find("")
+				local reaction_start = line:find(icon.border_left)
 				local emoji = require("neoment.emoji")
 				local reaction_index = 1
 				local reactions_list = vim.tbl_keys(message.reactions)
 				while reaction_start do
-					local reaction_end = line:find("", reaction_start)
+					local reaction_end = line:find(icon.border_right, reaction_start)
 					if reaction_end then
 						-- Check if the user sent this reaction to change the highlight group
 						-- We need to get the emoji to get the reaction users
@@ -663,17 +681,17 @@ local function apply_highlights(buffer_id, room_id, lines)
 							content_hl = "NeomentBubbleActiveContent"
 						end
 						local left_border_id =
-							vim.api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, reaction_start - 1, {
+							vim.api.nvim_buf_set_extmark(buffer_id, constants.ns_id, index - 1, reaction_start - 1, {
 								end_col = reaction_start,
 								hl_group = border_hl,
 							})
 						local content_id =
-							vim.api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, reaction_start + 1, {
+							vim.api.nvim_buf_set_extmark(buffer_id, constants.ns_id, index - 1, reaction_start + 1, {
 								end_col = reaction_end - 1,
 								hl_group = content_hl,
 							})
 						local right_border_id =
-							vim.api.nvim_buf_set_extmark(buffer_id, ns_id, index - 1, reaction_end - 1, {
+							vim.api.nvim_buf_set_extmark(buffer_id, constants.ns_id, index - 1, reaction_end - 1, {
 								end_col = reaction_end,
 								hl_group = border_hl,
 							})
@@ -691,7 +709,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 						new_extmarks_data[content_id] = reaction_data
 						new_extmarks_data[right_border_id] = reaction_data
 
-						reaction_start = line:find("", reaction_end)
+						reaction_start = line:find(icon.border_left, reaction_end)
 						reaction_index = reaction_index + 1
 					else
 						break
@@ -701,26 +719,26 @@ local function apply_highlights(buffer_id, room_id, lines)
 
 			-- Attachments
 			if message.attachment then
-				local attachment_start = line:find("")
-				local attachment_end = line:find("", attachment_start)
+				local attachment_start = line:find(icon.border_left)
+				local attachment_end = line:find(icon.border_right, attachment_start)
 				if attachment_start and attachment_end then
 					vim.hl.range(
 						buffer_id,
-						ns_id,
+						constants.ns_id,
 						"NeomentBubbleBorder",
 						{ index - 1, attachment_start - 1 },
 						{ index - 1, attachment_start }
 					)
 					vim.hl.range(
 						buffer_id,
-						ns_id,
+						constants.ns_id,
 						"NeomentBubbleContent",
 						{ index - 1, attachment_start },
 						{ index - 1, attachment_end - 1 }
 					)
 					vim.hl.range(
 						buffer_id,
-						ns_id,
+						constants.ns_id,
 						"NeomentBubbleBorder",
 						{ index - 1, attachment_end - 1 },
 						{ index - 1, attachment_end }
@@ -732,17 +750,17 @@ local function apply_highlights(buffer_id, room_id, lines)
 			if message.is_thread_indicator then
 				local bubble = get_thread_bubble(message)
 				local bubble_length = string.len(bubble)
-				vim.hl.range(buffer_id, ns_id, "NeomentBubbleBorder", { index - 1, 0 }, { index - 1, 1 })
+				vim.hl.range(buffer_id, constants.ns_id, "NeomentBubbleBorder", { index - 1, 0 }, { index - 1, 1 })
 				vim.hl.range(
 					buffer_id,
-					ns_id,
+					constants.ns_id,
 					"NeomentBubbleContent",
 					{ index - 1, 1 },
 					{ index - 1, bubble_length - 3 }
 				)
 				vim.hl.range(
 					buffer_id,
-					ns_id,
+					constants.ns_id,
 					"NeomentBubbleBorder",
 					{ index - 1, bubble_length - 3 },
 					{ index - 1, -1 }
@@ -792,9 +810,9 @@ local function apply_highlights(buffer_id, room_id, lines)
 		end
 		typing_line = typing_line:sub(1, -3) -- Remove the last comma and space
 
-		api.nvim_buf_set_extmark(buffer_id, ns_id, #lines - 1, 0, {
+		pcall(api.nvim_buf_set_extmark, buffer_id, constants.ns_id, #lines - 1, 0, {
 			virt_lines = {
-				{ { string.rep(" ", 28) .. " │ ", SEPARATOR_HIGHLIGHT }, { typing_line, "Comment" } },
+				{ { string.rep(" ", 28) .. separator, SEPARATOR_HIGHLIGHT }, { typing_line, "Comment" } },
 			},
 		})
 	end
@@ -835,7 +853,7 @@ local function update_buffer_lines_diff(buffer_id, old_lines, new_lines)
 			table.insert(lines_to_set, new_lines[i])
 		end
 
-		api.nvim_buf_set_lines(buffer_id, start_line, old_end, false, lines_to_set)
+		util.buffer_write(buffer_id, lines_to_set, start_line, old_end)
 	end
 end
 
@@ -861,10 +879,7 @@ M.update_buffer = function(buffer_id)
 	local old_lines = api.nvim_buf_get_lines(buffer_id, 0, -1, false)
 
 	-- Update the buffer with only the changed lines
-	api.nvim_set_option_value("modifiable", true, { buf = buffer_id })
 	update_buffer_lines_diff(buffer_id, old_lines, new_lines)
-	api.nvim_set_option_value("modifiable", false, { buf = buffer_id })
-	api.nvim_set_option_value("modified", false, { buf = buffer_id })
 
 	-- Apply highlights for each line
 	apply_highlights(buffer_id, room_id, new_lines)
@@ -1323,7 +1338,7 @@ M.handle_cursor_hold = function(buffer_id)
 	local pos = vim.api.nvim_win_get_cursor(0)
 	local extmarks = vim.api.nvim_buf_get_extmarks(
 		buffer_id,
-		ns_id,
+		constants.ns_id,
 		{ pos[1] - 1, pos[2] },
 		{ pos[1] - 1, pos[2] },
 		{ details = true, overlap = true }
@@ -1358,7 +1373,7 @@ M.handle_cursor_hold = function(buffer_id)
 				height = height,
 			})
 			-- Apply bold to the first line
-			vim.hl.range(float_buf, ns_id, "Bold", { 0, 0 }, { 0, -1 })
+			vim.hl.range(float_buf, constants.ns_id, "Bold", { 0, 0 }, { 0, -1 })
 			break
 		end
 		::continue::
@@ -1642,7 +1657,13 @@ M.open_thread = function()
 		vim.b[thread_buffer_id].thread_root_id = thread_root_id
 		api.nvim_set_option_value("filetype", "neoment_room", { buf = thread_buffer_id })
 		api.nvim_set_option_value("buftype", "nofile", { buf = thread_buffer_id })
-		api.nvim_buf_set_lines(thread_buffer_id, 0, -1, false, { string.rep(" ", 28) .. " │ Loading thread..." })
+		api.nvim_buf_set_lines(
+			thread_buffer_id,
+			0,
+			-1,
+			false,
+			{ string.rep(" ", 28) .. separator .. "Loading thread..." }
+		)
 
 		-- Open in a vertical split to the right
 		vim.cmd("rightbelow vsplit")

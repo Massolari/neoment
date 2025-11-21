@@ -3,9 +3,6 @@ local buffer_id = vim.api.nvim_get_current_buf()
 vim.api.nvim_set_option_value("buftype", "nofile", { buf = 0 })
 vim.api.nvim_set_option_value("swapfile", false, { buf = 0 })
 vim.api.nvim_set_option_value("modified", false, { buf = 0 })
--- vim.api.nvim_set_option_value("number", false, { scope = "local" })
--- vim.api.nvim_set_option_value("relativenumber", false, { scope = "local" })
--- vim.api.nvim_set_option_value("cursorline", true, { scope = "local" })
 
 local old_number = vim.wo.number
 local old_relativenumber = vim.wo.relativenumber
