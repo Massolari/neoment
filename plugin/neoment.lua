@@ -2,19 +2,17 @@ vim.g.neoment = vim.g.neoment or {}
 vim.g.neoment.save_session = vim.g.neoment and vim.g.neoment.save_session or true
 
 -- Definir grupos de highlight
-vim.cmd([[
-    highlight default link NeomentRoomsTitle @text.title.2.markdown
-    highlight default link NeomentSectionTitle Title
-    highlight default link NeomentBufferRoom @keyword
-    highlight default link NeomentRoomUnread Bold
-    highlight default link NeomentBufferRoomUnread @keyword
-    highlight default link NeomentMention ColorColumn
-    highlight default link NeomentMentionUser @comment.error
-    highlight default link NeomentBubbleContent ColorColumn
-    highlight default link NeomentBubbleBorder ColorColumn
-    highlight default link NeomentBubbleActiveContent IncSearch
-    highlight default link NeomentBubbleActiveBorder IncSearch
-]])
+vim.api.nvim_set_hl(0, "NeomentRoomsTitle", { link = "@text.title.2.markdown" })
+vim.api.nvim_set_hl(0, "NeomentSectionTitle", { link = "Title" })
+vim.api.nvim_set_hl(0, "NeomentBufferRoom", { link = "@keyword" })
+vim.api.nvim_set_hl(0, "NeomentRoomUnread", { link = "Bold" })
+vim.api.nvim_set_hl(0, "NeomentBufferRoomUnread", { link = "@keyword" })
+vim.api.nvim_set_hl(0, "NeomentMention", { link = "ColorColumn" })
+vim.api.nvim_set_hl(0, "NeomentMentionUser", { link = "@comment.error" })
+vim.api.nvim_set_hl(0, "NeomentBubbleContent", { link = "ColorColumn" })
+vim.api.nvim_set_hl(0, "NeomentBubbleBorder", { link = "ColorColumn" })
+vim.api.nvim_set_hl(0, "NeomentBubbleActiveContent", { link = "IncSearch" })
+vim.api.nvim_set_hl(0, "NeomentBubbleActiveBorder", { link = "IncSearch" })
 
 local neoment_room_ns = vim.api.nvim_create_namespace("neoment_room")
 vim.api.nvim_set_hl(neoment_room_ns, "NonText", { link = "FloatBorder" })
