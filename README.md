@@ -80,7 +80,7 @@ Plug 'Massolari/neoment'
 - `:Neoment rooms` - Toggle the rooms list sidebar
 - `:Neoment start sync` - Start syncing messages
 - `:Neoment stop sync` - Stop syncing messages
-_ `:Neoment join <room_id_or_alias>` - Join a room by its ID or alias
+- `:Neoment join <room_id_or_alias>` - Join a room by its ID or alias
 
 ### Configuration
 
