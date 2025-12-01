@@ -1,5 +1,6 @@
 local buffer_id = vim.api.nvim_get_current_buf()
 local space_id = vim.b.space_id
+local util = require("neoment.util")
 
 -- Destroy completely the buffer when closing
 vim.api.nvim_create_autocmd("BufDelete", {
@@ -12,13 +13,18 @@ vim.api.nvim_create_autocmd("BufDelete", {
 })
 
 local opts = { noremap = true, silent = true, buffer = buffer_id }
-vim.keymap.set("n", "<CR>", function()
+local function set_opts_desc(desc)
+	return vim.tbl_extend("force", opts, { desc = desc })
+end
+
+local set_mapping = util.get_plug_mapping_setter("NeomentSpace")
+set_mapping("n", "<CR>", "Enter", function()
 	require("neoment.space").open_room_under_cursor()
 end, opts)
-vim.keymap.set("n", "<localleader>f", function()
+set_mapping("n", "<localleader>f", "Find", function()
 	require("neoment.rooms").pick()
-end, vim.tbl_extend("error", opts, { desc = "[F]ind room" }))
-vim.keymap.set("n", "<localleader>q", "<cmd>bdelete<CR>", vim.tbl_extend("error", opts, { desc = "[Q]uit room" }))
-vim.keymap.set("n", "<localleader>l", function()
+end, set_opts_desc("[F]ind room"))
+set_mapping("n", "<localleader>q", "Quit", "<cmd>bdelete<CR>", set_opts_desc("[Q]uit buffer"))
+set_mapping("n", "<localleader>l", "ToggleRoomList", function()
 	require("neoment.rooms").toggle_room_list()
-end, vim.tbl_extend("error", opts, { desc = "Toggle room [l]ist" }))
+end, set_opts_desc("Toggle room [l]ist"))

@@ -75,20 +75,12 @@ Plug 'douglasmassolari/neoment.nvim'
 
 ### Commands
 
-- `:Neoment login` - Login to your Matrix account
+- `:Neoment` - Login to your Matrix account. If already logged in, opens the rooms list
 - `:Neoment logout` - Logout and clear session data
 - `:Neoment rooms` - Toggle the rooms list sidebar
 - `:Neoment start sync` - Start syncing messages
 - `:Neoment stop sync` - Stop syncing messages
 _ `:Neoment join <room_id_or_alias>` - Join a room by its ID or alias
-
-### Basic Workflow
-
-1. **View Rooms:** Use `:Neoment` to open the room list
-1. **Open a Room:** Press `<CR>` (Enter) on a room to open it
-1. **Send Messages:** Press `<CR>` in a room to compose a message
-1. **Navigate:** Use standard Neovim navigation keys to browse messages
-1. **Threads:** Use `<localleader>t` to open threads for organized conversations
 
 ### Configuration
 
@@ -101,38 +93,87 @@ vim.g.neoment = {
 
 ### Key Bindings
 
+Neoment uses `<Plug>` mappings for all its keybindings. There is no `vim.g` configuration option for keybindings; users should define their own mappings in their Neovim configuration files.
+
+Since keybindings are buffer-specific, you can create files in the `ftplugin` directory of your Neovim configuration to set up buffer-local mappings.
+
+For example, to change the key for opening rooms in the Rooms Buffer from `<CR>` to `<BS>`, create a file at `~/.config/nvim/ftplugin/neoment_rooms.lua` with the following content:
+
+```lua
+vim.keymap.set("n", "<BS>", "<Plug>NeomentRoomsEnter", { buffer = 0 })
+```
+
+Below are the default keybindings for each buffer type.
+
 #### Rooms Buffer
 
-- `<CR>` - Open selected room
-- `<Tab>` - Toggle fold at cursor
-- `q` - Close rooms list
-- `<localleader>a` - Toggle favorite
-- `<localleader>f` - Find room (picker)
-- `<localleader>l` - Toggle low priority
-- `<localleader>r` - Toggle read/unread
-- `<localleader>s` - Sync rooms
+Filetype: `neoment_rooms`
+
+
+| Description | Mapping | Default |
+| --------------- | --------------- | --------------- |
+| Open room/space under cursor | `<Plug>NeomentRoomsEnter` | `<CR>` |
+| Toggle fold under cursor | `<Plug>NeomentRoomsToggleFold` | `<Tab>` |
+| Close window | `<Plug>NeomentRoomsClose` | `q` |
+| Toggle favorite | `<Plug>NeomentRoomsToggleFavorite` | `<localleader>a` |
+| Find room (open picker) | `<Plug>NeomentRoomsPick` | `<localleader>f` |
+| Toggle low priority | `<Plug>NeomentRoomsToggleLowPriority` | `<localleader>l` |
+| Toggle read/unread | `<Plug>NeomentRoomsToggleRead` | `<localleader>r` |
+
 
 #### Room Buffer
 
-- `<CR>` - Compose/send message
-- `<localleader>a` - React to message
-- `<localleader>d` - Redact (delete) message
-- `<localleader>e` - Edit message
-- `<localleader>f` - Find room (picker)
-- `<localleader>q` - Quit room (close the buffer)
-- `<localleader>l` - Toggle room list
-- `<localleader>L` - Leave room
-- `<localleader>m` - Set read marker
-- `<localleader>o` - Open attachment
-- `<localleader>p` - Load previous messages
-- `<localleader>r` - Reply to message
-- `<localleader>R` - Go to replied message
-- `<localleader>t` - Open thread
-- `<localleader>s` - Save attachment
-- `<localleader>u` - Upload attachment
-- `<localleader>U` - Upload image from clipboard
-- `<localleader>w` - Forward message
-- `<localleader>z` - Toggle zoom image
+Filetype: `neoment_room`
+
+
+| Description | Mapping | Default |
+| --------------- | --------------- | --------------- |
+| Compose/send message | `<Plug>NeomentRoomCompose` | `<CR>` |
+| React to message | `<Plug>NeomentRoomReact` | `<localleader>a` |
+| Redact (delete) message | `<Plug>NeomentRoomRedact` | `<localleader>d` |
+| Edit message | `<Plug>NeomentRoomEdit` | `<localleader>e` |
+| Find room (open picker) | `<Plug>NeomentRoomFind` | `<localleader>f` |
+| Quit room (close the buffer) | `<Plug>NeomentRoomQuit` | `<localleader>q` |
+| Toggle room list | `<Plug>NeomentRoomToggleRoomList` | `<localleader>l` |
+| Leave room | `<Plug>NeomentRoomLeave` | `<localleader>L` |
+| Set read marker | `<Plug>NeomentRoomSetReadMarker` | `<localleader>m` |
+| Open attachment | `<Plug>NeomentRoomOpenAttachment` | `<localleader>o` |
+| Load previous messages | `<Plug>NeomentRoomLoadPrevious` | `<localleader>p` |
+| Reply to message | `<Plug>NeomentRoomReply` | `<localleader>r` |
+| Go to replied message | `<Plug>NeomentRoomGoToReplied` | `<localleader>R` |
+| Open thread | `<Plug>NeomentRoomOpenThread` | `<localleader>t` |
+| Save attachment | `<Plug>NeomentRoomSaveAttachment` | `<localleader>s` |
+| Upload attachment | `<Plug>NeomentRoomUploadAttachment` | `<localleader>u` |
+| Upload image from clipboard | `<Plug>NeomentRoomUploadClipboardImage` | `<localleader>U` |
+| Forward message | `<Plug>NeomentRoomForwardMessage` | `<localleader>w` |
+| Toggle zoom of image under cursor | `<Plug>NeomentRoomToggleZoomImage` | `<localleader>z` |
+
+
+#### Compose Buffer
+
+Filetype: `neoment_compose`
+
+
+| Description | Mapping | Default |
+| --------------- | --------------- | --------------- |
+| Send message | `<Plug>NeomentComposeSend` | `<CR>` |
+| Send message (insert) | `<Plug>NeomentComposeSendInsert` | `<C-s>` |
+| Abort compose | `<Plug>NeomentComposeAbort` | `<Esc>` |
+| Abort compose (insert) | `<Plug>NeomentComposeAbortInsert` | `<C-c>` |
+
+
+#### Space Buffer
+
+Filetype: `neoment_space`
+
+
+| Description | Mapping | Default |
+| --------------- | --------------- | --------------- |
+| Open room/space under cursor | `<Plug>NeomentSpaceEnter` | `<CR>` |
+| Find room (open picker) | `<Plug>NeomentSpaceFind` | `<localleader>f` |
+| Quit window (close the buffer) | `<Plug>NeomentSpaceQuit` | `<localleader>q` |
+| Toggle room list | `<Plug>NeomentSpaceToggleRoomList` | `<localleader>l` |
+
 
 ## Inspiration
 

@@ -228,4 +228,31 @@ M.uuid = function()
 	return uuid_str
 end
 
+--- Get a function to set <Plug> mappings with description
+--- @param plug_prefix string The prefix for the <Plug> mappings
+--- @return fun(mode: string|string[], lhs: string, rhs: string, fun: function|string, opts: table|nil): nil A function to set <Plug> mappings
+M.get_plug_mapping_setter = function(plug_prefix)
+	--- Set a <Plug> mapping with description
+	--- It also sets the internal <SID> mapping for the rhs
+	--- @param mode string|string[] The mode for the mapping
+	--- @param lhs string The left-hand side of the mapping
+	--- @param rhs string The right-hand side of the mapping
+	--- @param fun function|string The function to map to
+	--- @param opts table|nil The options for the mapping
+	return function(mode, lhs, rhs, fun, opts)
+		-- Create a <SID> mapping for the rhs. E.g. <Plug>NeomentRoomsEnter -> <SID>Enter
+		-- local sid_mapping = rhs:gsub("<Plug>" .. plug_prefix, "<SID>")
+		local sid_mapping = "<SID>" .. rhs
+		local plug_rhs = "<Plug>" .. plug_prefix .. rhs
+		vim.keymap.set("n", sid_mapping, fun)
+		if vim.fn.hasmapto(sid_mapping) == 0 then
+			vim.keymap.set("n", plug_rhs, sid_mapping, { unique = true, script = true })
+		end
+		if vim.fn.hasmapto(plug_rhs) == 0 then
+			local esc_prefix = mode == "i" and "<Esc>" or ""
+			vim.keymap.set(mode, lhs, esc_prefix .. plug_rhs, opts)
+		end
+	end
+end
+
 return M
