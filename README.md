@@ -69,7 +69,7 @@ Plug 'Massolari/neoment'
 
 ### First Time Setup
 
-1. Open Neovim and run `:Neoment login` to authenticate with your Matrix homeserver
+1. Open Neovim and run `:Neoment` to authenticate with your Matrix homeserver
 1. Provide your username and password
 1. The plugin will automatically sync and display your rooms
 
