@@ -33,7 +33,7 @@ Neoment.nvim is a Matrix protocol client implementation for Neovim that allows y
 
 ```lua
 {
-	"douglasmassolari/neoment.nvim",
+	"Massolari/neoment",
 	init = function()
 		-- Optional: Configure settings
 		vim.g.neoment = {
@@ -47,7 +47,7 @@ Neoment.nvim is a Matrix protocol client implementation for Neovim that allows y
 
 ```lua
 use {
-	"douglasmassolari/neoment.nvim",
+	"Massolari/neoment",
 	setup = function()
 		vim.g.neoment = {
 			save_session = true,
@@ -62,7 +62,7 @@ use {
 " Optional configuration
 let g:neoment = {'save_session': v:true}
 
-Plug 'douglasmassolari/neoment.nvim'
+Plug 'Massolari/neoment'
 ```
 
 ## Usage
