@@ -37,6 +37,7 @@ M.sync_start = function()
 	sync.start(matrix.client, handle_sync, {
 		save_session = vim.g.neoment.save_session,
 	})
+	vim.notify("Synchronization started", vim.log.levels.INFO)
 end
 
 --- Login to the Matrix server

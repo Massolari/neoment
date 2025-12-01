@@ -45,7 +45,9 @@ vim.api.nvim_create_user_command("Neoment", function(opts)
 		require("neoment").init()
 	elseif subcommand == "rooms" then
 		require("neoment.rooms").pick()
-	elseif subcommand == "stop" then
+	elseif subcommand == "sync_start" then
+		require("neoment").sync_start()
+	elseif subcommand == "sync_stop" then
 		require("neoment.sync").stop()
 	elseif subcommand == "clear" then
 		require("neoment.storage").clear_cache()
@@ -71,13 +73,13 @@ vim.api.nvim_create_user_command("Neoment", function(opts)
 		end
 	else
 		vim.notify("Unknown subcommand: " .. subcommand, vim.log.levels.ERROR)
-		vim.notify("Available subcommands: rooms, stop, clear, logout, join", vim.log.levels.INFO)
+		vim.notify("Available subcommands: rooms, sync_start, sync_stop, clear, logout, join", vim.log.levels.INFO)
 	end
 end, {
 	desc = "Neoment Matrix client",
 	nargs = "*",
 	complete = function(arglead)
-		local subcommands = { "rooms", "stop", "clear", "logout", "join" }
+		local subcommands = { "rooms", "sync_start", "sync_stop", "clear", "logout", "join" }
 		if arglead == "" then
 			return subcommands
 		end
