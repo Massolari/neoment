@@ -129,7 +129,11 @@ local function event_to_message(event, replying_to)
 	-- Check if the content is formatted
 	local content = event.content.body
 	local formatted_content = nil
-	if event.content.format == "org.matrix.custom.html" and event.content.formatted_body then
+	if
+		event.content.format == "org.matrix.custom.html"
+		and event.content.formatted_body
+		and event.content.formatted_body ~= "* "
+	then
 		formatted_content = event.content.formatted_body
 	end
 
@@ -158,6 +162,8 @@ local function event_to_message(event, replying_to)
 
 	local actual_replying_to = replying_to
 	if replying_to then
+		-- Ensure the replying_to ID matches the event's in_reply_to ID
+		replying_to.id = event.content["m.relates_to"]["m.in_reply_to"].event_id
 		if event["content"]["m.relates_to"]["is_falling_back"] == true then
 			actual_replying_to = nil
 		else
