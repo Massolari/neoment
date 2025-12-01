@@ -1,4 +1,4 @@
-# Neoment.nvim
+# Neoment
 
 A Matrix client for Neovim, bringing chat functionality directly into your editor.
 
@@ -6,7 +6,7 @@ A Matrix client for Neovim, bringing chat functionality directly into your edito
 
 ## Description
 
-Neoment.nvim is a Matrix protocol client implementation for Neovim that allows you to chat, and stay connected without leaving your editor.
+Neoment is a Matrix protocol client implementation for Neovim that allows you to chat, and stay connected without leaving your editor.
 
 **Note:** Neoment does not currently support End-to-End Encryption (E2EE). Encrypted rooms will not be accessible.
 
@@ -177,7 +177,7 @@ Filetype: `neoment_space`
 
 ## Inspiration
 
-Neoment.nvim draws inspiration from some excellent Matrix clients:
+Neoment draws inspiration from some excellent Matrix clients:
 
 - **[iamb](https://github.com/ulyssa/iamb)**
 - **[gomuks](https://github.com/tulir/gomuks)**
