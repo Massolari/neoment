@@ -33,7 +33,7 @@ end
 --- @param level vim.log.levels The log level
 --- @param opts table Additional options for vim.notify
 M.with_opts = function(msg, level, opts)
-	vim.notify("[Neoment] " .. msg, level or vim.log.levels.INFO, opts or {})
+	return vim.notify("[Neoment] " .. msg, level or vim.log.levels.INFO, opts or {})
 end
 
 return M
