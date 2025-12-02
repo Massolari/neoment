@@ -1,7 +1,8 @@
 local notify = require("neoment.notify")
 
-vim.g.neoment = vim.g.neoment or {}
-vim.g.neoment.save_session = vim.g.neoment and vim.g.neoment.save_session or true
+local config = vim.g.neoment or {}
+config.save_session = config.save_session or true
+vim.g.neoment = config
 
 -- Definir grupos de highlight
 vim.api.nvim_set_hl(0, "NeomentRoomsTitle", { link = "@text.title.2.markdown" })
