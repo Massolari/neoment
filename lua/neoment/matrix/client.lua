@@ -144,7 +144,8 @@ end
 --- @param room_id string The ID of the room
 --- @return neoment.matrix.client.Room The created room object
 local function create_new_room(room_id)
-	M.client.rooms[room_id] = {
+	vim.validate("room_id", room_id, "string")
+	return {
 		id = room_id,
 		name = room_id,
 		topic = "",
@@ -161,8 +162,6 @@ local function create_new_room(room_id)
 		is_tracked = false,
 		unread = false,
 	}
-
-	return M.client.rooms[room_id]
 end
 
 --- Create a invited room
@@ -183,6 +182,7 @@ end
 --- @param room_id string The ID of the room.
 --- @return neoment.matrix.client.Room The room object if found
 M.get_room = function(room_id)
+	vim.validate("room_id", room_id, "string")
 	if not M.client or not M.client.rooms[room_id] then
 		M.client.rooms[room_id] = create_new_room(room_id)
 	end
