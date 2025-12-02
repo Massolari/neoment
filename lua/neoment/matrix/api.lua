@@ -56,14 +56,20 @@ end
 --- @return neoment.Error<A, neoment.matrix.api.Error> The response body as a Lua table.
 M.get_sync = function(endpoint, opts)
 	opts = opts or {}
-	local response = curl.get(endpoint, {
-		on_error = function(err)
-			return error.error({ error = "Failed to make GET request", err = err })
-		end,
+	local function on_error(err)
+		return error.error({ error = "Failed to make GET request", err = err })
+	end
+
+	local ok, response = pcall(curl.get, endpoint, {
+		on_error = on_error,
 		headers = vim.tbl_extend("force", {
 			["Content-Type"] = "application/json",
 		}, opts.headers or {}),
 	})
+
+	if not ok then
+		return handler(on_error("timeout"))
+	end
 
 	return handler(response)
 end
