@@ -1,5 +1,6 @@
 local M = {}
 
+local notify = require("neoment.notify")
 local icon = require("neoment.icon")
 local api = vim.api
 local sync = require("neoment.sync")
@@ -51,7 +52,7 @@ local function get_room_mark_under_cursor()
 		end
 	end
 
-	vim.notify("No room found on this line. Position the cursor directly over the room name.", vim.log.levels.INFO)
+	notify.info("No room found on this line. Position the cursor directly over the room name.")
 	return nil
 end
 
@@ -137,17 +138,17 @@ local function handle_invited_room(room_id)
 				end)
 				return nil
 			end, function(err)
-				vim.notify("Error joining room: " .. err.error, vim.log.levels.ERROR)
+				notify.error("Error joining room: " .. err.error)
 			end)
 		end)
 		return
 	end
 	matrix.leave_room(room_id, function(response)
 		error.match(response, function()
-			vim.notify("Left room: " .. room_name, vim.log.levels.INFO)
+			notify.info("Left room: " .. room_name)
 			return nil
 		end, function(err)
-			vim.notify("Error leaving room: " .. err.error, vim.log.levels.ERROR)
+			notify.error("Error leaving room: " .. err.error)
 		end)
 	end)
 end
@@ -200,7 +201,7 @@ M.toggle_fold_at_cursor = function()
 
 		M.update_room_list()
 	else
-		vim.notify("No section found on this line. Position the cursor over a section title.", vim.log.levels.INFO)
+		notify.info("No section found on this line. Position the cursor over a section title.")
 	end
 end
 
@@ -666,15 +667,12 @@ local function mark_unread(room_id)
 				response,
 				vim.schedule_wrap(function()
 					M.update_room_list()
-					vim.notify("Room '" .. room_name .. "' marked as unread", vim.log.levels.INFO)
+					notify.info("Room '" .. room_name .. "' marked as unread")
 					return nil
 				end),
 				function(err)
 					local error_msg = err.error or "unknown error"
-					vim.notify(
-						string.format("Failed to mark room '%s' as unread: %s", room_name, error_msg),
-						vim.log.levels.ERROR
-					)
+					notify.error(string.format("Failed to mark room '%s' as unread: %s", room_name, error_msg))
 					return nil
 				end
 			)
@@ -687,7 +685,7 @@ end
 local function mark_read(room_id)
 	local last_activity = matrix.get_room_last_activity(room_id)
 	if not last_activity or not last_activity.event_id then
-		vim.notify("No activity found in this room to mark as read.", vim.log.levels.INFO)
+		notify.info("No activity found in this room to mark as read.")
 		return
 	end
 
@@ -700,14 +698,11 @@ local function mark_read(room_id)
 		vim.schedule_wrap(function(response)
 			error.match(response, function()
 				M.update_room_list()
-				vim.notify("Room '" .. room_name .. "' marked as read", vim.log.levels.INFO)
+				notify.info("Room '" .. room_name .. "' marked as read")
 				return nil
 			end, function(err)
 				local error_msg = err.error or "unknown error"
-				vim.notify(
-					string.format("Failed to mark room '%s' as read: %s", room_name, error_msg),
-					vim.log.levels.ERROR
-				)
+				notify.error(string.format("Failed to mark room '%s' as read: %s", room_name, error_msg))
 			end)
 		end)
 	)
@@ -722,7 +717,7 @@ M.toggle_read = function()
 	end
 
 	if mark.is_invited then
-		vim.notify("You cannot mark an invited room as read.", vim.log.levels.INFO)
+		notify.info("You cannot mark an invited room as read.")
 		return
 	end
 
@@ -750,13 +745,13 @@ local function toggle_room_tag(tag)
 
 	local tag_label = tag == "m.favourite" and "favorites" or "low priority"
 	if mark.is_invited then
-		vim.notify("You cannot add an invited room to " .. tag_label .. ".", vim.log.levels.INFO)
+		notify.info("You cannot add an invited room to " .. tag_label .. ".")
 		return
 	end
 
 	local room = matrix.get_room(mark.room_id)
 	if not room then
-		vim.notify("Room not found.", vim.log.levels.ERROR)
+		notify.error("Room not found.")
 		return
 	end
 
@@ -793,10 +788,10 @@ local function toggle_room_tag(tag)
 			vim.schedule(function()
 				M.update_room_list()
 			end)
-			vim.notify(string.format("%s %s %s", room_name, action.success, tag_label), vim.log.levels.INFO)
+			notify.info(string.format("%s %s %s", room_name, action.success, tag_label))
 			return nil
 		end, function(err)
-			vim.notify(string.format("Error %s %s: %s", action.error, tag_label, err.error), vim.log.levels.ERROR)
+			notify.error(string.format("Error %s %s: %s", action.error, tag_label, err.error))
 		end)
 	end)
 end

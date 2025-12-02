@@ -1,3 +1,5 @@
+local notify = require("neoment.notify")
+
 vim.g.neoment = vim.g.neoment or {}
 vim.g.neoment.save_session = vim.g.neoment and vim.g.neoment.save_session or true
 
@@ -54,7 +56,7 @@ vim.api.nvim_create_user_command("Neoment", function(opts)
 	elseif subcommand == "join" then
 		local room_id = opts.fargs[2]
 		if not room_id then
-			vim.notify("Usage: :Neoment join <room_id_or_alias>", vim.log.levels.ERROR)
+			notify.error("Usage: :Neoment join <room_id_or_alias>")
 			return
 		end
 		require("neoment").join_room(room_id)
@@ -69,11 +71,11 @@ vim.api.nvim_create_user_command("Neoment", function(opts)
 		if choice == 1 then -- 1 = "Yes"
 			require("neoment").logout()
 		else
-			vim.notify("Operation canceled", vim.log.levels.INFO)
+			notify.info("Operation canceled")
 		end
 	else
-		vim.notify("Unknown subcommand: " .. subcommand, vim.log.levels.ERROR)
-		vim.notify("Available subcommands: rooms, sync_start, sync_stop, clear, logout, join", vim.log.levels.INFO)
+		notify.error("Unknown subcommand: " .. subcommand)
+		notify.info("Available subcommands: rooms, sync_start, sync_stop, clear, logout, join")
 	end
 end, {
 	desc = "Neoment Matrix client",

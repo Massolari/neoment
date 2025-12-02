@@ -1,4 +1,6 @@
 local M = {}
+
+local notify = require("neoment.notify")
 local json = vim.json
 local matrix = require("neoment.matrix")
 local error = require("neoment.error")
@@ -28,14 +30,14 @@ local function write_file(path, data)
 
 	local file = io.open(path, "w")
 	if not file then
-		vim.notify("Error opening file for writing: " .. path, vim.log.levels.ERROR)
+		notify.error("Error opening file for writing: " .. path)
 		return false
 	end
 
 	local success, serialized = pcall(json.encode, data)
 	if not success then
 		file:close()
-		vim.notify("Error serializing data to JSON: " .. serialized, vim.log.levels.ERROR)
+		notify.error("Error serializing data to JSON: " .. serialized)
 		return false
 	end
 
@@ -63,7 +65,7 @@ local function read_file(path)
 
 	local success, decoded = pcall(json.decode, content)
 	if not success then
-		vim.notify("Error decoding JSON data: " .. decoded, vim.log.levels.ERROR)
+		notify.error("Error decoding JSON data: " .. decoded)
 		return nil
 	end
 
@@ -116,7 +118,7 @@ function M.restore_session()
 	-- Check if the session data is too old (7 days)
 	local max_age = 7 * 24 * 60 * 60 -- 7 days in seconds
 	if data.last_save and os.time() - data.last_save > max_age then
-		vim.notify("Session data is expired, please log in again", vim.log.levels.WARN)
+		notify.warn("Session data is expired, please log in again")
 		return false
 	end
 
@@ -138,7 +140,7 @@ function M.restore_session()
 		end
 	end
 
-	vim.notify("Matrix session restored for " .. matrix.client.user_id, vim.log.levels.INFO)
+	notify.info("Matrix session restored for " .. matrix.client.user_id)
 
 	return true
 end
@@ -149,7 +151,7 @@ function M.clear_session()
 	local data_exists = vim.fn.filereadable(data_path) == 1
 
 	if not cache_exists and not data_exists then
-		vim.notify("No session data found to remove", vim.log.levels.INFO)
+		notify.info("No session data found to remove")
 		return true
 	end
 
@@ -164,10 +166,10 @@ function M.clear_session()
 		local success, err = os.remove(data_path)
 
 		if not success then
-			vim.notify("Error removing session data: " .. (err or "unknown"), vim.log.levels.ERROR)
+			notify.error("Error removing session data: " .. (err or "unknown"))
 			return false
 		else
-			vim.notify("Neoment session data removed (" .. size_kb .. "KB)", vim.log.levels.INFO)
+			notify.info("Neoment session data removed (" .. size_kb .. "KB)")
 		end
 	end
 	return true
@@ -178,7 +180,7 @@ end
 function M.clear_cache()
 	local cache_exists = vim.fn.filereadable(cache_path) == 1
 	if not cache_exists then
-		vim.notify("No cache file found to remove", vim.log.levels.INFO)
+		notify.info("No cache file found to remove")
 		return true
 	end
 
@@ -186,11 +188,11 @@ function M.clear_cache()
 	local size_kb = math.floor(vim.fn.getfsize(cache_path) / 1024)
 	local success, err = os.remove(cache_path)
 	if not success then
-		vim.notify("Error removing cache: " .. (err or "unknown"), vim.log.levels.ERROR)
+		notify.error("Error removing cache: " .. (err or "unknown"))
 		return false
 	end
 
-	vim.notify("Neoment cache removed (" .. size_kb .. "KB)", vim.log.levels.INFO)
+	notify.info("Neoment cache removed (" .. size_kb .. "KB)")
 	return true
 end
 

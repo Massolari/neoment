@@ -1,5 +1,6 @@
 local M = {}
 
+local notify = require("neoment.notify")
 local constants = require("neoment.constants")
 local icon = require("neoment.icon")
 local util = require("neoment.util")
@@ -68,7 +69,7 @@ local function get_room_id_under_cursor()
 	local buffer_id = vim.api.nvim_get_current_buf()
   local room = get_buffer_data(buffer_id).line_to_room[line_number]
 	if not room then
-		vim.notify("No room or space under the cursor", vim.log.levels.ERROR)
+		notify.error("No room or space under the cursor")
 		return error.error("No room or space under the cursor")
 	end
 
@@ -210,7 +211,7 @@ M.open_room_under_cursor = function()
           end)
           return nil
         end, function(err)
-          vim.notify("Error joining room: " .. err.error, vim.log.levels.ERROR)
+          notify.error("Error joining room: " .. err.error)
         end)
       end, room.via)
       return nil
@@ -303,7 +304,7 @@ local function render_space_details(space_id, buffer_id, hierarchy)
 	-- print(vim.inspect(hierarchy))
 	local space = matrix.get_room(space_id)
 	if not space then
-		vim.notify("Space not found", vim.log.levels.ERROR)
+		notify.error("Space not found")
 		return
 	end
 
@@ -371,7 +372,7 @@ M.open_space = function(space_id)
 				render_space_details(space_id, buffer_id, hierarchy)
 			end),
 			function(err)
-				vim.notify("Failed to fetch space hierarchy: " .. err.error, vim.log.levels.ERROR)
+				notify.error("Failed to fetch space hierarchy: " .. err.error)
 				return nil
 			end
 		)

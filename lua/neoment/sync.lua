@@ -1,5 +1,6 @@
 local M = {}
 
+local notify = require("neoment.notify")
 local storage = require("neoment.storage")
 local matrix = require("neoment.matrix")
 local error = require("neoment.error")
@@ -101,12 +102,12 @@ M.start = function(client, on_done, options)
 		end, function(err)
 			if error_count < 3 then
 				error_count = error_count + 1
-				vim.notify("Error syncing: " .. err.error .. "\nRetrying...", vim.log.levels.ERROR)
+				notify.error("Error syncing: " .. err.error .. "\nRetrying...")
 				vim.defer_fn(function()
 					M.start(client, on_done, options)
 				end, 1000)
 			else
-				vim.notify("Error syncing: " .. err.error, vim.log.levels.ERROR)
+				notify.error("Error syncing: " .. err.error)
 			end
 
 			--- @type neoment.sync.Status
@@ -129,7 +130,7 @@ M.stop = function()
 	if status.kind == "syncing" then
 		status.kind = "stopped"
 	end
-	vim.notify("Synchronization stopped", vim.log.levels.INFO)
+	notify.info("Synchronization stopped")
 end
 
 --- Get the current status of the synchronization process.

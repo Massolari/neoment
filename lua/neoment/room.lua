@@ -1,5 +1,6 @@
 local M = {}
 
+local notify = require("neoment.notify")
 local constants = require("neoment.constants")
 local icon = require("neoment.icon")
 local markdown = require("neoment.markdown")
@@ -910,7 +911,7 @@ local function send_message(room_id, message, message_params)
 
 	matrix.send_message(room_id, params, function(response)
 		error.map_error(response, function(err)
-			vim.notify("Error sending message: " .. err.error, vim.log.levels.ERROR)
+			notify.error("Error sending message: " .. err.error)
 			return nil
 		end)
 	end)
@@ -936,7 +937,7 @@ M.prompt_message = function(params)
 	local room_win = vim.api.nvim_get_current_win()
 
 	if not room_id then
-		vim.notify("Couldn't identify the current room", vim.log.levels.ERROR)
+		notify.error("Couldn't identify the current room")
 		return
 	end
 
@@ -1007,7 +1008,7 @@ M.send_and_close_compose = function(compose_buf)
 	local room_win = vim.b[compose_buf].room_win
 
 	if not room_id then
-		vim.notify("Couldn't identify the current room", vim.log.levels.ERROR)
+		notify.error("Couldn't identify the current room")
 		return
 	end
 
@@ -1038,21 +1039,21 @@ M.load_more_messages = function(buffer_id)
 	local room_id = vim.b[room_buffer].room_id
 
 	if not room_id then
-		vim.notify("Couldn't identify the current room", vim.log.levels.ERROR)
+		notify.error("Couldn't identify the current room")
 		return
 	end
 
 	local prev_batch = matrix.get_room_prev_batch(room_id)
 	if prev_batch == "End" then
-		vim.notify("No more messages to load", vim.log.levels.INFO)
+		notify.info("No more messages to load")
 		return
 	end
 
-	local notification = vim.notify("Loading more messages...", vim.log.levels.INFO, {
+	local notification = notify.with_opts("Loading more messages...", vim.log.levels.INFO, {
 		timeout = false,
 	})
 	matrix.load_more_messages(room_id, function(response)
-		local notify = error.match(response, function()
+		local notify_data = error.match(response, function()
 			vim.schedule(function()
 				M.update_buffer(room_buffer)
 				if prev_batch == nil and room_buffer == api.nvim_get_current_buf() then
@@ -1072,7 +1073,7 @@ M.load_more_messages = function(buffer_id)
 			}
 		end)
 
-		vim.notify(notify.message, notify.level, {
+		notify.with_opts(notify_data.message, notify_data.level, {
 			-- For snacks
 			id = notification and (type(notification) == "table" and notification.id or notification),
 			-- For nvim-notify
@@ -1089,7 +1090,7 @@ end
 M.mark_read = function(buffer_id)
 	local room_id = vim.b[buffer_id].room_id
 	if not room_id then
-		vim.notify("Couldn't identify the current room", vim.log.levels.ERROR)
+		notify.error("Couldn't identify the current room")
 		return
 	end
 
@@ -1144,7 +1145,7 @@ local function get_message_under_cursor()
 	local message = get_buffer_data(buffer_id).line_to_message[line_number]
 
 	if not message then
-		vim.notify("No message under the cursor", vim.log.levels.ERROR)
+		notify.error("No message under the cursor")
 		return error.error("No message under the cursor")
 	end
 
@@ -1177,7 +1178,7 @@ M.edit_message = function()
 	local error_message = get_message_under_cursor()
 	error.map(error_message, function(message)
 		if message.sender ~= matrix.get_user_id() then
-			vim.notify("You can only edit your own messages", vim.log.levels.ERROR)
+			notify.error("You can only edit your own messages")
 			return nil
 		end
 
@@ -1242,7 +1243,7 @@ M.react_message = function()
 							end)
 							return nil
 						end, function(err)
-							vim.notify("Error removing reaction: " .. err.error, vim.log.levels.ERROR)
+							notify.error("Error removing reaction: " .. err.error)
 							return nil
 						end)
 					end)
@@ -1280,7 +1281,7 @@ M.redact_message = function()
 					end)
 					return nil
 				end, function(err)
-					vim.notify("Error redacting message: " .. err.error, vim.log.levels.ERROR)
+					notify.error("Error redacting message: " .. err.error)
 					return nil
 				end)
 			end)
@@ -1322,7 +1323,7 @@ M.forward_message = function()
 			send_message(room.id, forwarded_content, params)
 
 			local target_room_name = matrix.get_room_display_name(room.id)
-			vim.notify(string.format("Message forwarded to %s", target_room_name), vim.log.levels.INFO)
+			notify.info(string.format("Message forwarded to %s", target_room_name))
 
 			M.open_room(room.id)
 		end, { prompt = "Forward message to room: " })
@@ -1397,7 +1398,7 @@ M.toggle_image_zoom = function()
 			return
 		end
 	end
-	vim.notify("No image on this line", vim.log.levels.ERROR)
+	notify.error("No image on this line")
 end
 
 --- Open the attachment of the message under the cursor
@@ -1406,7 +1407,7 @@ M.open_attachment = function()
 
 	local error_path = error.try(error_message, function(message)
 		if not message.attachment then
-			vim.notify("No attachment on this message", vim.log.levels.ERROR)
+			notify.error("No attachment on this message")
 			return error.error("No attachment on this message") --[[@as neoment.Error<string, string>]]
 		end
 
@@ -1430,13 +1431,13 @@ M.save_attachment = function()
 
 	error.map(error_message, function(message)
 		if not message.attachment then
-			vim.notify("No attachment on this message", vim.log.levels.ERROR)
+			notify.error("No attachment on this message")
 			return error.error("No attachment on this message") --[[@as neoment.Error<string, string>]]
 		end
 
 		vim.ui.input({ prompt = "Save attachment to: ", completion = "file" }, function(user_input)
 			if not user_input or user_input == "" then
-				vim.notify("Save location not provided", vim.log.levels.ERROR)
+				notify.error("Save location not provided")
 				return
 			end
 
@@ -1466,10 +1467,10 @@ M.save_attachment = function()
 				end
 
 				vim.fn.writefile(vim.fn.readblob(path), save_path)
-				vim.notify("Attachment saved to " .. save_path, vim.log.levels.INFO)
+				notify.info("Attachment saved to " .. save_path)
 				return nil
 			end, function(err)
-				vim.notify("Error saving attachment: " .. err, vim.log.levels.ERROR)
+				notify.error("Error saving attachment: " .. err)
 			end)
 		end)
 		return nil
@@ -1486,7 +1487,7 @@ M.upload_attachment = function()
 		local path = vim.fn.expand(filepath)
 
 		if vim.fn.filereadable(path) == 0 then
-			vim.notify("File does not exist: " .. path, vim.log.levels.ERROR)
+			notify.error("File does not exist: " .. path)
 			return
 		end
 
@@ -1507,7 +1508,7 @@ M.upload_attachment = function()
 
 					return nil
 				end, function(err)
-					vim.notify("Error uploading file: " .. err.error, vim.log.levels.ERROR)
+					notify.error("Error uploading file: " .. err.error)
 				end)
 			end)
 		)
@@ -1536,7 +1537,7 @@ M.upload_image_from_clipboard = function()
 
 					return nil
 				end, function(err)
-					vim.notify("Error uploading file: " .. err.error, vim.log.levels.ERROR)
+					notify.error("Error uploading file: " .. err.error)
 				end)
 			end)
 		)
@@ -1549,7 +1550,7 @@ M.go_to_replied_message = function()
 	local error_message = get_message_under_cursor()
 	error.map(error_message, function(message)
 		if not message.replying_to then
-			vim.notify("This message is not replying to another message", vim.log.levels.ERROR)
+			notify.error("This message is not replying to another message")
 			return nil
 		end
 
@@ -1569,7 +1570,7 @@ M.go_to_replied_message = function()
 		end
 
 		-- If we reach here, the replied message is not in the current buffer
-		vim.notify("The replied message is older than the loaded messages", vim.log.levels.WARN)
+		notify.warn("The replied message is older than the loaded messages")
 		return nil
 	end)
 end
@@ -1589,13 +1590,13 @@ M.leave_room = function()
 	matrix.leave_room(room_id, function(response)
 		error.match(response, function()
 			vim.schedule(function()
-				vim.notify("Left room " .. room_name, vim.log.levels.INFO)
+				notify.info("Left room " .. room_name)
 				vim.cmd("bdelete! " .. buffer_id)
 				require("neoment.rooms").update_room_list()
 			end)
 			return nil
 		end, function(err)
-			vim.notify("Error leaving room: " .. err.error, vim.log.levels.ERROR)
+			notify.error("Error leaving room: " .. err.error)
 		end)
 	end)
 end
@@ -1644,7 +1645,7 @@ M.open_thread = function()
 		local thread_root_message = message.thread_replies_count and message
 			or matrix.get_room_message(room_id, thread_root_id)
 		if not thread_root_message then
-			vim.notify("Thread root message not found", vim.log.levels.ERROR)
+			notify.error("Thread root message not found")
 			return nil
 		end
 
