@@ -271,6 +271,24 @@ M.add_room_message = function(room_id, message)
 	return message
 end
 
+--- Add a member to a room.
+--- @param room_id string The ID of the room.
+--- @param user_id string The ID of the user to add as a member.
+M.add_room_member = function(room_id, user_id)
+	local room = M.get_room(room_id)
+
+	room.members[user_id] = user_id
+end
+
+--- Remove a member from a room.
+--- @param room_id string The ID of the room.
+--- @param user_id string The ID of the user to remove as a member.
+M.remove_room_member = function(room_id, user_id)
+	local room = M.get_room(room_id)
+
+	room.members[user_id] = nil
+end
+
 --- Get the rooms
 --- @return table<string, neoment.matrix.client.Room> A table containing all the rooms.
 M.get_rooms = function()

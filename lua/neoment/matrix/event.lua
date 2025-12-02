@@ -526,9 +526,9 @@ M.handle = function(room_id, event)
 		return true
 	elseif event.type == "m.room.member" then
 		if event.content.membership == "join" then
-			client.get_room(room_id).members[event.state_key] = event.state_key
+			client.add_room_member(room_id, event.state_key)
 		elseif event.content.membership == "leave" or event.content.membership == "ban" then
-			client.get_room(room_id).members[event.state_key] = nil
+			client.remove_room_member(room_id, event.state_key)
 		end
 
 		local message = state_event_to_message(event)
