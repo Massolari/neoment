@@ -524,10 +524,10 @@ M.update_room_list = function()
 		local section = s
 		local is_folded = get_fold_state(section)
 		local fold_arrow = get_section_fold_arrow(is_folded)
-		local icon = get_section_icon(section)
+		local section_icon = get_section_icon(section)
 		table.insert(
 			lines,
-			string.format("%s %s  %s (%d)", fold_arrow, icon, sections[section], #section_rooms[section])
+			string.format("%s %s  %s (%d)", fold_arrow, section_icon, sections[section], #section_rooms[section])
 		)
 		M.section_lines[section] = line_index
 		line_index = line_index + 1
