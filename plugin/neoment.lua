@@ -1,7 +1,9 @@
 local notify = require("neoment.notify")
 
 local config = vim.g.neoment or {}
-config.save_session = config.save_session or true
+if config.save_session == nil then
+	config.save_session = true
+end
 vim.g.neoment = config
 
 -- Definir grupos de highlight
