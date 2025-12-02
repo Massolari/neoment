@@ -76,12 +76,6 @@ local function get_room_id_under_cursor()
   return error.ok(room)
 end
 
-local function is_user_member_of_room(room_id)
-  local members = matrix.get_room_members(room_id)
-  local user_id = matrix.get_user_id()
-  return members[user_id] ~= nil
-end
-
 local function render_room_space_line(room, indent_level)
 	local indent = string.rep("  ", indent_level)
 
@@ -194,7 +188,7 @@ M.open_room_under_cursor = function()
 
   error.map(error_room, function(room)
     -- Check if the user has access to this room
-    if not is_user_member_of_room(room.room.room_id) then
+    if not matrix.is_user_member_of_room(room.room.room_id) then
       local answer = vim.fn.confirm(
         "Do you want to join this room?",
         "&Join\n&Cancel",
@@ -278,7 +272,7 @@ local function apply_highlights(buffer_id, space_id, lines)
     )
     end
 
-    if room and room.room and is_user_member_of_room(room.room.room_id) then
+    if room and room.room and matrix.is_user_member_of_room(room.room.room_id) then
       local icon_pos = line:find(icon.space) or line:find(icon.room)
       if icon_pos then
         vim.api.nvim_buf_set_extmark(buffer_id, constants.ns_id, index - 1, icon_pos + 5, {

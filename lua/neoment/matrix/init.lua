@@ -885,6 +885,26 @@ M.leave_room = function(room_id, callback)
 	})
 end
 
+--- Get the rooms that the user joined or was invited to
+--- @return table<string, neoment.matrix.client.Room> A table containing all the joined rooms.
+M.get_user_rooms = function()
+	return vim.iter(vim.tbl_values(M.get_rooms()))
+		:filter(function(room)
+			return M.is_user_member_of_room(room.id) or client.is_invited_room(room.id)
+		end)
+		:totable()
+end
+
+--- Check if the user is a member of a room.
+--- @param room_id string The ID of the room.
+--- @return boolean True if the user is a member of the room, false otherwise.
+M.is_user_member_of_room = function(room_id)
+	vim.validate("room_id", room_id, "string")
+	local members = M.get_room_members(room_id)
+	local user_id = M.get_user_id()
+	return members[user_id] ~= nil
+end
+
 --- Get the name of the room.
 --- @param room_id string The ID of the room.
 --- @return string The name of the room.
@@ -939,6 +959,7 @@ end
 --- @param room_id string The ID of the room.
 --- @return table<string, string> The members of the room. The keys are user IDs and the values are display names.
 M.get_room_members = function(room_id)
+	vim.validate("room_id", room_id, "string")
 	return vim.tbl_map(function(id)
 		local displayname = client.client.display_names[id]
 		if not displayname or displayname == vim.NIL then

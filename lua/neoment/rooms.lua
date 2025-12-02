@@ -395,7 +395,7 @@ local function render_space(space, lines, line_index, extmarks, indentation_leve
 
 	if not is_folded then
 		for _, r in ipairs(space.space_rooms) do
-			if not matrix.has_room(r) then
+			if not matrix.has_room(r) or not matrix.is_user_member_of_room(r) then
 				-- If the room is not found, skip it
 				goto continue
 			end
@@ -452,7 +452,7 @@ M.update_room_list = function()
 	end
 
 	-- Categorize rooms
-	for id, room in pairs(matrix.get_rooms()) do
+	for id, room in pairs(matrix.get_user_rooms()) do
 		-- Check if the room is open in a buffer
 		for _, buf in ipairs(open_buffers) do
 			if vim.b[buf].room_id == id then
@@ -609,7 +609,7 @@ end
 --- @param options? {prompt: string} Optional parameters for the picker
 M.pick_room = function(callback, options)
 	options = options or {}
-	local rooms_and_spaces = vim.tbl_values(matrix.get_rooms())
+	local rooms_and_spaces = vim.tbl_values(matrix.get_user_rooms())
 
 	vim.ui.select(rooms_and_spaces, {
 		prompt = options.prompt or "Rooms",
