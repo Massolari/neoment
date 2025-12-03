@@ -886,7 +886,7 @@ M.leave_room = function(room_id, callback)
 end
 
 --- Get the rooms that the user joined or was invited to
---- @return table<string, neoment.matrix.client.Room> A table containing all the joined rooms.
+--- @return table<neoment.matrix.client.Room> A table containing all the joined rooms.
 M.get_user_rooms = function()
 	return vim.iter(vim.tbl_values(M.get_rooms()))
 		:filter(function(room)

@@ -452,10 +452,10 @@ M.update_room_list = function()
 	end
 
 	-- Categorize rooms
-	for id, room in pairs(matrix.get_user_rooms()) do
+	for _, room in pairs(matrix.get_user_rooms()) do
 		-- Check if the room is open in a buffer
 		for _, buf in ipairs(open_buffers) do
-			if vim.b[buf].room_id == id then
+			if vim.b[buf].room_id == room.id then
 				table.insert(section_rooms.buffers, room)
 				goto continue
 			end
@@ -609,7 +609,7 @@ end
 --- @param options? {prompt: string} Optional parameters for the picker
 M.pick_room = function(callback, options)
 	options = options or {}
-	local rooms_and_spaces = vim.tbl_values(matrix.get_user_rooms())
+	local rooms_and_spaces = matrix.get_user_rooms()
 
 	vim.ui.select(rooms_and_spaces, {
 		prompt = options.prompt or "Rooms",
