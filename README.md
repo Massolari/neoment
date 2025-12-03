@@ -78,8 +78,8 @@ Plug 'Massolari/neoment'
 - `:Neoment` - Login to your Matrix account. If already logged in, opens the rooms list
 - `:Neoment logout` - Logout and clear session data
 - `:Neoment rooms` - Toggle the rooms list sidebar
-- `:Neoment start sync` - Start syncing messages
-- `:Neoment stop sync` - Stop syncing messages
+- `:Neoment sync_start` - Start syncing messages
+- `:Neoment sync_stop` - Stop syncing messages
 - `:Neoment join <room_id_or_alias>` - Join a room by its ID or alias
 
 ### Configuration
