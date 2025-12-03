@@ -162,6 +162,8 @@ Filetype: `neoment_compose`
 | Abort compose (insert) | `<Plug>NeomentComposeAbortInsert` | `<C-c>` |
 
 
+You can type `<C-x><C-o>` in insert mode, after typing `@`, to trigger the completion menu for mentions.
+
 #### Space Buffer
 
 Filetype: `neoment_space`
