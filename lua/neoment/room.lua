@@ -1570,7 +1570,7 @@ M.go_to_replied_message = function()
 		end
 
 		-- If we reach here, the replied message is not in the current buffer
-		notify.warn("The replied message is older than the loaded messages")
+		notify.warning("The replied message is older than the loaded messages")
 		return nil
 	end)
 end

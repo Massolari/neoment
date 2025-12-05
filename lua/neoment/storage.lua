@@ -118,7 +118,7 @@ function M.restore_session()
 	-- Check if the session data is too old (7 days)
 	local max_age = 7 * 24 * 60 * 60 -- 7 days in seconds
 	if data.last_save and os.time() - data.last_save > max_age then
-		notify.warn("Session data is expired, please log in again")
+		notify.warning("Session data is expired, please log in again")
 		return false
 	end
 
