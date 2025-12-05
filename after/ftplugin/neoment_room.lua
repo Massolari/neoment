@@ -5,10 +5,6 @@ local util = require("neoment.util")
 vim.bo.buftype = "nofile"
 vim.bo.swapfile = false
 vim.bo.modified = false
-vim.wo.conceallevel = 2
-vim.wo.wrap = true
-vim.wo.foldmethod = "manual"
-vim.wo.signcolumn = "no"
 
 local neoment_room_ns = vim.api.nvim_get_namespaces()
 for name, id in pairs(neoment_room_ns) do
@@ -32,6 +28,11 @@ vim.api.nvim_create_autocmd("BufLeave", {
 vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
 	buffer = buffer_id,
 	callback = function()
+		vim.wo.conceallevel = 2
+		vim.wo.concealcursor = "n"
+		vim.wo.wrap = true
+		vim.wo.foldmethod = "manual"
+		vim.wo.signcolumn = "no"
 		vim.wo.number = false
 		vim.wo.relativenumber = false
 		vim.wo.conceallevel = 2
