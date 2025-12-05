@@ -27,6 +27,7 @@ vim.api.nvim_create_autocmd("BufEnter", {
 vim.wo.number = false
 vim.wo.relativenumber = false
 vim.wo.cursorline = true
+vim.wo.winfixwidth = true
 
 -- Window options
 
