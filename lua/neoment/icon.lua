@@ -16,9 +16,9 @@ M.low_priority = "󰘄"
 
 M.reply = "↳"
 
-M.right_arrow = ""
+M.right_arrow = "▶"
 
-M.down_arrow = ""
+M.down_arrow = "▼"
 
 M.down_arrow_circle = ""
 
