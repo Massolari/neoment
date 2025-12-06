@@ -11,6 +11,7 @@ Neoment is a Matrix protocol client implementation for Neovim that allows you to
 **Note:** Neoment does not currently support End-to-End Encryption (E2EE). Encrypted rooms will not be accessible.
 
 **Features:**
+
 - List rooms
 - Join rooms
 - Leave rooms
@@ -77,7 +78,7 @@ Plug 'Massolari/neoment'
 
 - `:Neoment` - Login to your Matrix account. If already logged in, opens the rooms list
 - `:Neoment logout` - Logout and clear session data
-- `:Neoment rooms` - Open the picker to select and open a room/space
+- `:Neoment rooms` - Use `vim.ui.select` to select and open a room/space
 - `:Neoment sync_start` - Start syncing messages
 - `:Neoment sync_stop` - Stop syncing messages
 - `:Neoment join <room_id_or_alias>` - Join a room by its ID or alias
@@ -109,58 +110,52 @@ Below are the default keybindings for each buffer type.
 
 Filetype: `neoment_rooms`
 
-
-| Description | Mapping | Default |
-| --------------- | --------------- | --------------- |
-| Open room/space under cursor | `<Plug>NeomentRoomsEnter` | `<CR>` |
-| Toggle fold under cursor | `<Plug>NeomentRoomsToggleFold` | `<Tab>` |
-| Close window | `<Plug>NeomentRoomsClose` | `q` |
-| Toggle favorite | `<Plug>NeomentRoomsToggleFavorite` | `<localleader>a` |
-| Find room (open picker) | `<Plug>NeomentRoomsPick` | `<localleader>f` |
-| Toggle low priority | `<Plug>NeomentRoomsToggleLowPriority` | `<localleader>l` |
-| Toggle read/unread | `<Plug>NeomentRoomsToggleRead` | `<localleader>r` |
-
+| Description                      | Mapping                               | Default          |
+| -------------------------------- | ------------------------------------- | ---------------- |
+| Open room/space under cursor     | `<Plug>NeomentRoomsEnter`             | `<CR>`           |
+| Toggle fold under cursor         | `<Plug>NeomentRoomsToggleFold`        | `<Tab>`          |
+| Close window                     | `<Plug>NeomentRoomsClose`             | `q`              |
+| Toggle favorite                  | `<Plug>NeomentRoomsToggleFavorite`    | `<localleader>a` |
+| Find room (open `vim.ui.select`) | `<Plug>NeomentRoomsPick`              | `<localleader>f` |
+| Toggle low priority              | `<Plug>NeomentRoomsToggleLowPriority` | `<localleader>l` |
+| Toggle read/unread               | `<Plug>NeomentRoomsToggleRead`        | `<localleader>r` |
 
 #### Room Buffer
 
 Filetype: `neoment_room`
 
-
-| Description | Mapping | Default |
-| --------------- | --------------- | --------------- |
-| Compose/send message | `<Plug>NeomentRoomCompose` | `<CR>` |
-| React to message | `<Plug>NeomentRoomReact` | `<localleader>a` |
-| Redact (delete) message | `<Plug>NeomentRoomRedact` | `<localleader>d` |
-| Edit message | `<Plug>NeomentRoomEdit` | `<localleader>e` |
-| Find room (open picker) | `<Plug>NeomentRoomFind` | `<localleader>f` |
-| Quit room (close the buffer) | `<Plug>NeomentRoomQuit` | `<localleader>q` |
-| Toggle room list | `<Plug>NeomentRoomToggleRoomList` | `<localleader>l` |
-| Leave room | `<Plug>NeomentRoomLeave` | `<localleader>L` |
-| Set read marker | `<Plug>NeomentRoomSetReadMarker` | `<localleader>m` |
-| Open attachment | `<Plug>NeomentRoomOpenAttachment` | `<localleader>o` |
-| Load previous messages | `<Plug>NeomentRoomLoadPrevious` | `<localleader>p` |
-| Reply to message | `<Plug>NeomentRoomReply` | `<localleader>r` |
-| Go to replied message | `<Plug>NeomentRoomGoToReplied` | `<localleader>R` |
-| Open thread | `<Plug>NeomentRoomOpenThread` | `<localleader>t` |
-| Save attachment | `<Plug>NeomentRoomSaveAttachment` | `<localleader>s` |
-| Upload attachment | `<Plug>NeomentRoomUploadAttachment` | `<localleader>u` |
-| Upload image from clipboard | `<Plug>NeomentRoomUploadClipboardImage` | `<localleader>U` |
-| Forward message | `<Plug>NeomentRoomForwardMessage` | `<localleader>w` |
-| Toggle zoom of image under cursor | `<Plug>NeomentRoomToggleZoomImage` | `<localleader>z` |
-
+| Description                       | Mapping                                 | Default          |
+| --------------------------------- | --------------------------------------- | ---------------- |
+| Compose/send message              | `<Plug>NeomentRoomCompose`              | `<CR>`           |
+| React to message                  | `<Plug>NeomentRoomReact`                | `<localleader>a` |
+| Redact (delete) message           | `<Plug>NeomentRoomRedact`               | `<localleader>d` |
+| Edit message                      | `<Plug>NeomentRoomEdit`                 | `<localleader>e` |
+| Find room (open `vim.ui.select`)  | `<Plug>NeomentRoomFind`                 | `<localleader>f` |
+| Quit room (close the buffer)      | `<Plug>NeomentRoomQuit`                 | `<localleader>q` |
+| Toggle room list                  | `<Plug>NeomentRoomToggleRoomList`       | `<localleader>l` |
+| Leave room                        | `<Plug>NeomentRoomLeave`                | `<localleader>L` |
+| Set read marker                   | `<Plug>NeomentRoomSetReadMarker`        | `<localleader>m` |
+| Open attachment                   | `<Plug>NeomentRoomOpenAttachment`       | `<localleader>o` |
+| Load previous messages            | `<Plug>NeomentRoomLoadPrevious`         | `<localleader>p` |
+| Reply to message                  | `<Plug>NeomentRoomReply`                | `<localleader>r` |
+| Go to replied message             | `<Plug>NeomentRoomGoToReplied`          | `<localleader>R` |
+| Open thread                       | `<Plug>NeomentRoomOpenThread`           | `<localleader>t` |
+| Save attachment                   | `<Plug>NeomentRoomSaveAttachment`       | `<localleader>s` |
+| Upload attachment                 | `<Plug>NeomentRoomUploadAttachment`     | `<localleader>u` |
+| Upload image from clipboard       | `<Plug>NeomentRoomUploadClipboardImage` | `<localleader>U` |
+| Forward message                   | `<Plug>NeomentRoomForwardMessage`       | `<localleader>w` |
+| Toggle zoom of image under cursor | `<Plug>NeomentRoomToggleZoomImage`      | `<localleader>z` |
 
 #### Compose Buffer
 
 Filetype: `neoment_compose`
 
-
-| Description | Mapping | Default |
-| --------------- | --------------- | --------------- |
-| Send message | `<Plug>NeomentComposeSend` | `<CR>` |
-| Send message (insert) | `<Plug>NeomentComposeSendInsert` | `<C-s>` |
-| Abort compose | `<Plug>NeomentComposeAbort` | `<Esc>` |
+| Description            | Mapping                           | Default |
+| ---------------------- | --------------------------------- | ------- |
+| Send message           | `<Plug>NeomentComposeSend`        | `<CR>`  |
+| Send message (insert)  | `<Plug>NeomentComposeSendInsert`  | `<C-s>` |
+| Abort compose          | `<Plug>NeomentComposeAbort`       | `<Esc>` |
 | Abort compose (insert) | `<Plug>NeomentComposeAbortInsert` | `<C-c>` |
-
 
 You can type `<C-x><C-o>` in insert mode, after typing `@`, to trigger the completion menu for mentions.
 
@@ -168,14 +163,12 @@ You can type `<C-x><C-o>` in insert mode, after typing `@`, to trigger the compl
 
 Filetype: `neoment_space`
 
-
-| Description | Mapping | Default |
-| --------------- | --------------- | --------------- |
-| Open room/space under cursor | `<Plug>NeomentSpaceEnter` | `<CR>` |
-| Find room (open picker) | `<Plug>NeomentSpaceFind` | `<localleader>f` |
-| Quit window (close the buffer) | `<Plug>NeomentSpaceQuit` | `<localleader>q` |
-| Toggle room list | `<Plug>NeomentSpaceToggleRoomList` | `<localleader>l` |
-
+| Description                      | Mapping                            | Default          |
+| -------------------------------- | ---------------------------------- | ---------------- |
+| Open room/space under cursor     | `<Plug>NeomentSpaceEnter`          | `<CR>`           |
+| Find room (open `vim.ui.select`) | `<Plug>NeomentSpaceFind`           | `<localleader>f` |
+| Quit window (close the buffer)   | `<Plug>NeomentSpaceQuit`           | `<localleader>q` |
+| Toggle room list                 | `<Plug>NeomentSpaceToggleRoomList` | `<localleader>l` |
 
 ## Inspiration
 
@@ -188,6 +181,7 @@ Neoment draws inspiration from some excellent Matrix clients:
 ## Contributing
 
 Contributions are welcome! Please note that as this project is in beta, architectural changes may occur. Feel free to:
+
 - Report bugs and issues
 - Suggest features and improvements
 - Submit pull requests
