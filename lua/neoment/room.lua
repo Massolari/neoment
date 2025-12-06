@@ -313,7 +313,7 @@ local function messages_to_lines(buffer_id)
 		local message = msg
 
 		-- Weekday month day, year
-		local display_date = os.date("%A %B %d, %Y", math.floor(message.timestamp / 1000))
+		local display_date = vim.fn.strftime("%A %B %d, %Y", math.floor(message.timestamp / 1000))
 		local is_date = last_date ~= display_date
 		last_date = display_date
 
@@ -578,7 +578,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 						api.nvim_set_hl(0, hl_group, hl)
 					end
 
-					local time = os.date(TIME_FORMAT, math.floor(message.timestamp / 1000))
+					local time = vim.fn.strftime(TIME_FORMAT, math.floor(message.timestamp / 1000))
 
 					-- Get a friendly name for the sender
 					local sender_name = get_formatted_sender_name(message.sender)
@@ -615,7 +615,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 				end
 
 				if message.is_date then
-					local display_date = os.date("%A %B %d, %Y", math.floor(message.timestamp / 1000))
+					local display_date = vim.fn.strftime("%A %B %d, %Y", math.floor(message.timestamp / 1000))
 					local text = " " .. display_date .. " "
 					local text_with_line = get_separator_line(text)
 					-- The first message is on index 2 (index 1 is the empty line to add the date)
