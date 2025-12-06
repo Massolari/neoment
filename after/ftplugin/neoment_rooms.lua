@@ -1,3 +1,7 @@
+if vim.b.did_ftplugin then
+	return
+end
+vim.b.did_ftplugin = true
 local buffer_id = vim.api.nvim_get_current_buf()
 local util = require("neoment.util")
 
