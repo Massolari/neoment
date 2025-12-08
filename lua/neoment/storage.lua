@@ -205,7 +205,7 @@ M.fetch_to_temp = function(name, url)
 	vim.validate("url", url, "string")
 
 	-- Create temporary directory if it doesn't exist
-	local temp_dir = "/tmp/neoment"
+    local temp_dir = vim.fs.joinpath(vim.uv.os_tmpdir(), 'neoment')
 	if vim.fn.isdirectory(temp_dir) == 0 then
 		vim.fn.mkdir(temp_dir, "p")
 	end
@@ -243,7 +243,7 @@ end
 --- Save the image from the clipboard to a temporary file
 --- @return neoment.Error<string, string> The path to the temporary file or an error message
 M.save_clipboard_image = function()
-	local temp_dir = "/tmp/neoment"
+    local temp_dir = vim.fs.joinpath(vim.uv.os_tmpdir(), 'neoment')
 	if vim.fn.isdirectory(temp_dir) == 0 then
 		vim.fn.mkdir(temp_dir, "p")
 	end

@@ -75,12 +75,7 @@ util.gen_dump_path = function()
 		local v = (l == "x") and math.random(0, 0xf) or math.random(0, 0xb)
 		return string.format("%x", v)
 	end)
-	if P.path.sep == "\\" then
-		path = string.format("%s\\AppData\\Local\\Temp\\plenary_curl_%s.headers", os.getenv("USERPROFILE"), id)
-	else
-		local temp_dir = os.getenv("XDG_RUNTIME_DIR") or "/tmp"
-		path = temp_dir .. "/plenary_curl_" .. id .. ".headers"
-	end
+    path = vim.fs.joinpath(vim.uv.os_tmpdir(), 'plenary_curl_' .. id .. '.headers')
 	return { "-D", path }
 end
 
