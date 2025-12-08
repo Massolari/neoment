@@ -21,7 +21,7 @@ end
 local old_number = vim.wo.number
 local old_relativenumber = vim.wo.relativenumber
 local old_cursorline = vim.wo.cursorline
-vim.api.nvim_create_autocmd("BufLeave", {
+vim.api.nvim_create_autocmd("BufWinLeave", {
 	buffer = buffer_id,
 	callback = function()
 		vim.wo.number = old_number
