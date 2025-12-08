@@ -63,7 +63,7 @@ local function format_last_sync_time()
 	if sync_status.kind == "never" then
 		return "No sync yet"
 	end
-	return tostring(os.date("%H:%M:%S", sync_status.last_sync))
+	return tostring(vim.fn.strftime("%H:%M:%S", sync_status.last_sync))
 end
 
 --- Get the logged user info
@@ -282,7 +282,7 @@ local function get_room_line(room, show_space)
 	local display = get_name(room.id)
 
 	if last_activity and last_activity.timestamp > 0 then
-		local time = os.date("%H:%M", math.floor(last_activity.timestamp / 1000))
+		local time = vim.fn.strftime("%H:%M", math.floor(last_activity.timestamp / 1000))
 		display = display .. " [" .. time .. "]"
 		local display_icon = nil
 		if room.unread_highlights and room.unread_highlights > 0 then
