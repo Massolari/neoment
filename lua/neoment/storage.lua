@@ -13,6 +13,17 @@ local data_path = vim.fn.stdpath("data") .. "/neoment/data.json"
 --- Path to the cache file
 local cache_path = vim.fn.stdpath("cache") .. "/neoment/cache.json"
 
+--- Get the path to a temporary file
+--- @param file string The name of the file
+--- @param opts {path: string[]}|nil Options for the temporary file
+local function get_temp_path(file, opts)
+	local directory = vim.fs.joinpath(vim.uv.os_tmpdir(), "neoment", unpack(opts and opts.path or {}))
+	if vim.fn.isdirectory(directory) == 0 then
+		vim.fn.mkdir(directory, "p")
+	end
+	return vim.fs.joinpath(directory, file)
+end
+
 --- Write data to a file
 --- @param path string The path to the file
 --- @param data any The data to write
@@ -204,17 +215,11 @@ M.fetch_to_temp = function(name, url)
 	vim.validate("name", name, "string")
 	vim.validate("url", url, "string")
 
-	-- Create temporary directory if it doesn't exist
-    local temp_dir = vim.fs.joinpath(vim.uv.os_tmpdir(), 'neoment')
-	if vim.fn.isdirectory(temp_dir) == 0 then
-		vim.fn.mkdir(temp_dir, "p")
-	end
-
 	-- Sanitize the name to ensure it's a valid filename
 	name = name:gsub("[^%w%.%-_]", "_")
 
 	-- Create the full path for the temporary file
-	local temp_path = temp_dir .. "/" .. name
+	local temp_path = get_temp_path(name)
 
 	-- Check if the file already exists
 	if vim.fn.filereadable(temp_path) == 1 then
@@ -243,12 +248,7 @@ end
 --- Save the image from the clipboard to a temporary file
 --- @return neoment.Error<string, string> The path to the temporary file or an error message
 M.save_clipboard_image = function()
-    local temp_dir = vim.fs.joinpath(vim.uv.os_tmpdir(), 'neoment')
-	if vim.fn.isdirectory(temp_dir) == 0 then
-		vim.fn.mkdir(temp_dir, "p")
-	end
-
-	local temp_file = temp_dir .. "/" .. util.uuid() .. ".png"
+	local temp_file = get_temp_path(util.uuid() .. ".png")
 
 	-- Try to get image from clipboard using platform-specific commands
 	local success = false

@@ -2,7 +2,7 @@
 --- @param module string
 --- @param source string
 local function load_module(module, source)
-    local module_dir = vim.fs.joinpath(vim.uv.os_tmpdir(), module)
+	local module_dir = vim.fs.joinpath(vim.uv.os_tmpdir(), module)
 	local directory_exists = vim.fn.isdirectory(module_dir)
 
 	if directory_exists == 0 then
