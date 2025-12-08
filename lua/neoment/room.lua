@@ -984,9 +984,14 @@ M.prompt_message = function(params)
 	vim.api.nvim_set_option_value("omnifunc", "v:lua.neoment_compose_omnifunc", { buf = input_buf })
 
 	-- Open split at bottom
-	vim.cmd("botright 10split")
+	local win = vim.api.nvim_open_win(input_buf, true, {
+		split = "below",
+		height = 10,
+	})
 
-	vim.api.nvim_win_set_buf(0, input_buf)
+	vim.wo[win].breakindent = false
+	vim.wo[win].conceallevel = 0
+
 	vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, lines)
 
 	if params and params.relation and params.relation.relation == "replace" then
