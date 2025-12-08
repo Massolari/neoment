@@ -50,7 +50,7 @@ local function get_or_create_buffer(space_id)
   end
 
 	local space_name = matrix.get_room_display_name(space_id)
-	local buffer_name = "neoment://space/" .. space_name
+	local buffer_name = string.format("neoment://space/%s/%s", space_id, space_name)
 	local buffer_id = api.nvim_create_buf(true, false)
 
 	api.nvim_buf_set_name(buffer_id, buffer_name)

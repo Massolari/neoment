@@ -134,7 +134,7 @@ M.open_room = function(room_id)
 	end
 
 	-- Create a new buffer for the room
-	local buffer_name = "neoment://" .. matrix.get_room_display_name_with_space(room_id)
+	local buffer_name = string.format("neoment://room/%s/%s", room_id, matrix.get_room_display_name_with_space(room_id))
 	local buffer_id = api.nvim_create_buf(true, false) -- listed=true, scratch=false
 	api.nvim_buf_set_name(buffer_id, buffer_name)
 	vim.b[buffer_id].room_id = room_id
@@ -942,9 +942,9 @@ M.prompt_message = function(params)
 	end
 
 	local room_name = matrix.get_room_name(room_id)
-	local buffer_name = "neoment://Sending to " .. room_name
+	local buffer_name = "neoment://compose/Sending to " .. room_name
 	if thread_root_id then
-		buffer_name = "neoment://Sending to thread in " .. room_name
+		buffer_name = "neoment://compose/Sending to thread in " .. room_name
 	end
 
 	-- Create a new buffer for input
@@ -961,10 +961,12 @@ M.prompt_message = function(params)
 		if params.relation then
 			vim.b[input_buf].relation = params.relation
 			if params.relation.relation == "reply" then
-				buffer_name =
-					string.format("neoment://Replying to %s", matrix.get_display_name(params.relation.message.sender))
+				buffer_name = string.format(
+					"neoment://compose/Replying to %s",
+					matrix.get_display_name(params.relation.message.sender)
+				)
 			elseif params.relation.relation == "replace" then
-				buffer_name = string.format("neoment://Editing message on %s", room_name)
+				buffer_name = string.format("neoment://compose/Editing message on %s", room_name)
 				for line in params.relation.message.content:gmatch("[^\n]+") do
 					table.insert(lines, line)
 				end
@@ -1651,7 +1653,7 @@ M.open_thread = function()
 
 		-- Create a new buffer for the thread
 		local thread_root_sender = matrix.get_display_name(thread_root_message.sender)
-		local buffer_name = string.format("neoment://Thread: %s", thread_root_sender)
+		local buffer_name = string.format("neoment://thread/%s/sender/%s", thread_root_message.id, thread_root_sender)
 		local thread_buffer_id = api.nvim_create_buf(true, false)
 		api.nvim_buf_set_name(thread_buffer_id, buffer_name)
 		vim.b[thread_buffer_id].room_id = room_id
