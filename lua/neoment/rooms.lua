@@ -209,8 +209,7 @@ end
 local function create_room_list()
 	rooms_buffer_id = api.nvim_create_buf(false, false) -- listed=false, scratch=false
 	api.nvim_buf_set_name(rooms_buffer_id, room_list_buffer_name)
-	api.nvim_set_option_value("filetype", "neoment_rooms", { buf = rooms_buffer_id })
-	api.nvim_set_option_value("buftype", "nofile", { buf = rooms_buffer_id })
+	vim.bo[rooms_buffer_id].filetype = "neoment_rooms"
 	api.nvim_set_current_buf(rooms_buffer_id)
 
 	M.update_room_list()
@@ -234,11 +233,13 @@ M.toggle_room_list = function()
 
 	if rooms_buffer_id and api.nvim_buf_is_loaded(rooms_buffer_id) then
 		api.nvim_set_current_buf(rooms_buffer_id)
+		vim.wo[new_win].winfixbuf = true
 		M.update_room_list()
 		return
 	end
 
 	create_room_list()
+	vim.wo[new_win].winfixbuf = true
 end
 
 --- Get the fold arrow for the section

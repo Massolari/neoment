@@ -5,9 +5,8 @@ vim.b.did_ftplugin = true
 local buffer_id = vim.api.nvim_get_current_buf()
 local util = require("neoment.util")
 
-vim.api.nvim_set_option_value("buftype", "nofile", { buf = 0 })
-vim.api.nvim_set_option_value("swapfile", false, { buf = 0 })
-vim.api.nvim_set_option_value("modified", false, { buf = 0 })
+vim.bo.buftype = "nofile"
+vim.bo.swapfile = false
 
 local old_number = vim.wo.number
 local old_relativenumber = vim.wo.relativenumber
