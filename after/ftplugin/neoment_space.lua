@@ -3,7 +3,6 @@ if vim.b.did_ftplugin then
 end
 vim.b.did_ftplugin = true
 local buffer_id = vim.api.nvim_get_current_buf()
-local space_id = vim.b.space_id
 local util = require("neoment.util")
 
 -- Destroy completely the buffer when closing
@@ -13,6 +12,13 @@ vim.api.nvim_create_autocmd("BufDelete", {
 		vim.schedule(function()
 			require("neoment.space").close(buffer_id)
 		end)
+	end,
+})
+-- update rooms list buffer after :e command
+vim.api.nvim_create_autocmd("BufReadCmd", {
+	buffer = buffer_id,
+	callback = function()
+		require("neoment.space").open_space(vim.b.space_id)
 	end,
 })
 
