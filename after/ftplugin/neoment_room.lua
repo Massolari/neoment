@@ -61,7 +61,7 @@ vim.wo.number = false
 vim.wo.relativenumber = false
 
 -- avoid `:e` command clear buffer context and syntax highlight.
--- BufReadPro, BufRead and BufReadPost will not be triggered as the file does not exist.
+-- BufReadPre, BufRead and BufReadPost will not be triggered as the file does not exist.
 -- this callback function will not be called when first time open the room.
 -- because it is registered after creating the buffer for a room.
 vim.api.nvim_create_autocmd("BufReadCmd", {
