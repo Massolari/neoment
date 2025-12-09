@@ -60,6 +60,20 @@ vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
 vim.wo.number = false
 vim.wo.relativenumber = false
 
+-- avoid `:e` command clear buffer context and syntax highlight.
+-- BufReadPro, BufRead and BufReadPost will not be triggered as the file does not exist.
+-- this callback function will not be called when first time open the room.
+-- because it is registered after creating the buffer for a room.
+vim.api.nvim_create_autocmd("BufReadCmd", {
+	buffer = buffer_id,
+	callback = function(ev)
+        -- update room buffer context
+		require("neoment.room").update_buffer(ev.buf)
+		-- `:e` command also will clear treesitter highlight.
+		vim.treesitter.start(ev.buf, "markdown")
+	end,
+})
+
 -- Destroy completely the buffer when closing
 vim.api.nvim_create_autocmd("BufDelete", {
 	buffer = buffer_id,
