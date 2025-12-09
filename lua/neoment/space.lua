@@ -353,6 +353,8 @@ M.open_space = function(space_id)
 		end
 		vim.api.nvim_win_set_width(0, 50)
 		vim.cmd("wincmd l")
+        -- here in new window, we need to set winfixbuf to false
+	vim.api.nvim_set_option_value('winfixbuf', false, {win = 0})
 	end
 
 	local buffer_id = get_or_create_buffer(space_id)

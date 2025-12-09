@@ -29,6 +29,14 @@ vim.api.nvim_create_autocmd("BufWinEnter", {
 	end,
 })
 
+-- update rooms list buffer after :e command
+vim.api.nvim_create_autocmd("BufReadCmd", {
+	buffer = buffer_id,
+	callback = function()
+		require("neoment.rooms").update_room_list()
+	end,
+})
+
 -- Window options
 
 vim.api.nvim_create_autocmd("VimResized", {
