@@ -18,6 +18,7 @@ vim.api.nvim_create_autocmd("BufDelete", {
 vim.api.nvim_create_autocmd("BufReadCmd", {
 	buffer = buffer_id,
 	callback = function()
+		util.buffer_write(buffer_id, { "Loading space..." }, 0, -1)
 		require("neoment.space").open_space(vim.b.space_id)
 	end,
 })
