@@ -67,7 +67,7 @@ vim.wo.relativenumber = false
 vim.api.nvim_create_autocmd("BufReadCmd", {
 	buffer = buffer_id,
 	callback = function(ev)
-        -- update room buffer context
+		-- update room buffer context
 		require("neoment.room").update_buffer(ev.buf)
 		-- `:e` command also will clear treesitter highlight.
 		vim.treesitter.start(ev.buf, "markdown")
