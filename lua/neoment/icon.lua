@@ -12,6 +12,9 @@ M.space = "󰴖"
 
 M.room = "󰮧"
 
+-- ≡ U+2261（thread / list）
+M.thread = '≡'
+
 M.low_priority = "󰘄"
 
 M.reply = "↳"
