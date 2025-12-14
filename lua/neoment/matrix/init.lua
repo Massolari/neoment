@@ -1154,8 +1154,26 @@ end
 --- @param callback fun(data: neoment.Error<{ content_uri: string, filename: string, mimetype: string }, neoment.matrix.api.Error>): any The callback function to handle the response.
 M.upload = function(filepath, callback)
 	local filename = vim.fn.fnamemodify(filepath, ":t")
-	local mimetype = vim.fn.systemlist("file --mime-type -b " .. vim.fn.shellescape(filepath))[1]
-
+	local mimetype
+	if vim.fn.has("win32") == 1 or vim.fn.has("win64") == 1 then
+		local ps_script = [[
+        Add-Type -AssemblyName System.Web
+        [System.Web.MimeMapping]::GetMimeMapping(']] .. filepath:gsub("\\", "\\\\") .. [[')
+        ]]
+		local result = vim.system({
+			"powershell",
+			"-NoProfile",
+			"-Command",
+			ps_script,
+		}, { text = true }):wait()
+		if result.code == 0 and result.stdout and #result.stdout > 0 then
+			mimetype = vim.trim(result.stdout)
+		else
+			mimetype = ""
+		end
+	else
+		mimetype = vim.fn.systemlist("file --mime-type -b " .. vim.fn.shellescape(filepath))[1]
+	end
 	api.post_raw(
 		client.client.homeserver .. "/_matrix/media/v3/upload?filename=" .. vim.uri_encode(filename),
 		filepath,
