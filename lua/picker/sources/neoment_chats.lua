@@ -8,18 +8,25 @@ M.get = function()
 		return vim.startswith(vim.api.nvim_buf_get_name(buf), "neoment://room/!")
 	end, vim.api.nvim_list_bufs())
 
-    local icons = require('neoment.icon')
+	local icons = require("neoment.icon")
 
 	local items = {}
 
 	for _, buf in ipairs(chatbufs) do
 		local room_name = require("neoment.matrix").get_room_name(vim.b[buf].room_id)
 		table.insert(items, {
-			str = icons.room .. ' ' .. room_name,
+			str = icons.room .. " " .. room_name,
+			value = {
+				buf = buf,
+			},
 		})
 	end
 
 	return items
+end
+
+M.default_action = function(item)
+	vim.api.nvim_win_set_buf(0, item.value.buf)
 end
 
 return M
