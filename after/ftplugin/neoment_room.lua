@@ -43,7 +43,7 @@ vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
 		vim.wo.cursorline = true
 		vim.wo.breakindent = true
 		vim.wo.breakindentopt = "shift:31,sbr"
-		vim.wo.showbreak = string.rep(" ", 29) .. "│ "
+		vim.wo.showbreak = string.rep(" ", 29) .. require("neoment.config").get().icon.vertical_bar .. " "
 		local winbar = require("neoment.matrix").get_room_name(room_id)
 		local topic = require("neoment.matrix").get_room_topic(room_id)
 		local thread_root_id = vim.b[buffer_id].thread_root_id

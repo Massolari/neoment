@@ -1,12 +1,7 @@
 local notify = require("neoment.notify")
 
-local config = vim.g.neoment or {}
-if config.save_session == nil then
-	config.save_session = true
-end
-vim.g.neoment = config
-
 require("neoment.highlight").define_highlights()
+require("neoment.config").load()
 
 vim.api.nvim_create_autocmd({ "ColorScheme" }, {
 	group = vim.api.nvim_create_augroup("neoment_highlight", { clear = true }),
@@ -50,15 +45,26 @@ vim.api.nvim_create_user_command("Neoment", function(opts)
 		else
 			notify.info("Operation canceled")
 		end
+	elseif subcommand == "reload_config" then
+		require("neoment.config").load()
+		notify.info("Configuration reloaded")
 	else
 		notify.error("Unknown subcommand: " .. subcommand)
-		notify.info("Available subcommands: rooms, sync_start, sync_stop, clear, logout, join")
+		notify.info("Available subcommands: rooms, sync_start, sync_stop, clear, logout, join, reload_config")
 	end
 end, {
 	desc = "Neoment Matrix client",
 	nargs = "*",
 	complete = function(arglead)
-		local subcommands = { "rooms", "sync_start", "sync_stop", "clear", "logout", "join" }
+		local subcommands = {
+			"rooms",
+			"sync_start",
+			"sync_stop",
+			"clear",
+			"logout",
+			"join",
+			"reload_config",
+		}
 		if arglead == "" then
 			return subcommands
 		end
