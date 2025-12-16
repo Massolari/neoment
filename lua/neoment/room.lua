@@ -141,11 +141,24 @@ M.open_room = function(room_id)
 	local buffer_id = api.nvim_create_buf(true, false) -- listed=true, scratch=false
 	api.nvim_buf_set_name(buffer_id, buffer_name)
 	vim.b[buffer_id].room_id = room_id
-	api.nvim_set_option_value("filetype", "neoment_room", { buf = buffer_id })
-	api.nvim_set_option_value("buftype", "nofile", { buf = buffer_id })
+	vim.bo[buffer_id].filetype = "neoment_room"
 	api.nvim_buf_set_lines(buffer_id, 0, -1, false, { string.rep(" ", 28) .. get_separator() .. "Loading..." })
 
 	api.nvim_set_current_buf(buffer_id)
+	local win = api.nvim_get_current_win()
+
+	vim.wo[win][0].conceallevel = 2
+	vim.wo[win][0].concealcursor = "n"
+	vim.wo[win][0].wrap = true
+	vim.wo[win][0].foldmethod = "manual"
+	vim.wo[win][0].signcolumn = "no"
+	vim.wo[win][0].number = false
+	vim.wo[win][0].relativenumber = false
+	vim.wo[win][0].conceallevel = 2
+	vim.wo[win][0].cursorline = true
+	vim.wo[win][0].breakindent = true
+	vim.wo[win][0].breakindentopt = "shift:31,sbr"
+	vim.wo[win][0].showbreak = string.rep(" ", 29) .. require("neoment.config").get().icon.vertical_bar .. " "
 
 	matrix.set_room_tracked(room_id, true)
 	M.load_more_messages(buffer_id)
@@ -960,6 +973,7 @@ M.prompt_message = function(params)
 	vim.b[input_buf].thread_root_id = thread_root_id
 	vim.b[input_buf].room_win = room_win
 	vim.b[input_buf].members = matrix.get_room_other_members(room_id)
+	vim.bo[input_buf].filetype = "neoment_compose.markdown"
 
 	local lines = {}
 
@@ -986,8 +1000,6 @@ M.prompt_message = function(params)
 	end
 
 	vim.api.nvim_buf_set_name(input_buf, buffer_name)
-	vim.api.nvim_set_option_value("filetype", "neoment_compose.markdown", { buf = input_buf })
-	vim.api.nvim_set_option_value("omnifunc", "v:lua.neoment_compose_omnifunc", { buf = input_buf })
 
 	-- Open split at bottom
 	local win = vim.api.nvim_open_win(input_buf, true, {
@@ -997,6 +1009,10 @@ M.prompt_message = function(params)
 
 	vim.wo[win].breakindent = false
 	vim.wo[win].conceallevel = 0
+	vim.wo[win].number = false
+	vim.wo[win].relativenumber = false
+	vim.wo[win].cursorline = true
+	vim.wo[win].winfixheight = true
 
 	vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, lines)
 
@@ -1004,7 +1020,7 @@ M.prompt_message = function(params)
 		-- Go to the end of the message (last line and last column)
 		local last_line = vim.api.nvim_buf_line_count(input_buf)
 		local last_col = vim.fn.strdisplaywidth(lines[#lines])
-		vim.api.nvim_win_set_cursor(0, { last_line, last_col })
+		vim.api.nvim_win_set_cursor(win, { last_line, last_col })
 	else
 		-- Start in insert mode
 		vim.cmd("startinsert")

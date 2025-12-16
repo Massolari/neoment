@@ -18,32 +18,9 @@ for name, id in pairs(neoment_room_ns) do
 	end
 end
 
-local old_number = vim.wo.number
-local old_relativenumber = vim.wo.relativenumber
-local old_cursorline = vim.wo.cursorline
-vim.api.nvim_create_autocmd("BufWinLeave", {
-	buffer = buffer_id,
-	callback = function()
-		vim.wo.number = old_number
-		vim.wo.relativenumber = old_relativenumber
-		vim.wo.cursorline = old_cursorline
-	end,
-})
 vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
 	buffer = buffer_id,
 	callback = function()
-		vim.wo.conceallevel = 2
-		vim.wo.concealcursor = "n"
-		vim.wo.wrap = true
-		vim.wo.foldmethod = "manual"
-		vim.wo.signcolumn = "no"
-		vim.wo.number = false
-		vim.wo.relativenumber = false
-		vim.wo.conceallevel = 2
-		vim.wo.cursorline = true
-		vim.wo.breakindent = true
-		vim.wo.breakindentopt = "shift:31,sbr"
-		vim.wo.showbreak = string.rep(" ", 29) .. require("neoment.config").get().icon.vertical_bar .. " "
 		local winbar = require("neoment.matrix").get_room_name(room_id)
 		local topic = require("neoment.matrix").get_room_topic(room_id)
 		local thread_root_id = vim.b[buffer_id].thread_root_id

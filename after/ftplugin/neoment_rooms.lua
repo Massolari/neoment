@@ -8,27 +8,6 @@ local util = require("neoment.util")
 vim.bo.buftype = "nofile"
 vim.bo.swapfile = false
 
-local old_number = vim.wo.number
-local old_relativenumber = vim.wo.relativenumber
-local old_cursorline = vim.wo.cursorline
-vim.api.nvim_create_autocmd("BufWinLeave", {
-	buffer = buffer_id,
-	callback = function()
-		vim.wo.number = old_number
-		vim.wo.relativenumber = old_relativenumber
-		vim.wo.cursorline = old_cursorline
-	end,
-})
-vim.api.nvim_create_autocmd("BufWinEnter", {
-	buffer = buffer_id,
-	callback = function()
-		vim.wo.number = false
-		vim.wo.relativenumber = false
-		vim.wo.cursorline = true
-		vim.wo.winfixwidth = true
-	end,
-})
-
 -- update rooms list buffer after :e command
 vim.api.nvim_create_autocmd("BufReadCmd", {
 	buffer = buffer_id,

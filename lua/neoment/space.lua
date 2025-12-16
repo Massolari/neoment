@@ -327,13 +327,13 @@ M.open_space = function(space_id)
 	if current_buf == rooms_module.get_buffer_id() then
 		-- If this is the only window, create a new one
 		if util.win_count() == 1 then
-            api.nvim_open_win(0, true, {
-                split = 'right',
-                width = vim.o.columns - 50
-            })
-			api.nvim_set_option_value("winfixbuf", false, { win = 0 })
+			local win = api.nvim_open_win(0, true, {
+				split = "right",
+				width = vim.o.columns - 50,
+			})
+      vim.wo[win].winfixbuf = false
 		else
-            -- @fixme, need to check is it a normal windows.
+			-- @fixme, need to check is it a normal windows.
 			-- Move the cursor to the right window
 			vim.cmd("wincmd l")
 		end

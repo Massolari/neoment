@@ -2,18 +2,15 @@ if vim.b.did_ftplugin then
 	return
 end
 vim.b.did_ftplugin = true
-local buf = vim.api.nvim_get_current_buf()
+local buffer_id = vim.api.nvim_get_current_buf()
 local util = require("neoment.util")
 
-vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
-vim.api.nvim_set_option_value("swapfile", false, { buf = buf })
-
-vim.api.nvim_set_option_value("number", false, { win = 0 })
-vim.api.nvim_set_option_value("relativenumber", false, { win = 0 })
-vim.api.nvim_set_option_value("cursorline", true, { win = 0 })
+vim.bo.bufhidden = "wipe"
+vim.bo.swapfile = false
+vim.bo.omnifunc = "v:lua.neoment_compose_omnifunc"
 
 -- Set up keybindings
-local opts = { noremap = true, silent = true, buffer = buf }
+local opts = { noremap = true, silent = true, buffer = buffer_id }
 local set_mapping = util.get_plug_mapping_setter("NeomentCompose")
 
 -- Enter in normal mode to send

@@ -103,13 +103,13 @@ M.open_room = function(room_id)
 	if current_buf == rooms_buffer_id then
 		-- If this is the only window, create a new one
 		if util.win_count() == 1 then
-            api.nvim_open_win(0, true, {
-                split = 'right',
-                width = vim.o.columns - window_width
-            })
-			api.nvim_set_option_value("winfixbuf", false, { win = 0 })
+			local win = api.nvim_open_win(0, true, {
+				split = "right",
+				width = vim.o.columns - window_width,
+			})
+			vim.wo[win].winfixbuf = false
 		else
-            -- @fixme, need to check is it a normal windows.
+			-- @fixme, need to check is it a normal windows.
 			-- Move the cursor to the right window
 			vim.cmd("wincmd l")
 		end
@@ -210,13 +210,14 @@ M.toggle_fold_at_cursor = function()
 end
 
 --- Create a new buffer for the room list
-local function create_room_list()
-	rooms_buffer_id = api.nvim_create_buf(false, false) -- listed=false, scratch=false
-	api.nvim_buf_set_name(rooms_buffer_id, room_list_buffer_name)
-	vim.bo[rooms_buffer_id].filetype = "neoment_rooms"
-	api.nvim_set_current_buf(rooms_buffer_id)
+local function switch_to_room_list_buffer()
+	if not rooms_buffer_id or not api.nvim_buf_is_loaded(rooms_buffer_id) then
+		rooms_buffer_id = api.nvim_create_buf(false, false) -- listed=false, scratch=false
+		api.nvim_buf_set_name(rooms_buffer_id, room_list_buffer_name)
+		vim.bo[rooms_buffer_id].filetype = "neoment_rooms"
+	end
 
-	M.update_room_list()
+	api.nvim_set_current_buf(rooms_buffer_id)
 end
 
 --- Show the room list buffer
@@ -235,15 +236,13 @@ M.toggle_room_list = function()
 	local new_win = api.nvim_get_current_win()
 	api.nvim_win_set_width(new_win, window_width)
 
-	if rooms_buffer_id and api.nvim_buf_is_loaded(rooms_buffer_id) then
-		api.nvim_set_current_buf(rooms_buffer_id)
-		vim.wo[new_win].winfixbuf = true
-		M.update_room_list()
-		return
-	end
-
-	create_room_list()
-	vim.wo[new_win].winfixbuf = true
+	switch_to_room_list_buffer()
+	vim.wo[new_win][0].winfixbuf = true
+	vim.wo[new_win][0].number = false
+	vim.wo[new_win][0].relativenumber = false
+	vim.wo[new_win][0].cursorline = true
+	vim.wo[new_win][0].winfixwidth = true
+	M.update_room_list()
 end
 
 --- Get the fold arrow for the section
