@@ -29,8 +29,9 @@ function M.define_highlights()
 	for _, hl_name in ipairs({ "NeomentBubbleActiveBorder", "NeomentBubbleBorder" }) do
 		local hl = vim.api.nvim_get_hl(0, { name = hl_name, link = false })
 		if hl then
+			local normal_hl = vim.api.nvim_get_hl(0, { name = "Normal", link = false })
 			local new_fg = hl.bg
-			hl.bg = hl.fg
+			hl.bg = normal_hl.bg
 			hl.fg = new_fg
 			--- @diagnostic disable-next-line: param-type-mismatch
 			vim.api.nvim_set_hl(0, hl_name, hl)
