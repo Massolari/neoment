@@ -115,6 +115,11 @@ M.open_room = function(room_id)
 		end
 	end
 
+	if matrix.is_space(room_id) then
+		require("neoment.space").open_space(room_id)
+		return
+	end
+
 	require("neoment.room").open_room(room_id)
 end
 
@@ -162,12 +167,6 @@ M.open_selected_room = function()
 	local mark = get_room_mark_under_cursor()
 
 	if not mark then
-		return
-	end
-
-	-- Check if it's a space
-	if mark.is_space then
-		require("neoment.space").open_space(mark.room_id)
 		return
 	end
 
@@ -641,10 +640,6 @@ end
 --- Select a room from the list using a picker
 M.pick = function()
 	M.pick_room(function(choice)
-		if matrix.is_space(choice.id) then
-			require("neoment.space").open_space(choice.id)
-			return
-		end
 		M.open_room(choice.id)
 	end)
 end

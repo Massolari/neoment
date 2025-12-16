@@ -320,25 +320,6 @@ end
 --- Open a space details view
 --- @param space_id string The ID of the space
 M.open_space = function(space_id)
-	-- Open the buffer in the current window or a new one
-	local current_buf = api.nvim_get_current_buf()
-	local rooms_module = require("neoment.rooms")
-
-	if current_buf == rooms_module.get_buffer_id() then
-		-- If this is the only window, create a new one
-		if util.win_count() == 1 then
-			local win = api.nvim_open_win(0, true, {
-				split = "right",
-				width = vim.o.columns - 50,
-			})
-      vim.wo[win].winfixbuf = false
-		else
-			-- @fixme, need to check is it a normal windows.
-			-- Move the cursor to the right window
-			vim.cmd("wincmd l")
-		end
-	end
-
 	local buffer_id = get_or_create_buffer(space_id)
 	api.nvim_set_current_buf(buffer_id)
 
