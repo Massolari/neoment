@@ -325,14 +325,18 @@ M.open_space = function(space_id)
 	local rooms_module = require("neoment.rooms")
 
 	if current_buf == rooms_module.get_buffer_id() then
-		-- If we're in the rooms list, open in a new window to the right
-		if #api.nvim_list_wins() == 1 then
-			vim.cmd("vsplit")
+		-- If this is the only window, create a new one
+		if util.win_count() == 1 then
+            api.nvim_open_win(0, true, {
+                split = 'right',
+                width = vim.o.columns - 50
+            })
+			api.nvim_set_option_value("winfixbuf", false, { win = 0 })
+		else
+            -- @fixme, need to check is it a normal windows.
+			-- Move the cursor to the right window
+			vim.cmd("wincmd l")
 		end
-		vim.api.nvim_win_set_width(0, 50)
-		vim.cmd("wincmd l")
-		-- here in new window, we need to set winfixbuf to false
-		vim.api.nvim_set_option_value("winfixbuf", false, { win = 0 })
 	end
 
 	local buffer_id = get_or_create_buffer(space_id)

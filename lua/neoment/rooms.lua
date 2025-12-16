@@ -102,13 +102,17 @@ M.open_room = function(room_id)
 	local current_buf = api.nvim_get_current_buf()
 	if current_buf == rooms_buffer_id then
 		-- If this is the only window, create a new one
-		if #vim.api.nvim_list_wins() == 1 then
-			vim.cmd("vsplit")
+		if util.win_count() == 1 then
+            api.nvim_open_win(0, true, {
+                split = 'right',
+                width = vim.o.columns - window_width
+            })
+			api.nvim_set_option_value("winfixbuf", false, { win = 0 })
+		else
+            -- @fixme, need to check is it a normal windows.
+			-- Move the cursor to the right window
+			vim.cmd("wincmd l")
 		end
-		vim.api.nvim_win_set_width(0, window_width)
-
-		-- Move the cursor to the right window
-		vim.cmd("wincmd l")
 	end
 
 	require("neoment.room").open_room(room_id)

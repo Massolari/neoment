@@ -254,5 +254,12 @@ M.get_plug_mapping_setter = function(plug_prefix)
 		end
 	end
 end
+--- Get the total number of normal windows in current tabpage.
+--- @return integer total number of normal windows
+M.win_count = function()
+	return #vim.tbl_filter(function(id)
+		return #vim.api.nvim_win_get_config(id).relative == 0
+	end, vim.api.nvim_tabpage_list_wins(0))
+end
 
 return M
