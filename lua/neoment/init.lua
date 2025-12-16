@@ -1,5 +1,6 @@
 local M = {}
 
+local config = require("neoment.config")
 local notify = require("neoment.notify")
 local sync = require("neoment.sync")
 local rooms = require("neoment.rooms")
@@ -36,7 +37,7 @@ end
 --- Helper function to synchronize the client
 M.sync_start = function()
 	sync.start(matrix.client, handle_sync, {
-		save_session = vim.g.neoment.save_session,
+		save_session = config.get().save_session,
 	})
 	notify.info("Synchronization started")
 end
@@ -67,7 +68,7 @@ local function login()
 		end)
 
 		-- Save the session if configured
-		if vim.g.neoment.save_session then
+		if config.get().save_session then
 			vim.schedule(function()
 				storage.save_session()
 			end)

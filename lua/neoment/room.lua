@@ -2,7 +2,7 @@ local M = {}
 
 local notify = require("neoment.notify")
 local constants = require("neoment.constants")
-local icon = require("neoment.icon")
+local config = require("neoment.config")
 local markdown = require("neoment.markdown")
 local util = require("neoment.util")
 local matrix = require("neoment.matrix")
@@ -10,7 +10,10 @@ local error = require("neoment.error")
 local storage = require("neoment.storage")
 
 local api = vim.api
-local separator = " " .. icon.vertical_bar .. " "
+local get_separator = function()
+	local icon = config.get().icon
+	return " " .. icon.vertical_bar .. " "
+end
 
 -- Constants
 -- Highlight groups for the members of the room
@@ -140,7 +143,7 @@ M.open_room = function(room_id)
 	vim.b[buffer_id].room_id = room_id
 	api.nvim_set_option_value("filetype", "neoment_room", { buf = buffer_id })
 	api.nvim_set_option_value("buftype", "nofile", { buf = buffer_id })
-	api.nvim_buf_set_lines(buffer_id, 0, -1, false, { string.rep(" ", 28) .. separator .. "Loading..." })
+	api.nvim_buf_set_lines(buffer_id, 0, -1, false, { string.rep(" ", 28) .. get_separator() .. "Loading..." })
 
 	api.nvim_set_current_buf(buffer_id)
 
@@ -245,6 +248,7 @@ end
 --- @param message neoment.matrix.client.Message The message to get the bubble for
 --- @return string The bubble for the thread message
 local function get_thread_bubble(message)
+	local icon = config.get().icon
 	return string.format(
 		"%s%s %d %s%s",
 		icon.border_left,
@@ -300,6 +304,7 @@ local function messages_to_lines(buffer_id)
 		messages = room_messages
 	end
 
+	local icon = config.get().icon
 	local lines = {}
 	get_buffer_data(buffer_id).line_to_message = {}
 	local line_to_message = get_buffer_data(buffer_id).line_to_message
@@ -353,7 +358,7 @@ local function messages_to_lines(buffer_id)
 					.. icon.file
 					.. "  File"
 					.. filename
-					.. separator
+					.. get_separator()
 					.. util.format_bytes(message.attachment.size)
 					.. icon.border_right
 					.. caption
@@ -362,9 +367,9 @@ local function messages_to_lines(buffer_id)
 					.. icon.audio
 					.. "  Audio"
 					.. filename
-					.. separator
+					.. get_separator()
 					.. util.format_milliseconds(message.attachment.duration)
-					.. separator
+					.. get_separator()
 					.. util.format_bytes(message.attachment.size)
 					.. icon.border_right
 					.. caption
@@ -375,9 +380,9 @@ local function messages_to_lines(buffer_id)
 					.. icon.video
 					.. "  Video"
 					.. filename
-					.. separator
+					.. get_separator()
 					.. util.format_milliseconds(message.attachment.duration)
-					.. separator
+					.. get_separator()
 					.. util.format_bytes(message.attachment.size)
 					.. icon.border_right
 					.. caption
@@ -510,6 +515,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 	--- @type table<neoment.room.Image>
 	local images = {}
 
+	local icon = config.get().icon
 	for index, l in ipairs(lines) do
 		--- @type string
 		local line = l
@@ -638,7 +644,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 				-- Apply highlight to the user's name
 				api.nvim_buf_set_extmark(buffer_id, constants.ns_id, index - 1, 0, {
 					virt_text = {
-						{ string.rep(" ", 28) .. separator, SEPARATOR_HIGHLIGHT },
+						{ string.rep(" ", 28) .. get_separator(), SEPARATOR_HIGHLIGHT },
 					},
 					virt_text_pos = "inline",
 				})
@@ -813,7 +819,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 
 		pcall(api.nvim_buf_set_extmark, buffer_id, constants.ns_id, #lines - 1, 0, {
 			virt_lines = {
-				{ { string.rep(" ", 28) .. separator, SEPARATOR_HIGHLIGHT }, { typing_line, "Comment" } },
+				{ { string.rep(" ", 28) .. get_separator(), SEPARATOR_HIGHLIGHT }, { typing_line, "Comment" } },
 			},
 		})
 	end
@@ -1670,7 +1676,7 @@ M.open_thread = function()
 			0,
 			-1,
 			false,
-			{ string.rep(" ", 28) .. separator .. "Loading thread..." }
+			{ string.rep(" ", 28) .. get_separator() .. "Loading thread..." }
 		)
 
 		-- Open in a vertical split to the right

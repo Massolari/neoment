@@ -1,7 +1,7 @@
 local M = {}
 
 local notify = require("neoment.notify")
-local icon = require("neoment.icon")
+local config = require("neoment.config")
 local api = vim.api
 local sync = require("neoment.sync")
 local matrix = require("neoment.matrix")
@@ -245,6 +245,7 @@ end
 --- Get the fold arrow for the section
 --- @param is_folded boolean Whether the section is folded
 local function get_section_fold_arrow(is_folded)
+	local icon = config.get().icon
 	return is_folded and icon.right_arrow or icon.down_arrow
 end
 
@@ -252,6 +253,7 @@ end
 --- @param section neoment.rooms.Section The section name
 --- @return string The icon for the section
 local function get_section_icon(section)
+	local icon = config.get().icon
 	if section == "invited" then
 		return icon.invite
 	elseif section == "buffers" then
@@ -286,6 +288,7 @@ local function get_room_line(room, show_space)
 		local time = vim.fn.strftime("%H:%M", math.floor(last_activity.timestamp / 1000))
 		display = display .. " [" .. time .. "]"
 		local display_icon = nil
+		local icon = config.get().icon
 		if room.unread_highlights and room.unread_highlights > 0 then
 			display_icon = icon.bell
 		elseif room.unread_notifications and room.unread_notifications > 0 then
@@ -570,6 +573,7 @@ M.update_room_list = function()
 
 	-- Add user status line with highlighting
 	-- Add user status as virtual text on the second line
+	local icon = config.get().icon
 	local user_display_name, user_status_text = get_logged_user_info()
 	api.nvim_buf_set_extmark(rooms_buffer_id, ns_id, 1, 0, {
 		virt_text = {
@@ -611,6 +615,7 @@ end
 M.pick_room = function(callback, options)
 	options = options or {}
 	local rooms_and_spaces = matrix.get_user_rooms()
+	local icon = config.get().icon
 
 	vim.ui.select(rooms_and_spaces, {
 		prompt = options.prompt or "Rooms",
