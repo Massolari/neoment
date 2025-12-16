@@ -1,11 +1,6 @@
-local stub = require("luassert.stub")
-local spy = require("luassert.spy")
-local match = require("luassert.match")
 local assert = require("luassert.assert")
 local busted = require("plenary.busted")
 local describe = busted.describe
-local before_each = busted.before_each
-local after_each = busted.after_each
 local it = busted.it
 
 local markdown = require("neoment.markdown")
