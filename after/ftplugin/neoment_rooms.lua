@@ -19,15 +19,13 @@ vim.api.nvim_create_autocmd("BufReadCmd", {
 
 -- Window options
 
-vim.api.nvim_create_autocmd("VimResized", {
+vim.api.nvim_create_autocmd("BufUnload", {
 	group = vim.api.nvim_create_augroup("neoment_room_list", {}),
-	pattern = "*",
-	callback = function()
-		for _, win in ipairs(vim.api.nvim_list_wins()) do
-			if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == buffer_id then
-				-- Resize the window to the specified width
-				vim.api.nvim_win_set_width(win, 50)
-				break
+	buffer = buffer_id,
+	callback = function(ev)
+		for _, id in ipairs(vim.api.nvim_list_wins()) do
+			if vim.api.nvim_win_get_buf(id) == ev.buf then
+				vim.wo[id].winfixbuf = false
 			end
 		end
 	end,
