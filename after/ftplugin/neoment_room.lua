@@ -3,6 +3,7 @@ if vim.b.did_ftplugin then
 end
 vim.b.did_ftplugin = true
 local buffer_id = vim.api.nvim_get_current_buf()
+local window_id = vim.api.nvim_get_current_win()
 local room_id = vim.b.room_id
 local util = require("neoment.util")
 
@@ -21,26 +22,26 @@ end
 vim.api.nvim_create_autocmd("BufWinLeave", {
 	buffer = buffer_id,
 	callback = function()
-		vim.wo.number = vim.go.number
-		vim.wo.relativenumber = vim.go.relativenumber
-		vim.wo.cursorline = vim.go.cursorline
+		vim.wo[window_id].number = vim.go.number
+		vim.wo[window_id].relativenumber = vim.go.relativenumber
+		vim.wo[window_id].cursorline = vim.go.cursorline
 	end,
 })
 vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
 	buffer = buffer_id,
 	callback = function()
-		vim.wo.conceallevel = 2
-		vim.wo.concealcursor = "n"
-		vim.wo.wrap = true
-		vim.wo.foldmethod = "manual"
-		vim.wo.signcolumn = "no"
-		vim.wo.number = false
-		vim.wo.relativenumber = false
-		vim.wo.conceallevel = 2
-		vim.wo.cursorline = true
-		vim.wo.breakindent = true
-		vim.wo.breakindentopt = "shift:31,sbr"
-		vim.wo.showbreak = string.rep(" ", 29) .. "│ "
+		vim.wo[window_id].conceallevel = 2
+		vim.wo[window_id].concealcursor = "n"
+		vim.wo[window_id].wrap = true
+		vim.wo[window_id].foldmethod = "manual"
+		vim.wo[window_id].signcolumn = "no"
+		vim.wo[window_id].number = false
+		vim.wo[window_id].relativenumber = false
+		vim.wo[window_id].conceallevel = 2
+		vim.wo[window_id].cursorline = true
+		vim.wo[window_id].breakindent = true
+		vim.wo[window_id].breakindentopt = "shift:31,sbr"
+		vim.wo[window_id].showbreak = string.rep(" ", 29) .. "│ "
 		local winbar = require("neoment.matrix").get_room_name(room_id)
 		local topic = require("neoment.matrix").get_room_topic(room_id)
 		local thread_root_id = vim.b[buffer_id].thread_root_id
@@ -54,8 +55,8 @@ vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
 		require("neoment.room").mark_read(buffer_id)
 	end,
 })
-vim.wo.number = false
-vim.wo.relativenumber = false
+vim.wo[window_id].number = false
+vim.wo[window_id].relativenumber = false
 
 -- avoid `:e` command clear buffer context and syntax highlight.
 -- BufReadPre, BufRead and BufReadPost will not be triggered as the file does not exist.

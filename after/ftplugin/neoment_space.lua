@@ -3,6 +3,7 @@ if vim.b.did_ftplugin then
 end
 vim.b.did_ftplugin = true
 local buffer_id = vim.api.nvim_get_current_buf()
+local windows_id = vim.api.nvim_get_current_win()
 local util = require("neoment.util")
 
 -- Destroy completely the buffer when closing
@@ -26,9 +27,9 @@ vim.api.nvim_create_autocmd("BufReadCmd", {
 vim.api.nvim_create_autocmd("BufWinLeave", {
 	buffer = buffer_id,
 	callback = function()
-		vim.wo.number = vim.go.number
-		vim.wo.relativenumber = vim.go.relativenumber
-		vim.wo.cursorline = vim.go.cursorline
+		vim.wo[windows_id].number = vim.go.number
+		vim.wo[windows_id].relativenumber = vim.go.relativenumber
+		vim.wo[windows_id].cursorline = vim.go.cursorline
 	end,
 })
 

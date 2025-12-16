@@ -3,6 +3,7 @@ if vim.b.did_ftplugin then
 end
 vim.b.did_ftplugin = true
 local buffer_id = vim.api.nvim_get_current_buf()
+local windows_id = vim.api.nvim_get_current_win()
 local util = require("neoment.util")
 
 vim.bo.buftype = "nofile"
@@ -11,18 +12,30 @@ vim.bo.swapfile = false
 vim.api.nvim_create_autocmd("BufWinLeave", {
 	buffer = buffer_id,
 	callback = function()
-		vim.wo.number = vim.go.number
-		vim.wo.relativenumber = vim.go.relativenumber
-		vim.wo.cursorline = vim.go.cursorline
+		vim.api.nvim_set_option_value(
+			"number",
+			vim.api.nvim_get_option_value("number", { scope = "global" }),
+			{ win = windows_id }
+		)
+		vim.api.nvim_set_option_value(
+			"relativenumber",
+			vim.api.nvim_get_option_value("relativenumber", { scope = "global" }),
+			{ win = windows_id }
+		)
+		vim.api.nvim_set_option_value(
+			"cursorline",
+			vim.api.nvim_get_option_value("cursorline", { scope = "global" }),
+			{ win = windows_id }
+		)
 	end,
 })
 vim.api.nvim_create_autocmd("BufWinEnter", {
 	buffer = buffer_id,
 	callback = function()
-		vim.wo.number = false
-		vim.wo.relativenumber = false
-		vim.wo.cursorline = true
-		vim.wo.winfixwidth = true
+		vim.api.nvim_set_option_value("number", false, { win = windows_id })
+		vim.api.nvim_set_option_value("relativenumber", false, { win = windows_id })
+		vim.api.nvim_set_option_value("cursorline", true, { win = windows_id })
+		vim.api.nvim_set_option_value("winfixwidth", true, { win = windows_id })
 	end,
 })
 
