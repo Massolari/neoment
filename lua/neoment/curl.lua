@@ -75,7 +75,7 @@ util.gen_dump_path = function()
 		local v = (l == "x") and math.random(0, 0xf) or math.random(0, 0xb)
 		return string.format("%x", v)
 	end)
-    path = vim.fs.joinpath(vim.uv.os_tmpdir(), 'plenary_curl_' .. id .. '.headers')
+	path = vim.fs.joinpath(vim.uv.os_tmpdir(), "plenary_curl_" .. id .. ".headers")
 	return { "-D", path }
 end
 
