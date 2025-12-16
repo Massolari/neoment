@@ -20,8 +20,6 @@
 --- @field bell? string Icon for notifications
 --- @field dot? string Icon for dot
 --- @field dot_circle? string Icon for dot in a circle
---- @field border_left? string Icon for left border
---- @field border_right? string Icon for right border
 --- @field vertical_bar? string Icon for vertical bar
 --- @field vertical_bar_thick? string Icon for thick vertical bar
 --- @field tree_branch? string Icon for tree branch
@@ -50,8 +48,6 @@
 --- @field bell string Icon for notifications
 --- @field dot string Icon for dot
 --- @field dot_circle string Icon for dot in a circle
---- @field border_left string Icon for left border
---- @field border_right string Icon for right border
 --- @field vertical_bar string Icon for vertical bar
 --- @field vertical_bar_thick string Icon for thick vertical bar
 --- @field tree_branch string Icon for tree branch
@@ -81,8 +77,6 @@ local default = {
 		bell = "󰵛",
 		dot = "•",
 		dot_circle = "",
-		border_left = "",
-		border_right = "",
 		vertical_bar = "│",
 		vertical_bar_thick = "┃",
 		tree_branch = "├",

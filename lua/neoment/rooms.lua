@@ -575,13 +575,14 @@ M.update_room_list = function()
 
 	-- Add user status line with highlighting
 	-- Add user status as virtual text on the second line
-	local icon = config.get().icon
+	local config_icon = config.get().icon
+	local icon = require("neoment.icon")
 	local user_display_name, user_status_text = get_logged_user_info()
 	api.nvim_buf_set_extmark(rooms_buffer_id, ns_id, 1, 0, {
 		virt_text = {
 			{ icon.border_left, "NeomentBubbleBorder" }, -- Left border
 			{
-				string.format("%s %s %s", user_display_name, icon.vertical_bar, user_status_text),
+				string.format("%s %s %s", user_display_name, config_icon.vertical_bar, user_status_text),
 				"NeomentBubbleContent",
 			}, -- Use a nice highlight group for username
 			{ icon.border_right, "NeomentBubbleBorder" }, -- Right border

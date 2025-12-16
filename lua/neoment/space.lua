@@ -220,7 +220,8 @@ local function apply_highlights(buffer_id, space_id, lines)
 	vim.hl.range(buffer_id, constants.ns_id, "NeomentRoomsTitle", { 0, 0 }, { 0, -1 })
 	vim.hl.range(buffer_id, constants.ns_id, "Bold", { 2, 0 }, { 2, -1 })
 
-	local icon = config.get().icon
+	local config_icon = config.get().icon
+	local icon = require("neoment.icon")
 
 	for index, l in ipairs(lines) do
 		--- @type string
@@ -233,7 +234,7 @@ local function apply_highlights(buffer_id, space_id, lines)
 			vim.hl.range(buffer_id, constants.ns_id, "Bold", { index - 1, 0 }, { index - 1, -1 })
 		end
 
-		local space_icon = line:find(icon.space)
+		local space_icon = line:find(config_icon.space)
 		local topic_separator_start, topic_separator_end = line:find(" - ", space_icon, true)
 		if space_icon then
 			vim.hl.range(
@@ -251,7 +252,7 @@ local function apply_highlights(buffer_id, space_id, lines)
 		end
 
 		if room and room.room and matrix.is_user_member_of_room(room.room.room_id) then
-			local icon_pos = line:find(icon.space) or line:find(icon.room)
+			local icon_pos = line:find(config_icon.space) or line:find(config_icon.room)
 			if icon_pos then
 				vim.api.nvim_buf_set_extmark(buffer_id, constants.ns_id, index - 1, icon_pos + 5, {
 					virt_text = {
@@ -272,8 +273,6 @@ end
 --- @param buffer_id number The buffer ID
 --- @param hierarchy neoment.matrix.RoomsHierarchy The space hierarchy
 local function render_space_details(space_id, buffer_id, hierarchy)
-	-- TODO Remove
-	-- print(vim.inspect(hierarchy))
 	local space = matrix.get_room(space_id)
 	if not space then
 		notify.error("Space not found")

@@ -1,5 +1,6 @@
 local M = {}
 
+local icon = require("neoment.icon")
 local notify = require("neoment.notify")
 local constants = require("neoment.constants")
 local config = require("neoment.config")
@@ -11,8 +12,8 @@ local storage = require("neoment.storage")
 
 local api = vim.api
 local get_separator = function()
-	local icon = config.get().icon
-	return " " .. icon.vertical_bar .. " "
+	local config_icon = config.get().icon
+	return " " .. config_icon.vertical_bar .. " "
 end
 
 -- Constants
@@ -261,11 +262,11 @@ end
 --- @param message neoment.matrix.client.Message The message to get the bubble for
 --- @return string The bubble for the thread message
 local function get_thread_bubble(message)
-	local icon = config.get().icon
+	local config_icon = config.get().icon
 	return string.format(
 		"%s%s %d %s%s",
 		icon.border_left,
-		icon.reply,
+		config_icon.reply,
 		message.thread_replies_count,
 		message.thread_replies_count == 1 and "reply" or "replies",
 		icon.border_right
@@ -317,7 +318,7 @@ local function messages_to_lines(buffer_id)
 		messages = room_messages
 	end
 
-	local icon = config.get().icon
+	local config_icon = config.get().icon
 	local lines = {}
 	get_buffer_data(buffer_id).line_to_message = {}
 	local line_to_message = get_buffer_data(buffer_id).line_to_message
@@ -365,10 +366,10 @@ local function messages_to_lines(buffer_id)
 			end
 
 			if message.attachment.type == "image" then
-				content = icon.border_left .. icon.image .. "  Image" .. filename .. icon.border_right .. caption
+				content = icon.border_left .. config_icon.image .. "  Image" .. filename .. icon.border_right .. caption
 			elseif message.attachment.type == "file" then
 				content = icon.border_left
-					.. icon.file
+					.. config_icon.file
 					.. "  File"
 					.. filename
 					.. get_separator()
@@ -377,7 +378,7 @@ local function messages_to_lines(buffer_id)
 					.. caption
 			elseif message.attachment.type == "audio" then
 				content = icon.border_left
-					.. icon.audio
+					.. config_icon.audio
 					.. "  Audio"
 					.. filename
 					.. get_separator()
@@ -387,10 +388,10 @@ local function messages_to_lines(buffer_id)
 					.. icon.border_right
 					.. caption
 			elseif message.attachment.type == "location" then
-				content = icon.border_left .. icon.location .. "  Location" .. icon.border_right
+				content = icon.border_left .. config_icon.location .. "  Location" .. icon.border_right
 			elseif message.attachment.type == "video" then
 				content = icon.border_left
-					.. icon.video
+					.. config_icon.video
 					.. "  Video"
 					.. filename
 					.. get_separator()
@@ -414,9 +415,9 @@ local function messages_to_lines(buffer_id)
 
 			reply_content = reply_content:gsub("%z", "") -- Remove null characters
 
-			table.insert(content_lines, icon.vertical_bar_thick .. " " .. reply_sender .. ":")
+			table.insert(content_lines, config_icon.vertical_bar_thick .. " " .. reply_sender .. ":")
 			for line in reply_content:gmatch("[^\n]+") do
-				table.insert(content_lines, icon.vertical_bar_thick .. " " .. line)
+				table.insert(content_lines, config_icon.vertical_bar_thick .. " " .. line)
 			end
 		end
 
@@ -528,12 +529,12 @@ local function apply_highlights(buffer_id, room_id, lines)
 	--- @type table<neoment.room.Image>
 	local images = {}
 
-	local icon = config.get().icon
+	local config_icon = config.get().icon
 	for index, l in ipairs(lines) do
 		--- @type string
 		local line = l
 		-- Apply styles for the vertical bar
-		local is_quote = line:sub(1, 3) == icon.vertical_bar_thick
+		local is_quote = line:sub(1, 3) == config_icon.vertical_bar_thick
 		if is_quote then
 			vim.hl.range(buffer_id, constants.ns_id, "Comment", { index - 1, 0 }, { index - 1, -1 })
 		end
@@ -575,7 +576,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 					-- Apply Comment highlight for membership events and no header
 					api.nvim_buf_set_extmark(buffer_id, constants.ns_id, index - 1, 0, {
 						virt_text = {
-							{ string.rep(" ", 28) .. " " .. icon.vertical_bar .. " ", SEPARATOR_HIGHLIGHT },
+							{ string.rep(" ", 28) .. " " .. config_icon.vertical_bar .. " ", SEPARATOR_HIGHLIGHT },
 						},
 						virt_text_pos = "inline",
 					})
@@ -607,7 +608,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 						virt_text = {
 							{ time .. " ", "Normal" },
 							{ sender_name, hl_group },
-							{ string.format(" %s ", icon.vertical_bar), SEPARATOR_HIGHLIGHT },
+							{ string.format(" %s ", config_icon.vertical_bar), SEPARATOR_HIGHLIGHT },
 						},
 						virt_text_pos = "inline",
 					})
@@ -638,8 +639,10 @@ local function apply_highlights(buffer_id, room_id, lines)
 					local text = " " .. display_date .. " "
 					local text_with_line = get_separator_line(text)
 					-- The first message is on index 2 (index 1 is the empty line to add the date)
-					local virtual_text =
-						{ { string.rep(" ", 28) .. " " .. icon.tree_branch, "Title" }, { text_with_line, "Comment" } }
+					local virtual_text = {
+						{ string.rep(" ", 28) .. " " .. config_icon.tree_branch, "Title" },
+						{ text_with_line, "Comment" },
+					}
 					if index == 2 then
 						api.nvim_buf_set_extmark(buffer_id, constants.ns_id, 0, 0, {
 							virt_text = virtual_text,
@@ -664,11 +667,11 @@ local function apply_highlights(buffer_id, room_id, lines)
 			end
 
 			if message.is_last_read then
-				local text = icon.down_arrow_circle .. "  New messages " .. icon.down_arrow_circle .. " "
+				local text = config_icon.down_arrow_circle .. "  New messages " .. config_icon.down_arrow_circle .. " "
 				local text_with_line = get_separator_line(text)
 				api.nvim_buf_set_extmark(buffer_id, constants.ns_id, index - 1, 0, {
 					virt_lines = {
-						{ { string.rep(" ", 28) .. " " .. icon.tree_branch .. text_with_line, "Title" } },
+						{ { string.rep(" ", 28) .. " " .. config_icon.tree_branch .. text_with_line, "Title" } },
 					},
 				})
 			end

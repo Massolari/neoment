@@ -10,14 +10,6 @@ vim.bo.buftype = "nofile"
 vim.bo.swapfile = false
 vim.bo.modified = false
 
-local neoment_room_ns = vim.api.nvim_get_namespaces()
-for name, id in pairs(neoment_room_ns) do
-	if name == "neoment_room" then
-		vim.api.nvim_set_hl_ns(id)
-		break
-	end
-end
-
 vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
 	buffer = buffer_id,
 	callback = function()
