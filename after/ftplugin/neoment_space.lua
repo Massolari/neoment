@@ -23,6 +23,15 @@ vim.api.nvim_create_autocmd("BufReadCmd", {
 	end,
 })
 
+vim.api.nvim_create_autocmd("BufWinLeave", {
+	buffer = buffer_id,
+	callback = function()
+		vim.wo.number = vim.go.number
+		vim.wo.relativenumber = vim.go.relativenumber
+		vim.wo.cursorline = vim.go.cursorline
+	end,
+})
+
 local opts = { noremap = true, silent = true, buffer = buffer_id }
 local function set_opts_desc(desc)
 	return vim.tbl_extend("force", opts, { desc = desc })
