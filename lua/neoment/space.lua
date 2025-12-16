@@ -220,6 +220,8 @@ local function apply_highlights(buffer_id, space_id, lines)
 	vim.hl.range(buffer_id, constants.ns_id, "NeomentRoomsTitle", { 0, 0 }, { 0, -1 })
 	vim.hl.range(buffer_id, constants.ns_id, "Bold", { 2, 0 }, { 2, -1 })
 
+	local icon = config.get().icon
+
 	for index, l in ipairs(lines) do
 		--- @type string
 		local line = l
@@ -230,8 +232,6 @@ local function apply_highlights(buffer_id, space_id, lines)
 		if line_data and line_data.is_rooms_title then
 			vim.hl.range(buffer_id, constants.ns_id, "Bold", { index - 1, 0 }, { index - 1, -1 })
 		end
-
-		local icon = config.get().icon
 
 		local space_icon = line:find(icon.space)
 		local topic_separator_start, topic_separator_end = line:find(" - ", space_icon, true)
