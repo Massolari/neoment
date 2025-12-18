@@ -333,13 +333,23 @@ local function handle_message(room_id, event)
 			local replaced_message = client.get_room_message(room_id, replaced_event_id)
 
 			if replaced_message then
-				local new_content = event.content["m.new_content"]
-				if new_content then
-					replaced_message.content = new_content.body
-					replaced_message.formatted_content = new_content.formatted_body
-					replaced_message.edited_id = replaced_event_id
-					replaced_message.id = event.event_id
-					return true
+				-- Check if there is already an edit and if the new edit is newer
+				local edit_data = replaced_message.edit_data
+				if not edit_data or edit_data.timestamp < event.origin_server_ts then
+					local new_content = event.content["m.new_content"]
+					if new_content then
+						replaced_message.content = new_content.body
+						replaced_message.formatted_content = new_content.formatted_body
+						replaced_message.edit_data = {
+							id = replaced_event_id,
+							timestamp = event.origin_server_ts,
+						}
+						replaced_message.id = event.event_id
+						return true
+					end
+				else
+					-- There is already a newer edit, ignore this one
+					return false
 				end
 			else
 				-- If the message is not found, store the event in pending events

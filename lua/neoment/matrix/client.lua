@@ -54,7 +54,7 @@ M.client = nil
 --- @field formatted_content? string The formatted content of the message, if available.
 --- @field timestamp integer The timestamp of when the message was sent.
 --- @field age? number The age of the message in milliseconds.
---- @field edited_id string|nil The ID of the edit event, if the message was edited.
+--- @field edit_data neoment.matrix.client.MessageEdit|nil The edit information of the message, if it was edited.
 --- @field was_redacted boolean Indicates if the message was redacted.
 --- @field mentions table<string> A table to store mentions in the message, it contains the user IDs of users mentioned in the message.
 --- @field replying_to? neoment.matrix.client.Message The message being replied to, if available.
@@ -63,6 +63,10 @@ M.client = nil
 --- @field is_state boolean Indicates if the message is a state event.
 --- @field thread_root_id? string The ID of the thread root event, if this message is part of a thread.
 --- @field thread_replies_count? number The number of replies in the thread, if this is a thread root.
+
+--- @class neoment.matrix.client.MessageEdit
+--- @field id string The ID of the original event that was edited.
+--- @field timestamp integer The timestamp of when the last edit was made.
 
 --- @class neoment.matrix.client.PreviousBatchToken
 --- @field token string The previous batch token for the room.

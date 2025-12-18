@@ -563,7 +563,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 		local message = get_buffer_data(buffer_id).line_to_message[index]
 		if message then
 			-- Show a virtual text when the message was edited
-			if message.edited_id then
+			if message.edit_data then
 				-- Add the edit text in the last line of this message
 				local next_message = get_buffer_data(buffer_id).line_to_message[index + 1]
 				if not next_message or next_message.id ~= message.id then
@@ -921,7 +921,7 @@ local function send_message(room_id, message, message_params)
 		if relation.relation == "reply" then
 			params.reply_to = relation.message.id
 		elseif relation.relation == "replace" then
-			params.replace = relation.message.edited_id or relation.message.id
+			params.replace = relation.message.edit_data and relation.message.edit_data.id or relation.message.id
 		end
 	end
 
@@ -1593,7 +1593,10 @@ M.go_to_replied_message = function()
 
 		-- Search for the replied message in the current buffer
 		for line_num, line_message in pairs(line_to_message) do
-			if line_message.id == replied_message_id or line_message.edited_id == replied_message_id then
+			if
+				line_message.id == replied_message_id
+				or (line_message.edit_data and line_message.edit_data.id == replied_message_id)
+			then
 				-- Add current position to jump list before moving
 				vim.cmd("normal! m'")
 				-- Move cursor to the replied message
