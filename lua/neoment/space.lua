@@ -1,12 +1,13 @@
 local M = {}
 
 local notify = require("neoment.notify")
-local constants = require("neoment.constants")
 local config = require("neoment.config")
 local util = require("neoment.util")
 local error = require("neoment.error")
 local api = vim.api
 local matrix = require("neoment.matrix")
+
+local EXTMARK_NAMESPACE = vim.api.nvim_create_namespace("neoment_space_extmarks")
 
 --- Buffer data
 --- @type table<number, neoment.space.BufferData>
@@ -217,8 +218,8 @@ end
 --- @param space_id string The ID of the room to apply highlights to
 --- @param lines table The lines to apply highlights to
 local function apply_highlights(buffer_id, space_id, lines)
-	vim.hl.range(buffer_id, constants.ns_id, "NeomentRoomsTitle", { 0, 0 }, { 0, -1 })
-	vim.hl.range(buffer_id, constants.ns_id, "Bold", { 2, 0 }, { 2, -1 })
+	vim.hl.range(buffer_id, EXTMARK_NAMESPACE, "NeomentRoomsTitle", { 0, 0 }, { 0, -1 })
+	vim.hl.range(buffer_id, EXTMARK_NAMESPACE, "Bold", { 2, 0 }, { 2, -1 })
 
 	local config_icon = config.get().icon
 	local icon = require("neoment.icon")
@@ -231,7 +232,7 @@ local function apply_highlights(buffer_id, space_id, lines)
 		local line_data = get_buffer_data(buffer_id).line_data[index]
 
 		if line_data and line_data.is_rooms_title then
-			vim.hl.range(buffer_id, constants.ns_id, "Bold", { index - 1, 0 }, { index - 1, -1 })
+			vim.hl.range(buffer_id, EXTMARK_NAMESPACE, "Bold", { index - 1, 0 }, { index - 1, -1 })
 		end
 
 		local space_icon = line:find(config_icon.space)
@@ -239,7 +240,7 @@ local function apply_highlights(buffer_id, space_id, lines)
 		if space_icon then
 			vim.hl.range(
 				buffer_id,
-				constants.ns_id,
+				EXTMARK_NAMESPACE,
 				"NeomentSectionTitle",
 				{ index - 1, 0 },
 				{ index - 1, (topic_separator_start or 0) - 1 },
@@ -248,13 +249,13 @@ local function apply_highlights(buffer_id, space_id, lines)
 		end
 
 		if topic_separator_end then
-			vim.hl.range(buffer_id, constants.ns_id, "Comment", { index - 1, topic_separator_end }, { index - 1, -1 })
+			vim.hl.range(buffer_id, EXTMARK_NAMESPACE, "Comment", { index - 1, topic_separator_end }, { index - 1, -1 })
 		end
 
 		if room and room.room and matrix.is_user_member_of_room(room.room.room_id) then
 			local icon_pos = line:find(config_icon.space) or line:find(config_icon.room)
 			if icon_pos then
-				vim.api.nvim_buf_set_extmark(buffer_id, constants.ns_id, index - 1, icon_pos + 5, {
+				vim.api.nvim_buf_set_extmark(buffer_id, EXTMARK_NAMESPACE, index - 1, icon_pos + 5, {
 					virt_text = {
 						{ icon.border_left, "NeomentBubbleBorder" },
 						{ "Joined", "NeomentBubbleContent" },
@@ -301,7 +302,7 @@ local function render_space_details(space_id, buffer_id, hierarchy)
 	}
 
 	-- Create namespace for extmarks (for highlighting later if needed)
-	api.nvim_buf_clear_namespace(buffer_id, constants.ns_id, 0, -1)
+	api.nvim_buf_clear_namespace(buffer_id, EXTMARK_NAMESPACE, 0, -1)
 
 	if #hierarchy.rooms > 0 then
 		render_spaces(lines, hierarchy.rooms)
