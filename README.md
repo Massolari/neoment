@@ -76,6 +76,12 @@ vim.g.neoment = {
 	-- Save session data to disk (default: true)
 	save_session = true,
 	
+	-- Custom notifier function (optional)
+	-- By default, uses vim.notify
+	notifier = function(msg, level, opts)
+		vim.notify(msg, level, opts)
+	end,
+	
 	-- Icon configuration (all optional)
 	icon = {
 		invite = "",              -- Icon for room invites

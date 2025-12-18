@@ -4,6 +4,7 @@
 --- @class neoment.Config
 --- @field save_session? boolean Whether to save and restore sessions
 --- @field icon? neoment.IconConfig Icon configuration
+--- @field notifier fun(msg: string, level: vim.log.levels, opts?: table): nil Function to show notifications
 
 --- @class neoment.IconConfig
 --- @field invite? string Icon for invites
@@ -32,6 +33,7 @@
 --- @class neoment.InternalConfig
 --- @field save_session boolean Whether to save and restore sessions
 --- @field icon neoment.InternalIconConfig Icon configuration
+--- @field notifier fun(msg: string, level: vim.log.levels, opts?: table): nil Function to show notifications
 
 --- @class neoment.InternalIconConfig
 --- @field invite string Icon for invites
@@ -86,6 +88,7 @@ local default = {
 		location = "󰍎",
 		video = "",
 	},
+	notifier = vim.notify,
 }
 
 --- @type neoment.InternalConfig

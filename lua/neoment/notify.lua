@@ -1,11 +1,13 @@
 local M = {}
 
+local config = require("neoment.config")
+
 --- Show a notification with Neoment prefix
 --- @param msg string The message to display
---- @param level vim.log.levels The log level (optional, default: INFO)
+--- @param level vim.log.levels The log level
 local function notify(msg, level)
 	vim.schedule(function()
-		vim.notify("[Neoment] " .. msg, level or vim.log.levels.INFO)
+		config.get().notifier("[Neoment] " .. msg, level)
 	end)
 end
 
@@ -33,7 +35,7 @@ end
 --- @param level vim.log.levels The log level
 --- @param opts table Additional options for vim.notify
 M.with_opts = function(msg, level, opts)
-	return vim.notify("[Neoment] " .. msg, level or vim.log.levels.INFO, opts or {})
+	return config.get().notifier("[Neoment] " .. msg, level, opts)
 end
 
 return M
