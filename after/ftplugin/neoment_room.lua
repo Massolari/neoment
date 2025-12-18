@@ -10,6 +10,8 @@ vim.bo.buftype = "nofile"
 vim.bo.swapfile = false
 vim.bo.modified = false
 
+vim.treesitter.start(buffer_id, "markdown")
+
 vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
 	buffer = buffer_id,
 	callback = function()

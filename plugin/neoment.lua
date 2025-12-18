@@ -1,18 +1,6 @@
-local notify = require("neoment.notify")
-
-require("neoment.highlight").define_highlights()
-require("neoment.config").load()
-
-vim.api.nvim_create_autocmd({ "ColorScheme" }, {
-	group = vim.api.nvim_create_augroup("neoment_highlight", { clear = true }),
-	pattern = { "*" },
-	callback = function()
-		require("neoment.highlight").define_highlights()
-	end,
-})
-
 -- Criar comandos
 vim.api.nvim_create_user_command("Neoment", function(opts)
+	local notify = require("neoment.notify")
 	local subcommand = opts.fargs[1]
 
 	if not subcommand then
@@ -75,14 +63,6 @@ end, {
 			end
 		end
 		return matches
-	end,
-})
-
-vim.api.nvim_create_autocmd("FileType", {
-	group = vim.api.nvim_create_augroup("neoment_room", {}),
-	pattern = "neoment_room",
-	callback = function(args)
-		vim.treesitter.start(args.buf, "markdown")
 	end,
 })
 

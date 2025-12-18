@@ -86,6 +86,16 @@ end
 --- If already logged in, open the room list
 --- If not logged in, call the login function
 M.init = function()
+	local highlight = require("neoment.highlight")
+	highlight.define_highlights()
+	config.load()
+
+	vim.api.nvim_create_autocmd({ "ColorScheme" }, {
+		group = vim.api.nvim_create_augroup("neoment_highlight", { clear = true }),
+		pattern = { "*" },
+		callback = highlight.define_highlights,
+	})
+
 	if matrix.is_logged_in() then
 		rooms.toggle_room_list()
 	else
