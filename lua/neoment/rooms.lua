@@ -614,10 +614,14 @@ end
 
 --- Pick a room from the list and call a callback function with the selected room
 --- @param callback function Callback function to call with the selected room
---- @param options? {prompt: string} Optional parameters for the picker
+--- @param options? {prompt: string, filter: fun(room: neoment.matrix.client.Room):boolean} Optional parameters for the picker
 M.pick_room = function(callback, options)
 	options = options or {}
 	local rooms_and_spaces = matrix.get_user_rooms()
+
+	if options.filter and type(options.filter) == "function" then
+		rooms_and_spaces = vim.tbl_filter(options.filter, rooms_and_spaces)
+	end
 	local icon = config.get().icon
 
 	vim.ui.select(rooms_and_spaces, {
