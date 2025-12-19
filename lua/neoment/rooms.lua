@@ -643,10 +643,11 @@ M.pick_room = function(callback, options)
 end
 
 --- Select a room from the list using a picker
-M.pick = function()
+--- @param filter fun(room: neoment.matrix.client.Room):boolean spaces and rooms filter function
+M.pick = function(filter)
 	M.pick_room(function(choice)
 		M.open_room(choice.id)
-	end)
+	end, { filter = filter })
 end
 
 --- Get the buffer ID of the room list
