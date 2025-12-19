@@ -972,7 +972,7 @@ M.prompt_message = function(params)
 
 	-- Create a new buffer for input
 	local input_buf = vim.api.nvim_create_buf(false, true) -- listed=false, scratch=true
-	-- Store room_id and parent buffer in buffer variables
+	-- Store room_id and parent window in buffer variables
 	vim.b[input_buf].room_id = room_id
 	vim.b[input_buf].thread_root_id = thread_root_id
 	vim.b[input_buf].room_win = room_win
@@ -1060,8 +1060,16 @@ M.send_and_close_compose = function(compose_buf)
 
 	vim.schedule(function()
 		local current_win = vim.api.nvim_get_current_win()
-		vim.api.nvim_set_current_win(room_win)
+		local compose_win_height = vim.api.nvim_win_get_height(current_win)
+		local room_win_height = vim.api.nvim_win_get_height(room_win)
+		local total_height = compose_win_height + room_win_height + 1 -- +1 for the separator line
+
 		vim.api.nvim_win_close(current_win, true)
+		-- Restore room window height to its original value
+		if vim.api.nvim_win_is_valid(room_win) then
+			vim.api.nvim_win_set_height(room_win, total_height)
+		end
+		vim.api.nvim_set_current_win(room_win)
 	end)
 end
 
