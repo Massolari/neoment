@@ -2,7 +2,7 @@ local M = {}
 
 local constants = require("neoment.constants")
 
--- Tabela para mapear elementos Markdown para HTML
+-- Define patterns for Markdown syntax
 local markdown_patterns = {
 	-- Bold: **text** or __text__
 	{ pattern = "%*%*(.-)%*%*", replacement = "<strong>%1</strong>" },
@@ -56,6 +56,8 @@ M.to_html = function(markdown_text)
 
 	-- Process Markdown blockquotes before other patterns
 	-- Identify consecutive lines of blockquotes to group them into a single blockquote
+
+	--- @type string[]
 	local lines = {}
 	local in_blockquote = false
 	local blockquote_content = ""
@@ -178,7 +180,10 @@ M.to_html = function(markdown_text)
 
 	return html
 end
--- Adicionar esta função para converter HTML de volta para Markdown
+
+--- Convert HTML to Markdown
+--- @param html string HTML text to convert
+--- @return string Markdown text
 M.from_html = function(html)
 	if not html or html == "" then
 		return ""
@@ -269,13 +274,13 @@ M.from_html = function(html)
 	markdown = markdown:gsub("<i>(.-)</i>", "_%1_")
 
 	-- Code blocks with language
-	markdown = markdown:gsub([[<pre><code class=["']language%-([^"']+)["']>(.-)</code></pre>]], "```%1\n%2\n```\n")
+	markdown = markdown:gsub([[<pre><code class=["']language%-([^"']+)["']>(.-)</code></pre>]], "\n```%1\n%2\n```\n")
 
 	-- Code blocks without language
-	markdown = markdown:gsub("<pre><code>(.-)</code></pre>", "```\n%1\n```\n")
+	markdown = markdown:gsub("<pre><code>(.-)</code></pre>", "\n```\n%1\n```\n")
 
 	-- Code blocks with language
-	markdown = markdown:gsub([[<code class=["']language%-([^"]+)["']>(.-)</code>]], "```%1\n%2\n```\n")
+	markdown = markdown:gsub([[<code class=["']language%-([^"]+)["']>(.-)</code>]], "\n```%1\n%2\n```\n")
 
 	-- Code blocks without language
 	markdown = markdown:gsub("<code>(.-)</code>", "`%1`")
