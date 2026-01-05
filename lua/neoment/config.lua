@@ -48,9 +48,9 @@
 --- @field save_session boolean Whether to save and restore sessions
 --- @field icon neoment.config.InternalIcon Icon configuration
 --- @field notifier fun(msg: string, level: vim.log.levels, opts?: table): nil Function to show notifications
---- @field picker neoment.InternalPickerConfig Picker configuration
+--- @field picker neoment.config.InternalPicker Picker configuration
 
---- @class neoment.InternalPickerConfig
+--- @class neoment.config.InternalPicker
 --- @field rooms neoment.config.PickerFunction Custom picker for rooms
 --- @field open_rooms neoment.config.PickerFunction Custom picker for open rooms
 
