@@ -642,8 +642,8 @@ end
 
 --- Select a room from the list using a picker
 M.pick = function()
-	M.pick_room(function(choice)
-		M.open_room(choice.id)
+	M.pick_room(function(room)
+		M.open_room(room.id)
 	end, { prompt = "Select a room:" })
 end
 
@@ -670,8 +670,8 @@ M.pick_open = function()
 	local formatted_rooms = rooms_to_picker_rooms(open_rooms)
 
 	local picker = config.get().picker.open_rooms
-	picker(formatted_rooms, function(choice)
-		M.open_room(choice.id)
+	picker(formatted_rooms, function(room)
+		M.open_room(room.id)
 	end, { prompt = "Select an open room:" })
 end
 
