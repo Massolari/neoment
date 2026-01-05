@@ -632,19 +632,20 @@ end
 
 --- Pick a room from the list and call a callback function with the selected room
 --- @param callback fun(room: neoment.matrix.client.Room)
-M.pick_room = function(callback)
+--- @param options  neoment.config.PickerOptions
+M.pick_room = function(callback, options)
 	local rooms_and_spaces = get_room_picker_item(matrix.get_user_rooms())
 	local picker = config.get().picker.rooms
 
 	-- Call custom picker if configured
-	picker(rooms_and_spaces, callback)
+	picker(rooms_and_spaces, callback, options)
 end
 
 --- Select a room from the list using a picker
 M.pick = function()
 	M.pick_room(function(choice)
 		M.open_room(choice.id)
-	end)
+	end, { prompt = "Select a room:" })
 end
 
 --- Select a open room from the list using a picker
@@ -672,7 +673,7 @@ M.pick_open = function()
 	local picker = config.get().picker.open_rooms
 	picker(formatted_rooms, function(choice)
 		M.open_room(choice.id)
-	end)
+	end, { prompt = "Select an open room:" })
 end
 
 --- Get the buffer ID of the room list

@@ -83,6 +83,35 @@ vim.g.neoment = {
 		vim.notify(msg, level, opts)
 	end,
 	
+	-- Picker configuration (optional)
+	-- Customize the UI for room selection (default: vim.ui.select)
+	picker = {
+		-- Custom picker for `:Neoment rooms` command and other room selections
+		-- Receives items (list of {room, line}), a callback function and options
+        -- room is the room object, line is the formatted string to display
+        -- The callback must be called with the selected room in order to open it
+        -- options is a table with one `prompt` field containing the prompt string
+		rooms = function(items, callback, options)
+			vim.ui.select(items, {
+				prompt = options.prompt,
+				format_item = function(item) return item.line end,
+			}, function(choice)
+				if choice then callback(choice.room) end
+			end)
+		end,
+		
+		-- Custom picker for `:Neoment open_rooms` command
+		-- Same signature as rooms picker
+		open_rooms = function(items, callback, options)
+			vim.ui.select(items, {
+				prompt = options.prompt,
+				format_item = function(item) return item.line end,
+			}, function(choice)
+				if choice then callback(choice.room) end
+			end)
+		end,
+	},
+	
 	-- Icon configuration (all optional)
 	icon = {
 		invite = "",              -- Icon for room invites

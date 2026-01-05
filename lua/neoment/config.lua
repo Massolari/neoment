@@ -7,9 +7,14 @@
 --- @field notifier fun(msg: string, level: vim.log.levels, opts?: table): nil Function to show notifications
 --- @field picker? neoment.config.Picker Picker configuration
 
+--- @alias neoment.config.PickerFunction fun(items: neoment.config.PickerRoom[], callback: fun(room: neoment.matrix.client.Room), options: neoment.config.PickerOptions): nil
+
+--- @class neoment.config.PickerOptions
+--- @field prompt string Prompt to show in the picker
+
 --- @class neoment.config.Picker
---- @field rooms? fun(items: neoment.config.PickerRoom[], callback: fun(room: neoment.matrix.client.Room)): nil Custom picker for rooms
---- @field open_rooms? fun(items: neoment.config.PickerRoom[], callback: fun(room: neoment.matrix.client.Room)): nil Custom picker for open rooms
+--- @field rooms? neoment.config.PickerFunction Custom picker for rooms
+--- @field open_rooms? neoment.config.PickerFunction Custom picker for open rooms
 
 --- @class neoment.config.PickerRoom
 --- @field room neoment.matrix.client.Room The room object
@@ -46,8 +51,8 @@
 --- @field picker neoment.InternalPickerConfig Picker configuration
 
 --- @class neoment.InternalPickerConfig
---- @field rooms fun(items: neoment.config.PickerRoom[], callback: fun(room: neoment.matrix.client.Room)): nil Custom picker for rooms
---- @field open_rooms fun(items: neoment.config.PickerRoom[], callback: fun(room: neoment.matrix.client.Room)): nil Custom picker for open rooms
+--- @field rooms neoment.config.PickerFunction Custom picker for rooms
+--- @field open_rooms neoment.config.PickerFunction Custom picker for open rooms
 
 --- @class neoment.config.InternalIcon
 --- @field invite string Icon for invites
@@ -78,9 +83,10 @@ local M = {}
 --- Default picker for rooms using vim.ui.select
 --- @param items neoment.config.PickerRoom[]
 --- @param callback fun(room: neoment.matrix.client.Room)
-local function default_room_picker(items, callback)
+--- @param options  neoment.config.PickerOptions
+local function default_room_picker(items, callback, options)
 	vim.ui.select(items, {
-		prompt = "Select a room:",
+		prompt = options.prompt,
 		format_item = function(item)
 			return item.line
 		end,
