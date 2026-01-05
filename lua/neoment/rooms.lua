@@ -614,10 +614,10 @@ end
 
 --- Pick a room from the list and call a callback function with the selected room
 --- @param callback function Callback function to call with the selected room
---- @param options? {prompt: string} Optional parameters for the picker
+--- @param options? {prompt?: string, rooms?: neoment.matrix.client.Room[]} Optional parameters for the picker
 M.pick_room = function(callback, options)
 	options = options or {}
-	local rooms_and_spaces = matrix.get_user_rooms()
+	local rooms_and_spaces = options.rooms or matrix.get_user_rooms()
 	local icon = config.get().icon
 
 	vim.ui.select(rooms_and_spaces, {
@@ -643,6 +643,31 @@ M.pick = function()
 	M.pick_room(function(choice)
 		M.open_room(choice.id)
 	end)
+end
+
+--- Select a open room from the list using a picker
+M.pick_open = function()
+	local room_buffers = vim.tbl_filter(function(buf)
+		if not api.nvim_buf_is_loaded(buf) then
+			return false
+		end
+
+		local buffer_name = api.nvim_buf_get_name(buf)
+		return vim.startswith(buffer_name, "neoment://room/")
+	end, api.nvim_list_bufs())
+
+	if #room_buffers == 0 then
+		notify.info("No open rooms")
+		return
+	end
+
+	local open_rooms = vim.tbl_map(function(buf)
+		return matrix.get_room(vim.b[buf].room_id)
+	end, room_buffers)
+
+	M.pick_room(function(choice)
+		M.open_room(choice.id)
+	end, { rooms = open_rooms })
 end
 
 --- Get the buffer ID of the room list

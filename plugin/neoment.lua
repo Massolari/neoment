@@ -1,26 +1,21 @@
--- Criar comandos
-vim.api.nvim_create_user_command("Neoment", function(opts)
-	local notify = require("neoment.notify")
-	local subcommand = opts.fargs[1]
-
-	if not subcommand then
-		require("neoment").init()
-	elseif subcommand == "rooms" then
+local subcommands = {
+	open_rooms = function()
+		require("neoment.rooms").pick_open()
+	end,
+	rooms = function()
 		require("neoment.rooms").pick()
-	elseif subcommand == "sync_start" then
+	end,
+	sync_start = function()
 		require("neoment").sync_start()
-	elseif subcommand == "sync_stop" then
+	end,
+	sync_stop = function()
 		require("neoment.sync").stop()
-	elseif subcommand == "clear" then
+	end,
+	clear = function()
 		require("neoment.storage").clear_cache()
-	elseif subcommand == "join" then
-		local room_id = opts.fargs[2]
-		if not room_id then
-			notify.error("Usage: :Neoment join <room_id_or_alias>")
-			return
-		end
-		require("neoment").join_room(room_id)
-	elseif subcommand == "logout" then
+	end,
+	logout = function()
+		local notify = require("neoment.notify")
 		local choice = vim.fn.confirm(
 			"Are you sure you want to log out?\nAll saved data will be lost.",
 			"&Yes\n&No",
@@ -33,31 +28,41 @@ vim.api.nvim_create_user_command("Neoment", function(opts)
 		else
 			notify.info("Operation canceled")
 		end
-	elseif subcommand == "reload_config" then
+	end,
+	reload_config = function()
 		require("neoment.config").load()
-		notify.info("Configuration reloaded")
+		require("neoment.notify").info("Configuration reloaded")
+	end,
+}
+local subcommands_names = vim.tbl_keys(subcommands)
+
+-- Criar comandos
+vim.api.nvim_create_user_command("Neoment", function(opts)
+	local notify = require("neoment.notify")
+	local argument = opts.fargs[1]
+
+	if not argument then
+		require("neoment").init()
+		return
+	end
+
+	local subcommand = subcommands[argument]
+
+	if subcommand then
+		subcommand()
 	else
 		notify.error("Unknown subcommand: " .. subcommand)
-		notify.info("Available subcommands: rooms, sync_start, sync_stop, clear, logout, join, reload_config")
+		notify.info(string.format("Available subcommands: %s", table.concat(subcommands_names, ", ")))
 	end
 end, {
 	desc = "Neoment Matrix client",
 	nargs = "*",
 	complete = function(arglead)
-		local subcommands = {
-			"rooms",
-			"sync_start",
-			"sync_stop",
-			"clear",
-			"logout",
-			"join",
-			"reload_config",
-		}
 		if arglead == "" then
-			return subcommands
+			return subcommands_names
 		end
 		local matches = {}
-		for _, cmd in ipairs(subcommands) do
+		for _, cmd in ipairs(subcommands_names) do
 			if cmd:match("^" .. vim.pesc(arglead)) then
 				table.insert(matches, cmd)
 			end
