@@ -615,7 +615,7 @@ end
 --- Format the room to be displayed in the picker
 --- @param rooms_and_spaces neoment.matrix.client.Room[] The list of rooms
 --- @return neoment.config.PickerRoom[] The formatted rooms for the picker
-local function get_room_picker_item(rooms_and_spaces)
+local function rooms_to_picker_rooms(rooms_and_spaces)
 	local icon = config.get().icon
 
 	return vim.tbl_map(function(room)
@@ -634,7 +634,7 @@ end
 --- @param callback fun(room: neoment.matrix.client.Room)
 --- @param options  neoment.config.PickerOptions
 M.pick_room = function(callback, options)
-	local rooms_and_spaces = get_room_picker_item(matrix.get_user_rooms())
+	local rooms_and_spaces = rooms_to_picker_rooms(matrix.get_user_rooms())
 	local picker = config.get().picker.rooms
 
 	-- Call custom picker if configured
@@ -668,7 +668,7 @@ M.pick_open = function()
 		return matrix.get_room(vim.b[buf].room_id)
 	end, room_buffers)
 
-	local formatted_rooms = get_room_picker_item(open_rooms)
+	local formatted_rooms = rooms_to_picker_rooms(open_rooms)
 
 	local picker = config.get().picker.open_rooms
 	picker(formatted_rooms, function(choice)
