@@ -88,9 +88,9 @@ vim.g.neoment = {
 	picker = {
 		-- Custom picker for `:Neoment rooms` command and other room selections
 		-- Receives items (list of {room, line}), a callback function and options
-        -- room is the room object, line is the formatted string to display
-        -- The callback must be called with the selected room in order to open it
-        -- options is a table with one `prompt` field containing the prompt string
+		-- room is the room object, line is the formatted string to display
+		-- The callback must be called with the selected room in order to open it
+		-- options is a table with one `prompt` field containing the prompt string
 		rooms = function(items, callback, options)
 			vim.ui.select(items, {
 				prompt = options.prompt,
