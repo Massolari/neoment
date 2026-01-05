@@ -637,7 +637,6 @@ M.pick_room = function(callback, options)
 	local rooms_and_spaces = rooms_to_picker_rooms(matrix.get_user_rooms())
 	local picker = config.get().picker.rooms
 
-	-- Call custom picker if configured
 	picker(rooms_and_spaces, callback, options)
 end
 
