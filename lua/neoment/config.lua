@@ -83,7 +83,7 @@ local M = {}
 --- Default picker for rooms using vim.ui.select
 --- @param items neoment.config.PickerRoom[]
 --- @param callback fun(room: neoment.matrix.client.Room)
---- @param options  neoment.config.PickerOptions
+--- @param options neoment.config.PickerOptions
 local function default_room_picker(items, callback, options)
 	vim.ui.select(items, {
 		prompt = options.prompt,
