@@ -1,12 +1,26 @@
 --- @class vim.var_accessor
---- @field neoment neoment.Config
+--- @field neoment neoment.config.Config
 
---- @class neoment.Config
+--- @class neoment.config.Config
 --- @field save_session? boolean Whether to save and restore sessions
---- @field icon? neoment.IconConfig Icon configuration
+--- @field icon? neoment.config.Icon Icon configuration
 --- @field notifier fun(msg: string, level: vim.log.levels, opts?: table): nil Function to show notifications
+--- @field picker? neoment.config.Picker Picker configuration
 
---- @class neoment.IconConfig
+--- @alias neoment.config.PickerFunction fun(items: neoment.config.PickerRoom[], callback: fun(room: neoment.matrix.client.Room), options: neoment.config.PickerOptions): nil
+
+--- @class neoment.config.PickerOptions
+--- @field prompt string Prompt to show in the picker
+
+--- @class neoment.config.Picker
+--- @field rooms? neoment.config.PickerFunction Custom picker for rooms
+--- @field open_rooms? neoment.config.PickerFunction Custom picker for open rooms
+
+--- @class neoment.config.PickerRoom
+--- @field room neoment.matrix.client.Room The room object
+--- @field line string The line to display in the picker
+
+--- @class neoment.config.Icon
 --- @field invite? string Icon for invites
 --- @field buffer? string Icon for buffers
 --- @field favorite? string Icon for favorites
@@ -30,12 +44,17 @@
 --- @field location? string Icon for location
 --- @field video? string Icon for video files
 
---- @class neoment.InternalConfig
+--- @class neoment.config.InternalConfig
 --- @field save_session boolean Whether to save and restore sessions
---- @field icon neoment.InternalIconConfig Icon configuration
+--- @field icon neoment.config.InternalIcon Icon configuration
 --- @field notifier fun(msg: string, level: vim.log.levels, opts?: table): nil Function to show notifications
+--- @field picker neoment.config.InternalPicker Picker configuration
 
---- @class neoment.InternalIconConfig
+--- @class neoment.config.InternalPicker
+--- @field rooms neoment.config.PickerFunction Custom picker for rooms
+--- @field open_rooms neoment.config.PickerFunction Custom picker for open rooms
+
+--- @class neoment.config.InternalIcon
 --- @field invite string Icon for invites
 --- @field buffer string Icon for buffers
 --- @field favorite string Icon for favorites
@@ -61,7 +80,24 @@
 
 local M = {}
 
---- @type neoment.InternalConfig
+--- Default picker for rooms using vim.ui.select
+--- @param items neoment.config.PickerRoom[]
+--- @param callback fun(room: neoment.matrix.client.Room)
+--- @param options neoment.config.PickerOptions
+local function default_room_picker(items, callback, options)
+	vim.ui.select(items, {
+		prompt = options.prompt,
+		format_item = function(item)
+			return item.line
+		end,
+	}, function(choice)
+		if choice then
+			callback(choice.room)
+		end
+	end)
+end
+
+--- @type neoment.config.InternalConfig
 local default = {
 	save_session = true,
 	icon = {
@@ -89,9 +125,13 @@ local default = {
 		video = "",
 	},
 	notifier = vim.notify,
+	picker = {
+		rooms = default_room_picker,
+		open_rooms = default_room_picker,
+	},
 }
 
---- @type neoment.InternalConfig
+--- @type neoment.config.InternalConfig
 local config = vim.deepcopy(default)
 
 M.load = function()
@@ -100,7 +140,7 @@ M.load = function()
 	config = vim.tbl_deep_extend("force", default, user_config)
 end
 
---- @return neoment.InternalConfig
+--- @return neoment.config.InternalConfig
 M.get = function()
 	return config
 end

@@ -612,40 +612,42 @@ M.update_room_list = function()
 	end
 end
 
---- Pick a room from the list and call a callback function with the selected room
---- @param callback function Callback function to call with the selected room
---- @param options? {prompt?: string, rooms?: neoment.matrix.client.Room[]} Optional parameters for the picker
-M.pick_room = function(callback, options)
-	options = options or {}
-	local rooms_and_spaces = options.rooms or matrix.get_user_rooms()
+--- Format the room to be displayed in the picker
+--- @param rooms_and_spaces neoment.matrix.client.Room[] The list of rooms
+--- @return neoment.config.PickerRoom[] The formatted rooms for the picker
+local function rooms_to_picker_rooms(rooms_and_spaces)
 	local icon = config.get().icon
 
-	vim.ui.select(rooms_and_spaces, {
-		prompt = options.prompt or "Rooms",
-		format_item = function(room)
-			if matrix.is_space(room.id) then
-				return icon.space .. "  " .. matrix.get_room_display_name(room.id)
-			end
+	return vim.tbl_map(function(room)
+		local line
+		if matrix.is_space(room.id) then
+			line = icon.space .. "  " .. matrix.get_room_display_name(room.id)
+		else
 			local room_icon = room.is_direct and icon.people or icon.room
-			return room_icon .. "  " .. get_room_line(room, true)
-		end,
-	}, function(c)
-		--- @type neoment.matrix.client.Room|nil
-		local choice = c
-		if choice then
-			callback(choice)
+			line = room_icon .. "  " .. get_room_line(room, true)
 		end
-	end)
+		return { room = room, line = line }
+	end, rooms_and_spaces)
+end
+
+--- Pick a room from the list and call a callback function with the selected room
+--- @param callback fun(room: neoment.matrix.client.Room)
+--- @param options neoment.config.PickerOptions
+M.pick_room = function(callback, options)
+	local rooms_and_spaces = rooms_to_picker_rooms(matrix.get_user_rooms())
+	local picker = config.get().picker.rooms
+
+	picker(rooms_and_spaces, callback, options)
 end
 
 --- Select a room from the list using a picker
 M.pick = function()
-	M.pick_room(function(choice)
-		M.open_room(choice.id)
-	end)
+	M.pick_room(function(room)
+		M.open_room(room.id)
+	end, { prompt = "Select a room:" })
 end
 
---- Select a open room from the list using a picker
+--- Select an open room from the list using a picker
 M.pick_open = function()
 	local room_buffers = vim.tbl_filter(function(buf)
 		if not api.nvim_buf_is_loaded(buf) then
@@ -665,9 +667,12 @@ M.pick_open = function()
 		return matrix.get_room(vim.b[buf].room_id)
 	end, room_buffers)
 
-	M.pick_room(function(choice)
-		M.open_room(choice.id)
-	end, { rooms = open_rooms })
+	local formatted_rooms = rooms_to_picker_rooms(open_rooms)
+
+	local picker = config.get().picker.open_rooms
+	picker(formatted_rooms, function(room)
+		M.open_room(room.id)
+	end, { prompt = "Select an open room:" })
 end
 
 --- Get the buffer ID of the room list
