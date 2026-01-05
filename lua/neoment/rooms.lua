@@ -632,7 +632,7 @@ end
 
 --- Pick a room from the list and call a callback function with the selected room
 --- @param callback fun(room: neoment.matrix.client.Room)
---- @param options  neoment.config.PickerOptions
+--- @param options neoment.config.PickerOptions
 M.pick_room = function(callback, options)
 	local rooms_and_spaces = rooms_to_picker_rooms(matrix.get_user_rooms())
 	local picker = config.get().picker.rooms
