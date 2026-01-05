@@ -1367,7 +1367,7 @@ M.forward_message = function()
 			notify.info(string.format("Message forwarded to %s", target_room_name))
 
 			M.open_room(room.id)
-		end, { prompt = "Forward message to room: " })
+		end)
 
 		return nil
 	end)
