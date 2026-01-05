@@ -647,7 +647,7 @@ M.pick = function()
 	end, { prompt = "Select a room:" })
 end
 
---- Select a open room from the list using a picker
+--- Select an open room from the list using a picker
 M.pick_open = function()
 	local room_buffers = vim.tbl_filter(function(buf)
 		if not api.nvim_buf_is_loaded(buf) then
