@@ -4,6 +4,9 @@ A Matrix client for Neovim, bringing chat functionality directly into your edito
 
 > **⚠️ Warning:** This plugin is currently in beta and under active development. The API may change without prior notice. Use at your own risk and expect breaking changes between updates.
 
+[![#neoment-nvim:matrix.org](https://img.shields.io/badge/matrix-%23neoment--nvim:matrix.org-blue?logo=matrix)](https://matrix.to/#/#neoment-nvim:matrix.org)
+[![License](https://img.shields.io/github/license/Massolari/neoment)](LICENSE)
+
 ## Description
 
 Neoment is a Matrix protocol client implementation for Neovim that allows you to chat, and stay connected without leaving your editor.
