@@ -366,6 +366,7 @@ local function render_room(room, lines, line_index, extmarks, opts)
 		has_unread = (room.unread_notifications and room.unread_notifications > 0)
 			or (room.unread_highlights and room.unread_highlights > 0),
 		is_space = false,
+		indentation_level = opts.indentation_level,
 	}
 	table.insert(extmarks, extmark)
 end
@@ -393,6 +394,7 @@ local function render_space(space, lines, line_index, extmarks, indentation_leve
 		is_invited = false,
 		has_unread = false,
 		is_space = true,
+		indentation_level = indentation_level,
 	}
 	table.insert(extmarks, space_mark)
 
@@ -421,6 +423,64 @@ local function render_space(space, lines, line_index, extmarks, indentation_leve
 	end
 
 	return new_line_index
+end
+
+--- Get the virtual lines for the last message
+--- @param display_last_message neoment.config.DisplayLastMessage How to display the last message
+--- @param room_mark neoment.rooms.RoomMark The room mark
+--- @return table<table<[string, string]>>|nil The virtual lines for the last message, or nil if not applicable
+local function get_last_message_virtual_lines(display_last_message, room_mark)
+	if display_last_message == "no" or room_mark.is_space then
+		return nil
+	end
+
+	local last_message = matrix.get_room_last_message(room_mark.room_id)
+	if not last_message then
+		return nil
+	end
+
+	local content
+	if string.len(last_message.content) > 0 then
+		content = last_message.content
+	elseif last_message.attachment and last_message.attachment.filename then
+		content = "[Attachment: " .. last_message.attachment.filename .. "]"
+	end
+
+	if not content then
+		return nil
+	end
+
+	local indentation = string.rep("  ", room_mark.indentation_level)
+
+	if display_last_message == "message" then
+		return {
+			{
+				{ indentation .. "└┤ " .. content, "Comment" },
+			},
+		}
+	end
+
+	local sender = matrix.get_display_name(last_message.sender)
+
+	if display_last_message == "sender_message" then
+		return {
+			{
+				{ indentation .. "└┤ " .. sender, "Comment" },
+			},
+			{
+				{ indentation .. " │ " .. content, "Comment" },
+			},
+		}
+	elseif display_last_message == "sender_message_inline" then
+		return {
+			{
+				{
+					indentation .. "└┤ " .. sender .. ": " .. content,
+					"Comment",
+				},
+			},
+		}
+	end
 end
 
 --- Update the room list buffer
@@ -507,6 +567,7 @@ M.update_room_list = function()
 	--- @field is_invited boolean
 	--- @field has_unread boolean
 	--- @field is_space boolean
+	--- @field indentation_level number
 
 	--- @type table<neoment.rooms.RoomMark>
 	local extmarks = {}
@@ -595,18 +656,27 @@ M.update_room_list = function()
 		vim.hl.range(rooms_buffer_id, ns_id, "NeomentSectionTitle", { line - 1, 1 }, { line - 1, -1 })
 	end
 
+	local display_last_message = config.get().rooms.display_last_message
+
 	-- Highlight the room lines
 	for _, m in ipairs(extmarks) do
 		--- @type neoment.rooms.RoomMark
 		local mark = m
+
+		local line_hl_group = nil
 		if mark.is_buffer then
-			api.nvim_buf_set_extmark(rooms_buffer_id, ns_id, mark.line - 1, 0, {
-				line_hl_group = mark.has_unread and "NeomentBufferRoomUnread" or "NeomentBufferRoom",
-			})
+			line_hl_group = mark.has_unread and "NeomentBufferRoomUnread" or "NeomentBufferRoom"
 		elseif mark.has_unread then
 			-- Apply bold highlight for unread rooms
+			line_hl_group = "NeomentRoomUnread"
+		end
+
+		local last_message_lines = get_last_message_virtual_lines(display_last_message, mark)
+
+		if line_hl_group or last_message_lines then
 			api.nvim_buf_set_extmark(rooms_buffer_id, ns_id, mark.line - 1, 0, {
-				line_hl_group = "NeomentRoomUnread",
+				line_hl_group = line_hl_group,
+				virt_lines = last_message_lines,
 			})
 		end
 	end

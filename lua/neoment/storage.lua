@@ -102,11 +102,12 @@ function M.save_session()
 	}
 
 	for room_id, room in pairs(matrix.get_rooms()) do
+		local last_message = matrix.get_room_last_message(room_id)
 		-- Create a simplified version of the room for storage
 		local saved_room = vim.tbl_extend("force", room, {
 			events = {},
 			pending_events = {},
-			messages = {},
+			messages = last_message and { [last_message.id] = last_message } or {},
 			typing = {},
 		})
 		saved_room.prev_batch = nil

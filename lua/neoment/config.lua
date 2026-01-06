@@ -6,6 +6,7 @@
 --- @field icon? neoment.config.Icon Icon configuration
 --- @field notifier fun(msg: string, level: vim.log.levels, opts?: table): nil Function to show notifications
 --- @field picker? neoment.config.Picker Picker configuration
+--- @field rooms? neoment.config.Rooms
 
 --- @alias neoment.config.PickerFunction fun(items: neoment.config.PickerRoom[], callback: fun(room: neoment.matrix.client.Room), options: neoment.config.PickerOptions): nil
 
@@ -44,11 +45,15 @@
 --- @field location? string Icon for location
 --- @field video? string Icon for video files
 
+--- @class neoment.config.Rooms
+--- @field display_last_message? neoment.config.DisplayLastMessage How to display the last message in the room list
+
 --- @class neoment.config.InternalConfig
 --- @field save_session boolean Whether to save and restore sessions
 --- @field icon neoment.config.InternalIcon Icon configuration
 --- @field notifier fun(msg: string, level: vim.log.levels, opts?: table): nil Function to show notifications
 --- @field picker neoment.config.InternalPicker Picker configuration
+--- @field rooms neoment.config.InternalRooms
 
 --- @class neoment.config.InternalPicker
 --- @field rooms neoment.config.PickerFunction Custom picker for rooms
@@ -77,6 +82,11 @@
 --- @field audio string Icon for audio files
 --- @field location string Icon for location
 --- @field video string Icon for video files
+
+--- @class neoment.config.InternalRooms
+--- @field display_last_message neoment.config.DisplayLastMessage How to display the last message in the room list
+
+--- @alias neoment.config.DisplayLastMessage "no"|"message"|"sender_message"|"sender_message_inline"
 
 local M = {}
 
@@ -128,6 +138,9 @@ local default = {
 	picker = {
 		rooms = default_room_picker,
 		open_rooms = default_room_picker,
+	},
+	rooms = {
+		display_last_message = "message",
 	},
 }
 
