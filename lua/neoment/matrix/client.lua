@@ -228,15 +228,19 @@ M.get_room_messages = function(room_id)
 	return messages
 end
 
---- Get the last message in a room.
+--- Get the last non-state message in a room.
 --- @param room_id string The ID of the room.
 --- @return neoment.matrix.client.Message? The last message in the room.
 M.get_room_last_message = function(room_id)
 	local messages = M.get_room_messages(room_id)
-	if #messages > 0 then
-		return messages[#messages]
+	local last_non_state_message = nil
+	for i = #messages, 1, -1 do
+		if not messages[i].is_state then
+			last_non_state_message = messages[i]
+			break
+		end
 	end
-	return nil
+	return last_non_state_message
 end
 
 --- Get the unread mark for a room.
@@ -270,6 +274,16 @@ M.add_room_message = function(room_id, message)
 
 	if room.is_tracked then
 		room.messages[message.id] = message
+	elseif not message.is_state then
+		-- If the room is not tracked, only store the last message
+		local last_message = M.get_room_last_message(room_id)
+		if
+			not last_message
+			or message.timestamp > last_message.timestamp
+			or (message.timestamp == last_message.timestamp and (message.age or 0) < (last_message.age or 0))
+		then
+			room.messages = { [message.id] = message }
+		end
 	end
 
 	return message
@@ -346,8 +360,12 @@ end
 M.set_room_tracked = function(room_id, is_tracked)
 	local room = M.get_room(room_id)
 
-	if not is_tracked then
+	if is_tracked then
+		-- Clear existing messages when switching to tracked as we will fetch them again
 		room.messages = {}
+	else
+		local last_message = M.get_room_last_message(room_id)
+		room.messages = last_message and { [last_message.id] = last_message } or {}
 		room.events = {}
 		room.pending_events = {}
 		room.prev_batch = nil

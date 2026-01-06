@@ -112,6 +112,17 @@ vim.g.neoment = {
 		end,
 	},
 	
+	-- Settings for the room list
+	rooms = {
+		-- How to display the last message. The last message is shown below the room name
+		-- Options:
+		-- "no" - do not show the last message
+		-- "message" - show the last message content
+		-- "sender_message" - show the sender and last message content, each one on its own line
+		-- "sender_message_inline" - show the sender and last message content on the same line.
+		display_last_message = "message",
+	}
+	
 	-- Icon configuration (all optional)
 	icon = {
 		invite = "",              -- Icon for room invites
