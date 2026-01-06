@@ -64,12 +64,13 @@ vim.pack.add({
 ### Commands
 
 - `:Neoment` - Login to your Matrix account. If already logged in, opens the rooms list
+- `:Neoment join <room_id_or_alias>` - Join a room by its ID or alias
 - `:Neoment logout` - Logout and clear session data
-- `:Neoment rooms` - Use `vim.ui.select` to select and open a room/space
 - `:Neoment open_rooms` - Use `vim.ui.select` to select a already opened room/space
+- `:Neoment reload_config` - Reload the configuration. You can modify settings in the `vim.g.neoment` table at any time and apply the changes instantly by running this command.
+- `:Neoment rooms` - Use `vim.ui.select` to select and open a room/space
 - `:Neoment sync_start` - Start syncing messages
 - `:Neoment sync_stop` - Stop syncing messages
-- `:Neoment join <room_id_or_alias>` - Join a room by its ID or alias
 
 ### Configuration
 
@@ -158,7 +159,7 @@ vim.g.neoment = {
 
 Neoment uses `<Plug>` mappings for all its keybindings. There is no `vim.g` configuration option for keybindings; users should define their own mappings in their Neovim configuration files.
 
-Since keybindings are buffer-specific, you can create files in the `ftplugin` directory of your Neovim configuration to set up buffer-local mappings.
+If you wish, you can create files in the `ftplugin` directory of your Neovim configuration to set up buffer-local mappings.
 
 For example, to change the key for opening rooms in the Rooms Buffer from `<CR>` to `<BS>`, create a file at `~/.config/nvim/ftplugin/neoment_rooms.lua` with the following content:
 
