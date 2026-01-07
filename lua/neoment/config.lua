@@ -5,6 +5,7 @@
 --- @field save_session? boolean Whether to save and restore sessions
 --- @field icon? neoment.config.Icon Icon configuration
 --- @field notifier fun(msg: string, level: vim.log.levels, opts?: table): nil Function to show notifications
+--- @field desktop_notifier? fun(title: string, content: string): nil Function to show desktop notifications
 --- @field picker? neoment.config.Picker Picker configuration
 --- @field rooms? neoment.config.Rooms
 
@@ -52,6 +53,7 @@
 --- @field save_session boolean Whether to save and restore sessions
 --- @field icon neoment.config.InternalIcon Icon configuration
 --- @field notifier fun(msg: string, level: vim.log.levels, opts?: table): nil Function to show notifications
+--- @field desktop_notifier? fun(title: string, content: string): nil Function to show desktop notifications
 --- @field picker neoment.config.InternalPicker Picker configuration
 --- @field rooms neoment.config.InternalRooms
 
@@ -135,6 +137,9 @@ local default = {
 		video = "",
 	},
 	notifier = vim.notify,
+	desktop_notifier = function(title, content)
+		require("neoment.notify").desktop(title, content)
+	end,
 	picker = {
 		rooms = default_room_picker,
 		open_rooms = default_room_picker,
