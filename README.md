@@ -86,6 +86,22 @@ vim.g.neoment = {
 	notifier = function(msg, level, opts)
 		vim.notify(msg, level, opts)
 	end,
+	-- Custom desktop notifier function (optional)
+	-- Desktop notifications are shown for new messages in open rooms, excluding the currently focused room
+	-- Set to nil (or provide an empty function) to disable desktop notifications
+	-- By default, uses vim.fn.system to call:
+	-- - gdbus on Linux
+	-- - osascript on macOS
+	-- - PowerShell on Windows
+	desktop_notifier = function(title, content)
+		if jit.os == "Linux" or jit.os == "BSD" then
+			-- Using gdbus for Linux/BSD
+		elseif jit.os == "Windows" then
+			-- Using powershell for Windows
+		elseif jit.os == "OSX" then
+			-- Using osascript for macOS
+		end
+	end,
 	
 	-- Picker configuration (optional)
 	-- Customize the UI for room selection (default: vim.ui.select)

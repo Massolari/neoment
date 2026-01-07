@@ -109,7 +109,10 @@ M.desktop = function(title, content)
 end
 
 M.desktop_message = function(sender, content)
-	M.desktop(require("neoment.matrix").get_display_name(sender), content)
+	local notifier = config.get().desktop_notifier
+	if notifier then
+		notifier(require("neoment.matrix").get_display_name(sender), content)
+	end
 end
 
 return M
