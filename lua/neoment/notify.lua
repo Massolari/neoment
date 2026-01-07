@@ -38,4 +38,71 @@ M.with_opts = function(msg, level, opts)
 	return config.get().notifier("[Neoment] " .. msg, level, opts)
 end
 
+local powershell_cmd = [[& {
+[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] > $null;
+[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null;
+
+$Path = (Get-Item (Get-Command "nvim").Source).Directory.Parent.FullName;
+$Icon = "$Path\share\icons\hicolor\128x128\apps\nvim.png";
+
+$Xml = [Windows.Data.Xml.Dom.XmlDocument]::New();
+$Xml.LoadXml(@"
+<toast activationType="protocol">
+  <visual>
+    <binding template="ToastGeneric">
+      <text hint-maxLines="1">$([Security.SecurityElement]::Escape(%q))</text>
+      <text>$([Security.SecurityElement]::Escape(%q))</text>
+      <image src="$Icon" placement="appLogoOverride"/>
+    </binding>
+  </visual>
+</toast>
+"@);
+
+$Toast = [Windows.UI.Notifications.ToastNotification]::New($Xml);
+$Toast.Priority = 1;
+$Toast.Tag = "Neoment";
+$Toast.Group = "Neovim";
+
+[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("Neoment").Show($Toast);
+}]]
+
+M.desktop = function(title, content)
+	if jit.os == "Linux" or jit.os == "BSD" then
+		vim.system({
+			"gdbus",
+			"call",
+			"--session",
+			"--dest=org.freedesktop.Notifications",
+			"--object-path=/org/freedesktop/Notifications",
+			"--method=org.freedesktop.Notifications.Notify",
+			"--",
+			"Neoment",
+			"0",
+			"neoment",
+			title,
+			content,
+			"[]",
+			string.format("{%s, %s}", '"urgency": <byte 1>', '"desktop-entry": <string "nvim">'),
+			"int32 -1",
+		})
+	elseif jit.os == "Windows" then
+		vim.system({
+			"powershell",
+			"-NoProfile",
+			"-Command",
+			string.format(powershell_cmd, title, content),
+		})
+	elseif jit.os == "OSX" then
+		vim.system({
+			"osascript",
+			"-e",
+			string.format('display notification %q with title "Neoment" subtitle %q', content, title),
+		})
+	end
+end
+
+M.desktop_message = function(sender, content)
+	M.desktop(require("neoment.matrix").get_display_name(sender), content)
+end
+
 return M

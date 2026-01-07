@@ -274,6 +274,12 @@ M.add_room_message = function(room_id, message)
 
 	if room.is_tracked then
 		room.messages[message.id] = message
+
+		-- Only notify for rooms that are not the current active buffer
+		local current_buf_room_id = vim.b.room_id
+		if room_id ~= current_buf_room_id and not message.is_state then
+			require("neoment.notify").desktop_message(message.sender, message.content)
+		end
 	elseif not message.is_state then
 		-- If the room is not tracked, only store the last message
 		local last_message = M.get_room_last_message(room_id)

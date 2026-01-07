@@ -83,6 +83,34 @@ local function read_file(path)
 	return decoded
 end
 
+--- Strip unnecessary data from a room for storage
+--- @param room neoment.matrix.client.Room The room to strip
+--- @return neoment.matrix.client.Room The stripped room
+local function get_stripped_room(room)
+	local last_message = matrix.get_room_last_message(room.id)
+
+	--- @type neoment.matrix.client.Room
+	return {
+		id = room.id,
+		name = room.name,
+		topic = room.topic,
+		events = {},
+		pending_events = {},
+		messages = last_message and { [last_message.id] = last_message } or {},
+		is_direct = room.is_direct,
+		is_favorite = room.is_favorite,
+		is_lowpriority = room.is_lowpriority,
+		space_rooms = room.space_rooms,
+		members = room.members,
+		typing = {},
+		is_tracked = false,
+		unread_notifications = room.unread_notifications,
+		unread_highlights = room.unread_highlights,
+		unread = room.unread,
+		read_receipt = room.read_receipt,
+	}
+end
+
 --- Save the session data to the cache file
 --- @return boolean True if the session was saved successfully, false otherwise
 function M.save_session()
@@ -102,17 +130,7 @@ function M.save_session()
 	}
 
 	for room_id, room in pairs(matrix.get_rooms()) do
-		local last_message = matrix.get_room_last_message(room_id)
-		-- Create a simplified version of the room for storage
-		local saved_room = vim.tbl_extend("force", room, {
-			events = {},
-			pending_events = {},
-			messages = last_message and { [last_message.id] = last_message } or {},
-			typing = {},
-		})
-		saved_room.prev_batch = nil
-
-		cache_to_save.rooms[room_id] = saved_room
+		cache_to_save.rooms[room_id] = get_stripped_room(room)
 	end
 
 	return write_file(cache_path, cache_to_save) and write_file(data_path, data_to_save)
