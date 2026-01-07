@@ -277,7 +277,8 @@ M.add_room_message = function(room_id, message)
 
 		-- Only notify for rooms that are not the current active buffer
 		local current_buf_room_id = vim.b.room_id
-		if room_id ~= current_buf_room_id and not message.is_state then
+		local user_id = require("neoment.matrix").get_user_id()
+		if room_id ~= current_buf_room_id and not message.is_state and message.sender ~= user_id then
 			require("neoment.notify").desktop_message(message.sender, message.content)
 		end
 	elseif not message.is_state then
