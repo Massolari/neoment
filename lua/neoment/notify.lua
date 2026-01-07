@@ -96,7 +96,14 @@ M.desktop = function(title, content)
 		vim.system({
 			"osascript",
 			"-e",
-			string.format('display notification %q with title "Neoment" subtitle %q', content, title),
+			[[
+          on run argv
+            display notification (item 1 of argv) with title "Neoment" subtitle (item 2 of argv)
+          end run
+         ]],
+			"--",
+			content,
+			title,
 		})
 	end
 end
