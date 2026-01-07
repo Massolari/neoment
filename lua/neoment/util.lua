@@ -68,12 +68,19 @@ end
 
 --- Write to a non-modifiable buffer
 --- @param buf number The buffer number
---- @param lines table The lines to write
+--- @param lines table<string> The lines to write
 --- @param start number The starting line number
 --- @param end_line number The ending line number
 M.buffer_write = function(buf, lines, start, end_line)
+	local lines_without_newlines = vim.iter(lines)
+		:map(function(line)
+			local no_new_lines, _ = line:gsub("\n", " ")
+			return no_new_lines
+		end)
+		:totable()
+
 	vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
-	vim.api.nvim_buf_set_lines(buf, start, end_line, false, lines)
+	vim.api.nvim_buf_set_lines(buf, start, end_line, false, lines_without_newlines)
 	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
 	vim.api.nvim_set_option_value("modified", false, { buf = buf })
 end
