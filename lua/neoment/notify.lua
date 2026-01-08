@@ -108,10 +108,18 @@ M.desktop = function(title, content)
 	end
 end
 
-M.desktop_message = function(sender, content)
+--- Show a desktop notification for a message
+--- @param room neoment.matrix.client.Room The room where the message was sent
+--- @param sender string The sender's display name
+--- @param content string The message content
+M.desktop_message = function(room, sender, content)
 	local notifier = config.get().desktop_notifier
 	if notifier then
-		notifier(require("neoment.matrix").get_display_name(sender), content)
+		local sender_name = require("neoment.matrix").get_display_name(sender)
+		-- If the sender has the same name as the room, it's a DM, show the sender's name only
+		local sender_with_room = sender_name == room.name and sender_name
+			or string.format("[%s] %s", room.name, sender_name)
+		notifier(sender_with_room, content)
 	end
 end
 
