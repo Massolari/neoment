@@ -14,6 +14,14 @@ local subcommands = {
 	clear = function()
 		require("neoment.storage").clear_cache()
 	end,
+	join = function(opts)
+		local room_id = opts.fargs[2]
+		if not room_id then
+			require("neoment.notify").error("Usage: :Neoment join <room_id_or_alias>")
+			return
+		end
+		require("neoment").join_room(room_id)
+	end,
 	logout = function()
 		local notify = require("neoment.notify")
 		local choice = vim.fn.confirm(
@@ -49,7 +57,7 @@ vim.api.nvim_create_user_command("Neoment", function(opts)
 	local subcommand = subcommands[argument]
 
 	if subcommand then
-		subcommand()
+		subcommand(opts)
 	else
 		notify.error("Unknown subcommand: " .. subcommand)
 		notify.info(string.format("Available subcommands: %s", table.concat(subcommands_names, ", ")))
