@@ -1045,7 +1045,9 @@ M.send_and_close_compose = function(compose_buf)
 		return
 	end
 
-	if not message or vim.trim(message) == "" then
+	local has_attachment = vim.b[compose_buf].attachment ~= nil
+
+	if not has_attachment and (not message or vim.trim(message) == "") then
 		return
 	end
 
