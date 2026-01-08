@@ -94,16 +94,25 @@ local function get_stripped_room(room)
 		id = room.id,
 		name = room.name,
 		topic = room.topic,
+		-- No need to store the event history
 		events = {},
 		pending_events = {},
+		-- Store only the last message to display in the room list
 		messages = last_message and { [last_message.id] = last_message } or {},
+		-- The last activity is needed for sorting the room list
+		last_activity = room.last_activity,
+		-- Store these flags to display the room in the correct section of the room list
 		is_direct = room.is_direct,
 		is_favorite = room.is_favorite,
 		is_lowpriority = room.is_lowpriority,
+		-- Store the space rooms to restore the space structure
 		space_rooms = room.space_rooms,
+		-- Store the members to correctly display rooms that the user is a member of
 		members = room.members,
 		typing = {},
+		-- Reset the tracked status as no room is open on restore
 		is_tracked = false,
+		-- Store unread counts to display in the room list
 		unread_notifications = room.unread_notifications,
 		unread_highlights = room.unread_highlights,
 		unread = room.unread,
