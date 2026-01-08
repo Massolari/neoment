@@ -89,6 +89,7 @@ M.init = function()
 	local highlight = require("neoment.highlight")
 	highlight.define_highlights()
 	config.load()
+	require("neoment.focus").setup()
 
 	vim.api.nvim_create_autocmd({ "ColorScheme" }, {
 		group = vim.api.nvim_create_augroup("neoment_highlight", { clear = true }),

@@ -44,7 +44,6 @@ local subcommands = {
 }
 local subcommands_names = vim.tbl_keys(subcommands)
 
--- Criar comandos
 vim.api.nvim_create_user_command("Neoment", function(opts)
 	local notify = require("neoment.notify")
 	local argument = opts.fargs[1]

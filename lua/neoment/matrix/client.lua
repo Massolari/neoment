@@ -275,11 +275,17 @@ M.add_room_message = function(room_id, message)
 	if room.is_tracked then
 		room.messages[message.id] = message
 
-		-- Only notify for rooms that are not the current active buffer
-		local current_buf_room_id = vim.b.room_id
+		-- Only notify for rooms that are not the current active buffer or when Neovim is unfocused
 		local user_id = require("neoment.matrix").get_user_id()
-		if room_id ~= current_buf_room_id and not message.is_state and message.sender ~= user_id then
-			require("neoment.notify").desktop_message(room, message.sender, message.content)
+		if not message.is_state and message.sender ~= user_id then
+			local current_buf_room_id = vim.b.room_id
+			local has_focus = require("neoment.focus").is_focused()
+			local is_current_room = room_id == current_buf_room_id
+
+			-- Send desktop notification if Neovim is not focused or if it's not the current room
+			if not has_focus or not is_current_room then
+				require("neoment.notify").desktop_message(room, message.sender, message.content)
+			end
 		end
 	elseif not message.is_state then
 		-- If the room is not tracked, only store the last message
