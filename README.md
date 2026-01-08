@@ -53,6 +53,16 @@ vim.pack.add({
 })
 ```
 
+## Companion Plugins
+
+For the best experience, it is recommended to install the following companion plugins:
+
+- [which-key](https://github.com/folke/which-key.nvim): As most of keybindings are under the `<localleader>` key, which-key helps to discover them easily. When pressing `<localleader>`, which-key will show you the available keybindings for the current buffer.
+- [snacks.nvim](https://github.com/folke/snacks.nvim): For displaying images directly in Neovim buffers.
+- Completion engine to easily type emojis in the compose buffer, such as:
+    - [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) with [cmp-emoji](https://github.com/hrsh7th/cmp-emoji/)
+    - [blink.cmp](https://github.com/Saghen/blink.cmp) with [blink-emoji.nvim](https://github.com/moyiz/blink-emoji.nvim)
+
 ## Usage
 
 ### First Time Setup
