@@ -38,6 +38,9 @@ Neoment is a Matrix protocol client implementation for Neovim that allows you to
 ```lua
 {
 	"Massolari/neoment",
+	dependencies = {
+		"nvim-lua/plenary.nvim",
+	}
 }
 ```
 
@@ -46,10 +49,8 @@ Neoment is a Matrix protocol client implementation for Neovim that allows you to
 ```lua
 -- In your init.lua:
 vim.pack.add({
-	{
-		src = "https://github.com/Massolari/neoment",
-		name = "neoment",
-	},
+	"https://github.com/nvim-lua/plenary.nvim",
+	"https://github.com/Massolari/neoment" ,
 })
 ```
 
