@@ -189,41 +189,43 @@ Below are the default keybindings for each buffer type.
 
 Filetype: `neoment_rooms`
 
-| Description                      | Mapping                               | Default          |
-| -------------------------------- | ------------------------------------- | ---------------- |
-| Open room/space under cursor     | `<Plug>NeomentRoomsEnter`             | `<CR>`           |
-| Toggle fold under cursor         | `<Plug>NeomentRoomsToggleFold`        | `<Tab>`          |
-| Close window                     | `<Plug>NeomentRoomsClose`             | `q`              |
-| Toggle favorite                  | `<Plug>NeomentRoomsToggleFavorite`    | `<localleader>a` |
-| Find room (open `vim.ui.select`) | `<Plug>NeomentRoomsPick`              | `<localleader>f` |
-| Toggle low priority              | `<Plug>NeomentRoomsToggleLowPriority` | `<localleader>l` |
-| Toggle read/unread               | `<Plug>NeomentRoomsToggleRead`        | `<localleader>r` |
+| Description                           | Mapping                               | Default          |
+| --------------------------------------| ------------------------------------- | ---------------- |
+| Open room/space under cursor          | `<Plug>NeomentRoomsEnter`             | `<CR>`           |
+| Toggle fold under cursor              | `<Plug>NeomentRoomsToggleFold`        | `<Tab>`          |
+| Close window                          | `<Plug>NeomentRoomsClose`             | `q`              |
+| Toggle favorite                       | `<Plug>NeomentRoomsToggleFavorite`    | `<localleader>a` |
+| Find room (open `vim.ui.select`)      | `<Plug>NeomentRoomsPick`              | `<localleader>f` |
+| Find open room (open `vim.ui.select`) | `<Plug>NeomentRoomsPickOpen`          | `<localleader>F` |
+| Toggle low priority                   | `<Plug>NeomentRoomsToggleLowPriority` | `<localleader>l` |
+| Toggle read/unread                    | `<Plug>NeomentRoomsToggleRead`        | `<localleader>r` |
 
 #### Room Buffer
 
 Filetype: `neoment_room`
 
-| Description                       | Mapping                                 | Default          |
-| --------------------------------- | --------------------------------------- | ---------------- |
-| Compose/send message              | `<Plug>NeomentRoomCompose`              | `<CR>`           |
-| React to message                  | `<Plug>NeomentRoomReact`                | `<localleader>a` |
-| Redact (delete) message           | `<Plug>NeomentRoomRedact`               | `<localleader>d` |
-| Edit message                      | `<Plug>NeomentRoomEdit`                 | `<localleader>e` |
-| Find room (open `vim.ui.select`)  | `<Plug>NeomentRoomFind`                 | `<localleader>f` |
-| Quit room (close the buffer)      | `<Plug>NeomentRoomQuit`                 | `<localleader>q` |
-| Toggle room list                  | `<Plug>NeomentRoomToggleRoomList`       | `<localleader>l` |
-| Leave room                        | `<Plug>NeomentRoomLeave`                | `<localleader>L` |
-| Set read marker                   | `<Plug>NeomentRoomSetReadMarker`        | `<localleader>m` |
-| Open attachment                   | `<Plug>NeomentRoomOpenAttachment`       | `<localleader>o` |
-| Load previous messages            | `<Plug>NeomentRoomLoadPrevious`         | `<localleader>p` |
-| Reply to message                  | `<Plug>NeomentRoomReply`                | `<localleader>r` |
-| Go to replied message             | `<Plug>NeomentRoomGoToReplied`          | `<localleader>R` |
-| Open thread                       | `<Plug>NeomentRoomOpenThread`           | `<localleader>t` |
-| Save attachment                   | `<Plug>NeomentRoomSaveAttachment`       | `<localleader>s` |
-| Upload attachment                 | `<Plug>NeomentRoomUploadAttachment`     | `<localleader>u` |
-| Upload image from clipboard       | `<Plug>NeomentRoomUploadClipboardImage` | `<localleader>U` |
-| Forward message                   | `<Plug>NeomentRoomForwardMessage`       | `<localleader>w` |
-| Toggle zoom of image under cursor | `<Plug>NeomentRoomToggleZoomImage`      | `<localleader>z` |
+| Description                            | Mapping                                 | Default          |
+| -------------------------------------- | --------------------------------------- | ---------------- |
+| Compose/send message                   | `<Plug>NeomentRoomCompose`              | `<CR>`           |
+| React to message                       | `<Plug>NeomentRoomReact`                | `<localleader>a` |
+| Redact (delete) message                | `<Plug>NeomentRoomRedact`               | `<localleader>d` |
+| Edit message                           | `<Plug>NeomentRoomEdit`                 | `<localleader>e` |
+| Find room (open `vim.ui.select`)       | `<Plug>NeomentRoomFind`                 | `<localleader>f` |
+| Find open room (open `vim.ui.select`)  | `<Plug>NeomentRoomFindOpen`             | `<localleader>F` |
+| Quit room (close the buffer)           | `<Plug>NeomentRoomQuit`                 | `<localleader>q` |
+| Toggle room list                       | `<Plug>NeomentRoomToggleRoomList`       | `<localleader>l` |
+| Leave room                             | `<Plug>NeomentRoomLeave`                | `<localleader>L` |
+| Set read marker                        | `<Plug>NeomentRoomSetReadMarker`        | `<localleader>m` |
+| Open attachment                        | `<Plug>NeomentRoomOpenAttachment`       | `<localleader>o` |
+| Load previous messages                 | `<Plug>NeomentRoomLoadPrevious`         | `<localleader>p` |
+| Reply to message                       | `<Plug>NeomentRoomReply`                | `<localleader>r` |
+| Go to replied message                  | `<Plug>NeomentRoomGoToReplied`          | `<localleader>R` |
+| Open thread                            | `<Plug>NeomentRoomOpenThread`           | `<localleader>t` |
+| Save attachment                        | `<Plug>NeomentRoomSaveAttachment`       | `<localleader>s` |
+| Upload attachment                      | `<Plug>NeomentRoomUploadAttachment`     | `<localleader>u` |
+| Upload image from clipboard            | `<Plug>NeomentRoomUploadClipboardImage` | `<localleader>U` |
+| Forward message                        | `<Plug>NeomentRoomForwardMessage`       | `<localleader>w` |
+| Toggle zoom of image under cursor      | `<Plug>NeomentRoomToggleZoomImage`      | `<localleader>z` |
 
 #### Compose Buffer
 
