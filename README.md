@@ -62,6 +62,10 @@ For the best experience, it is recommended to install the following companion pl
 - Completion engine to easily type emojis in the compose buffer, such as:
     - [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) with [cmp-emoji](https://github.com/hrsh7th/cmp-emoji/)
     - [blink.cmp](https://github.com/Saghen/blink.cmp) with [blink-emoji.nvim](https://github.com/moyiz/blink-emoji.nvim)
+- Picker plugin to enhance the room selection experience through `vim.ui.select`, such as:
+    - [snacks.nvim](https://github.com/folke/snacks.nvim)
+    - [fzf-lua](https://github.com/ibhagwan/fzf-lua/)
+    - [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim) with [telescope-ui-select.nvim](https://github.com/nvim-telescope/telescope-ui-select.nvim)
 
 ## Usage
 
