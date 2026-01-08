@@ -83,7 +83,7 @@ M.desktop = function(title, content)
 			content,
 			"[]",
 			string.format("{%s, %s}", '"urgency": <byte 1>', '"desktop-entry": <string "nvim">'),
-			"int32 -1",
+			"-1",
 		})
 	elseif jit.os == "Windows" then
 		vim.system({
