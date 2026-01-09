@@ -108,18 +108,80 @@ M.desktop = function(title, content)
 	end
 end
 
+--- Check if the message has a mention of the user
+--- @param message neoment.matrix.client.Message The message to check
+--- @return boolean True if the message mentions the user, false otherwise
+local function message_has_mention(message)
+	local user_id = require("neoment.matrix").get_user_id()
+	if not user_id then
+		return false
+	end
+
+	return string.find(message.formatted_content or message.content, user_id, 1, true) ~= nil
+end
+
+--- Send notification based on user notification level
+--- @param level neoment.config.DesktopNotificationLevel
+--- @param handler neoment.config.DesktopNotificationHandler
+--- @param message neoment.matrix.client.Message
+--- @param sender string
+--- @return boolean True if the level was handled, false otherwise (the level is "none")
+local function send_notification(level, handler, message, sender)
+	if level == "all" then
+		handler(sender, message.content)
+		return true
+	elseif level == "mentions" then
+		if message_has_mention(message) then
+			handler(sender, message.content)
+		end
+		return true
+	end
+	return false
+end
+
 --- Show a desktop notification for a message
 --- @param room neoment.matrix.client.Room The room where the message was sent
---- @param sender string The sender's display name
---- @param content string The message content
-M.desktop_message = function(room, sender, content)
-	local notifier = config.get().desktop_notifier
-	if notifier then
-		local sender_name = require("neoment.matrix").get_display_name(sender)
-		-- If the sender has the same name as the room, it's a DM, show the sender's name only
-		local sender_with_room = sender_name == room.name and sender_name
-			or string.format("[%s] %s", room.name, sender_name)
-		notifier(sender_with_room, content)
+--- @param message neoment.matrix.client.Message The sender of the message
+M.desktop_message = function(room, message)
+	local notifications_config = config.get().desktop_notifications
+	if not notifications_config.enabled then
+		return
+	end
+
+	local user_id = require("neoment.matrix").get_user_id()
+	if not user_id or message.is_state or message.sender == user_id then
+		return
+	end
+
+	local sender_name = require("neoment.matrix").get_display_name(message.sender)
+	-- If the sender has the same name as the room, it's a DM, show the sender's name only
+	local sender_with_room = sender_name == room.name and sender_name
+		or string.format("[%s] %s", room.name, sender_name)
+
+	-- Buffer rooms
+	if room.is_tracked then
+		local current_buf_room_id = vim.b.room_id
+		local has_focus = require("neoment.focus").is_focused()
+		local is_current_room = room.id == current_buf_room_id
+		if has_focus and is_current_room then
+			return
+		end
+
+		local handled =
+			send_notification(notifications_config.buffer, notifications_config.handler, message, sender_with_room)
+		if handled then
+			return
+		end
+	end
+
+	-- Favorite rooms
+	if room.is_favorite then
+		send_notification(notifications_config.favorites, notifications_config.handler, message, sender_with_room)
+	elseif room.is_direct then
+		send_notification(notifications_config.people, notifications_config.handler, message, sender_with_room)
+	else
+		-- Other rooms
+		send_notification(notifications_config.rooms, notifications_config.handler, message, sender_with_room)
 	end
 end
 
