@@ -55,7 +55,7 @@
 --- @field buffer? neoment.config.DesktopNotificationLevel Notification level for buffer messages. When "none", it'll inherit from the other levels
 --- @field favorites? neoment.config.DesktopNotificationLevel Notification level for favorite rooms
 --- @field people? neoment.config.DesktopNotificationLevel Notification level for people rooms
---- @field rooms? neoment.config.DesktopNotificationLevel Notification level for people rooms
+--- @field rooms? neoment.config.DesktopNotificationLevel Notification level for non-favorite, non-direct rooms
 
 --- @alias neoment.config.DesktopNotificationHandler fun(title: string, content: string): nil
 --- @alias neoment.config.DesktopNotificationLevel "all"|"mentions"|"none"
