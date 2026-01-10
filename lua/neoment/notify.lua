@@ -141,7 +141,7 @@ end
 
 --- Show a desktop notification for a message
 --- @param room neoment.matrix.client.Room The room where the message was sent
---- @param message neoment.matrix.client.Message The sender of the message
+--- @param message neoment.matrix.client.Message The message to display notification for
 M.desktop_message = function(room, message)
 	local notifications_config = config.get().desktop_notifications
 	if not notifications_config.enabled then
