@@ -103,7 +103,9 @@ vim.g.neoment = {
 		vim.notify(msg, level, opts)
 	end,
 	
-	-- Desktop notifications are shown for new messages in open rooms, excluding the currently focused room
+	-- Desktop notifications can be configured per room type.
+	-- The buffer setting applies to currently open rooms (excluding the focused room),
+	-- while favorites, people, and rooms settings apply to all rooms of those types.
 	desktop_notifications = {
 		enabled = true,  -- Enable or disable desktop notifications (default: true)
 		
