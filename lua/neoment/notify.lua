@@ -117,6 +117,17 @@ local function message_has_mention(message)
 		return false
 	end
 
+	-- Prefer structured mentions from the Matrix event, if available
+	if type(message.mentions) == "table" then
+		for _, mentioned_id in ipairs(message.mentions) do
+			if mentioned_id == user_id then
+				return true
+			end
+		end
+		return false
+	end
+
+	-- Fallback to string-based detection for compatibility
 	return string.find(message.formatted_content or message.content, user_id, 1, true) ~= nil
 end
 
