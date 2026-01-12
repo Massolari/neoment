@@ -159,6 +159,13 @@ M.desktop_message = function(room, message)
 		return
 	end
 
+	-- Check if this is the initial sync.
+	-- If so, skip notifications to avoid spamming the user.
+	local sync_status = require("neoment.sync").get_status()
+	if sync_status.kind == "syncing" and sync_status.last_sync == nil then
+		return
+	end
+
 	local user_id = require("neoment.matrix").get_user_id()
 	if not user_id or message.is_state or message.sender == user_id then
 		return
