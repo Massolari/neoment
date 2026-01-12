@@ -6,12 +6,12 @@ local matrix = require("neoment.matrix")
 local error = require("neoment.error")
 
 --- @type neoment.sync.Status
-local status = { kind = "never" }
+local status = { kind = "stopped", current_count = 0 }
 local error_count = 0
 
 local keep_syncing = true
 
---- @alias neoment.sync.Status { kind: "never" } | neoment.sync.StatusSyncing | neoment.sync.StatusStopped
+--- @alias neoment.sync.Status neoment.sync.StatusSyncing | neoment.sync.StatusStopped
 
 --- @class neoment.sync.StatusSyncing
 --- @field kind "syncing"
@@ -33,18 +33,11 @@ M.start = function(client, on_done, options)
 	-- Prevent multiple syncs at the same time
 	if status.kind == "syncing" then
 		return
-	end
-
-	if status.kind == "stopped" then
+	elseif status.kind == "stopped" then
 		status = {
 			kind = "syncing",
 			last_sync = status.last_sync,
 			current_count = status.current_count,
-		}
-	else
-		status = {
-			kind = "syncing",
-			current_count = 0,
 		}
 	end
 
@@ -53,7 +46,7 @@ M.start = function(client, on_done, options)
 	local sync_options = {}
 
 	-- On first sync, request full state to get room names and other essential metadata
-	if status.kind == "never" then
+	if status.kind == "stopped" and status.last_sync == nil then
 		sync_options.full_state = true
 	end
 
@@ -78,6 +71,7 @@ M.start = function(client, on_done, options)
 
 	matrix.sync(sync_options, function(data)
 		status = error.match(data, function(actual_data)
+			error_count = 0
 			local sync_data = actual_data.sync
 			--- @type neoment.sync.Status
 			local new_status = {

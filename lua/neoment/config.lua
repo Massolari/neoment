@@ -5,7 +5,7 @@
 --- @field save_session? boolean Whether to save and restore sessions
 --- @field icon? neoment.config.Icon Icon configuration
 --- @field notifier fun(msg: string, level: vim.log.levels, opts?: table): nil Function to show notifications
---- @field desktop_notifier? fun(title: string, content: string): nil Function to show desktop notifications
+--- @field desktop_notifications? neoment.config.DesktopNotifications Configuration for desktop notifications
 --- @field picker? neoment.config.Picker Picker configuration
 --- @field rooms? neoment.config.Rooms
 
@@ -49,11 +49,22 @@
 --- @class neoment.config.Rooms
 --- @field display_last_message? neoment.config.DisplayLastMessage How to display the last message in the room list
 
+--- @class neoment.config.DesktopNotifications
+--- @field enabled? boolean Whether desktop notifications are enabled
+--- @field handler? neoment.config.DesktopNotificationHandler Function to handle desktop notifications
+--- @field buffer? neoment.config.DesktopNotificationLevel Notification level for buffer messages. When "none", it'll inherit from the other levels
+--- @field favorites? neoment.config.DesktopNotificationLevel Notification level for favorite rooms
+--- @field people? neoment.config.DesktopNotificationLevel Notification level for people rooms
+--- @field rooms? neoment.config.DesktopNotificationLevel Notification level for non-favorite, non-direct rooms
+
+--- @alias neoment.config.DesktopNotificationHandler fun(title: string, content: string): nil
+--- @alias neoment.config.DesktopNotificationLevel "all"|"mentions"|"none"
+
 --- @class neoment.config.InternalConfig
 --- @field save_session boolean Whether to save and restore sessions
 --- @field icon neoment.config.InternalIcon Icon configuration
 --- @field notifier fun(msg: string, level: vim.log.levels, opts?: table): nil Function to show notifications
---- @field desktop_notifier? fun(title: string, content: string): nil Function to show desktop notifications
+--- @field desktop_notifications neoment.config.InternalDesktopNotifications Configuration for desktop notifications
 --- @field picker neoment.config.InternalPicker Picker configuration
 --- @field rooms neoment.config.InternalRooms
 
@@ -89,6 +100,14 @@
 --- @field display_last_message neoment.config.DisplayLastMessage How to display the last message in the room list
 
 --- @alias neoment.config.DisplayLastMessage "no"|"message"|"sender_message"|"sender_message_inline"
+
+--- @class neoment.config.InternalDesktopNotifications
+--- @field enabled boolean Whether desktop notifications are enabled
+--- @field handler neoment.config.DesktopNotificationHandler Function to handle desktop notifications
+--- @field buffer neoment.config.DesktopNotificationLevel Notification level for buffer messages. When "none", it'll inherit from the other levels
+--- @field favorites neoment.config.DesktopNotificationLevel Notification level for favorite rooms
+--- @field people neoment.config.DesktopNotificationLevel Notification level for people rooms
+--- @field rooms neoment.config.DesktopNotificationLevel Notification level for non-favorite, non-direct rooms
 
 local M = {}
 
@@ -137,9 +156,16 @@ local default = {
 		video = "",
 	},
 	notifier = vim.notify,
-	desktop_notifier = function(title, content)
-		require("neoment.notify").desktop(title, content)
-	end,
+	desktop_notifications = {
+		enabled = true,
+		handler = function(title, content)
+			require("neoment.notify").desktop(title, content)
+		end,
+		buffer = "all",
+		favorites = "all",
+		people = "all",
+		rooms = "mentions",
+	},
 	picker = {
 		rooms = default_room_picker,
 		open_rooms = default_room_picker,

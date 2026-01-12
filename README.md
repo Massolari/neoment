@@ -30,6 +30,7 @@ Neoment is a Matrix protocol client implementation for Neovim that allows you to
 - Threads
 - Mark room as read/unread/favorite/low priority
 - Compose messages with markdown support
+- Desktop notifications for new messages
 
 ## Installation
 
@@ -101,22 +102,38 @@ vim.g.neoment = {
 	notifier = function(msg, level, opts)
 		vim.notify(msg, level, opts)
 	end,
-	-- Custom desktop notifier function (optional)
-	-- Desktop notifications are shown for new messages in open rooms, excluding the currently focused room
-	-- Set to nil (or provide an empty function) to disable desktop notifications
-	-- By default, uses vim.fn.system to call:
-	-- - gdbus on Linux
-	-- - osascript on macOS
-	-- - PowerShell on Windows
-	desktop_notifier = function(title, content)
-		if jit.os == "Linux" or jit.os == "BSD" then
-			-- Using gdbus for Linux/BSD
-		elseif jit.os == "Windows" then
-			-- Using powershell for Windows
-		elseif jit.os == "OSX" then
-			-- Using osascript for macOS
-		end
-	end,
+	
+	-- Desktop notifications can be configured per room type.
+	-- The buffer setting applies to currently open rooms (excluding the focused room),
+	-- while favorites, people, and rooms settings apply to all rooms of those types.
+	desktop_notifications = {
+		enabled = true,  -- Enable or disable desktop notifications (default: true)
+		
+		-- Custom desktop notifier handler (optional)
+		-- By default, uses vim.fn.system to call:
+		-- - gdbus on Linux
+		-- - osascript on macOS
+		-- - PowerShell on Windows
+		handler = function(title, content)
+			if jit.os == "Linux" or jit.os == "BSD" then
+				-- Using gdbus for Linux/BSD
+			elseif jit.os == "Windows" then
+				-- Using powershell for Windows
+			elseif jit.os == "OSX" then
+				-- Using osascript for macOS
+			end
+		end,
+		
+		-- Notification levels for different room types
+		-- Options: "all", "mentions", "none"
+		-- "all" - notify for all new messages
+		-- "mentions" - notify only for mentions/highlights
+		-- "none" - do not notify
+		buffer = "all", -- When buffer is set to "none", it'll inherit the room setting from its type
+		favorites = "all",
+		people = "all",
+		rooms = "mentions"
+	},
 	
 	-- Picker configuration (optional)
 	-- Customize the UI for room selection (default: vim.ui.select)
