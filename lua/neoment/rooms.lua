@@ -911,4 +911,33 @@ M.toggle_low_priority = function()
 	toggle_room_tag("m.lowpriority")
 end
 
+--- Toggle the direct status of the room under the cursor (local only)
+M.toggle_direct = function()
+	local mark = get_room_mark_under_cursor()
+
+	if not mark then
+		return
+	end
+
+	if mark.is_invited then
+		notify.info("You cannot mark an invited room as direct.")
+		return
+	end
+
+	local room = matrix.get_room(mark.room_id)
+	if not room then
+		notify.error("Room not found.")
+		return
+	end
+
+	local room_name = matrix.get_room_display_name(room.id)
+	local new_direct_status = not room.is_direct
+
+	matrix.set_room_direct(room.id, new_direct_status)
+	M.update_room_list()
+
+	local action = new_direct_status and "marked as direct" or "unmarked as direct"
+	notify.info(string.format("%s %s", room_name, action))
+end
+
 return M

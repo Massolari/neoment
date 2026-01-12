@@ -1339,6 +1339,13 @@ M.set_room_lowpriority = function(room_id, is_lowpriority)
 	client.get_room(room_id).is_lowpriority = is_lowpriority
 end
 
+--- Set the direct status of a room (local only)
+--- @param room_id string The ID of the room.
+--- @param is_direct boolean True to mark the room as direct, false to unmark it.
+M.set_room_direct = function(room_id, is_direct)
+	client.get_room(room_id).is_direct = is_direct
+end
+
 --- @type neoment.matrix.client.Client
 M.client = nil
 M.get_room = client.get_room
