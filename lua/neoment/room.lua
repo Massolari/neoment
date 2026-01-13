@@ -1731,7 +1731,7 @@ M.show_room_info = function()
 	local bufs = vim.api.nvim_list_bufs()
 	for _, buf in ipairs(bufs) do
 		if vim.api.nvim_buf_is_loaded(buf) then
-			if vim.b[buf].room_id == room_id and vim.bo[buf].filetype == "neoment_info_room" then
+			if vim.b[buf].room_id == room_id and vim.bo[buf].filetype == constants.INFO_ROOM_FILETYPE then
 				-- Find if there's a window showing this buffer
 				local wins = vim.fn.win_findbuf(buf)
 				if #wins > 0 then

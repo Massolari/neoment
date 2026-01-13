@@ -1,5 +1,6 @@
 local M = {}
 
+local constants = require("neoment.constants")
 local util = require("neoment.util")
 local matrix = require("neoment.matrix")
 
@@ -9,7 +10,7 @@ local matrix = require("neoment.matrix")
 M.open_info = function(room_id)
 	-- Check if the buffer already exists
 	local existing_buffer = util.get_existing_buffer(function(buf)
-		return vim.b[buf].room_id == room_id and vim.bo[buf].filetype == "neoment_info_room"
+		return vim.b[buf].room_id == room_id and vim.bo[buf].filetype == constants.INFO_ROOM_FILETYPE
 	end)
 	if existing_buffer then
 		vim.api.nvim_set_current_buf(existing_buffer)
@@ -23,7 +24,7 @@ M.open_info = function(room_id)
 	local buffer_id = vim.api.nvim_create_buf(true, false) -- listed=true, scratch=false
 	vim.api.nvim_buf_set_name(buffer_id, buffer_name)
 	vim.b[buffer_id].room_id = room_id
-	vim.bo[buffer_id].filetype = "neoment_info_room"
+	vim.bo[buffer_id].filetype = constants.INFO_ROOM_FILETYPE
 	vim.api.nvim_set_current_buf(buffer_id)
 	local win = vim.api.nvim_get_current_win()
 
