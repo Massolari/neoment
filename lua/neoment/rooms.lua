@@ -1,5 +1,6 @@
 local M = {}
 
+local constants = require("neoment.constants")
 local notify = require("neoment.notify")
 local config = require("neoment.config")
 local api = vim.api
@@ -196,7 +197,7 @@ M.toggle_fold_at_cursor = function()
 	if section then
 		room_list_fold_state[section] = not get_fold_state(section)
 
-		-- Atualizar o símbolo de expansão no próprio buffer
+		-- Update the fold arrow in the buffer
 		local current_line_text = api.nvim_buf_get_lines(0, current_line - 1, current_line, false)[1]
 		local new_symbol = get_fold_state(section) and "" or ""
 		local new_line = new_symbol .. current_line_text:sub(2)
@@ -521,7 +522,7 @@ M.update_room_list = function()
 	for _, room in pairs(matrix.get_user_rooms()) do
 		-- Check if the room is open in a buffer
 		for _, buf in ipairs(open_buffers) do
-			if vim.b[buf].room_id == room.id then
+			if vim.b[buf].room_id == room.id and vim.bo[buf].filetype == constants.ROOM_FILETYPE then
 				table.insert(section_rooms.buffers, room)
 				goto continue
 			end
@@ -724,8 +725,7 @@ M.pick_open = function()
 			return false
 		end
 
-		local buffer_name = api.nvim_buf_get_name(buf)
-		return vim.startswith(buffer_name, "neoment://room/")
+		return vim.bo[buf].filetype == constants.ROOM_FILETYPE
 	end, api.nvim_list_bufs())
 
 	if #room_buffers == 0 then
@@ -938,6 +938,33 @@ M.toggle_direct = function()
 
 	local action = new_direct_status and "marked as direct" or "unmarked as direct"
 	notify.info(string.format("%s %s", room_name, action))
+end
+
+--- Show information about the room under the cursor
+M.show_room_info = function()
+	local mark = get_room_mark_under_cursor()
+
+	if not mark then
+		return
+	end
+
+	local room_id = mark.room_id
+
+	-- Open the window using the same logic as opening a room
+	local current_buf = api.nvim_get_current_buf()
+	if current_buf == rooms_buffer_id then
+		if util.win_count() == 1 then
+			local win = api.nvim_open_win(0, true, {
+				split = "right",
+				width = vim.o.columns - window_width,
+			})
+			vim.wo[win].winfixbuf = false
+		else
+			vim.cmd("wincmd l")
+		end
+	end
+
+	require("neoment.room_info").open_info(room_id)
 end
 
 return M

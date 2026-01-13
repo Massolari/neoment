@@ -230,6 +230,7 @@ Filetype: `neoment_rooms`
 | Toggle direct messaging room          | `<Plug>NeomentRoomsToggleDirect`      | `<localleader>d` |
 | Find room (open `vim.ui.select`)      | `<Plug>NeomentRoomsPick`              | `<localleader>f` |
 | Find open room (open `vim.ui.select`) | `<Plug>NeomentRoomsPickOpen`          | `<localleader>F` |
+| Show room information                 | `<Plug>NeomentRoomsShowRoomInfo`      | `<localleader>i` |
 | Toggle low priority                   | `<Plug>NeomentRoomsToggleLowPriority` | `<localleader>l` |
 | Toggle read/unread                    | `<Plug>NeomentRoomsToggleRead`        | `<localleader>r` |
 
@@ -245,12 +246,13 @@ Filetype: `neoment_room`
 | Edit message                           | `<Plug>NeomentRoomEdit`                 | `<localleader>e` |
 | Find room (open `vim.ui.select`)       | `<Plug>NeomentRoomFind`                 | `<localleader>f` |
 | Find open room (open `vim.ui.select`)  | `<Plug>NeomentRoomFindOpen`             | `<localleader>F` |
-| Quit room (close the buffer)           | `<Plug>NeomentRoomQuit`                 | `<localleader>q` |
+| Show current room information          | `<Plug>NeomentRoomShowRoomInfo`         | `<localleader>i` |
 | Toggle room list                       | `<Plug>NeomentRoomToggleRoomList`       | `<localleader>l` |
 | Leave room                             | `<Plug>NeomentRoomLeave`                | `<localleader>L` |
 | Set read marker                        | `<Plug>NeomentRoomSetReadMarker`        | `<localleader>m` |
 | Open attachment                        | `<Plug>NeomentRoomOpenAttachment`       | `<localleader>o` |
 | Load previous messages                 | `<Plug>NeomentRoomLoadPrevious`         | `<localleader>p` |
+| Quit room (close the buffer)           | `<Plug>NeomentRoomQuit`                 | `<localleader>q` |
 | Reply to message                       | `<Plug>NeomentRoomReply`                | `<localleader>r` |
 | Go to replied message                  | `<Plug>NeomentRoomGoToReplied`          | `<localleader>R` |
 | Open thread                            | `<Plug>NeomentRoomOpenThread`           | `<localleader>t` |
