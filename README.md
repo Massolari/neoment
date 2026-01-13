@@ -227,6 +227,7 @@ Filetype: `neoment_rooms`
 | Toggle fold under cursor              | `<Plug>NeomentRoomsToggleFold`        | `<Tab>`          |
 | Close window                          | `<Plug>NeomentRoomsClose`             | `q`              |
 | Toggle favorite                       | `<Plug>NeomentRoomsToggleFavorite`    | `<localleader>a` |
+| Toggle direct messaging room          | `<Plug>NeomentRoomsToggleDirect`      | `<localleader>d` |
 | Find room (open `vim.ui.select`)      | `<Plug>NeomentRoomsPick`              | `<localleader>f` |
 | Find open room (open `vim.ui.select`) | `<Plug>NeomentRoomsPickOpen`          | `<localleader>F` |
 | Toggle low priority                   | `<Plug>NeomentRoomsToggleLowPriority` | `<localleader>l` |
