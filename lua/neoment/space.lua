@@ -43,7 +43,7 @@ end
 local function get_or_create_buffer(space_id)
 	-- Check if the buffer already exists
 	local existing_buffer = util.get_existing_buffer(function(buf)
-		return vim.b[buf].space_id == space_id
+		return vim.b[buf].space_id == space_id and vim.bo[buf].filetype == "neoment_space"
 	end)
 	if existing_buffer then
 		api.nvim_set_current_buf(existing_buffer)

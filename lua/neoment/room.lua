@@ -1,5 +1,6 @@
 local M = {}
 
+local constants = require("neoment.constants")
 local icon = require("neoment.icon")
 local notify = require("neoment.notify")
 local config = require("neoment.config")
@@ -129,7 +130,7 @@ end
 M.open_room = function(room_id)
 	-- Check if the buffer already exists
 	local existing_buffer = util.get_existing_buffer(function(buf)
-		return vim.b[buf].room_id == room_id
+		return vim.b[buf].room_id == room_id and vim.bo[buf].filetype == constants.ROOM_FILETYPE
 	end)
 	if existing_buffer then
 		api.nvim_set_current_buf(existing_buffer)
@@ -142,7 +143,7 @@ M.open_room = function(room_id)
 	local buffer_id = api.nvim_create_buf(true, false) -- listed=true, scratch=false
 	api.nvim_buf_set_name(buffer_id, buffer_name)
 	vim.b[buffer_id].room_id = room_id
-	vim.bo[buffer_id].filetype = "neoment_room"
+	vim.bo[buffer_id].filetype = constants.ROOM_FILETYPE
 	api.nvim_buf_set_lines(buffer_id, 0, -1, false, { string.rep(" ", 28) .. get_separator() .. "Loading..." })
 
 	api.nvim_set_current_buf(buffer_id)
@@ -1702,15 +1703,9 @@ M.open_thread = function()
 		api.nvim_buf_set_name(thread_buffer_id, buffer_name)
 		vim.b[thread_buffer_id].room_id = room_id
 		vim.b[thread_buffer_id].thread_root_id = thread_root_id
-		api.nvim_set_option_value("filetype", "neoment_room", { buf = thread_buffer_id })
-		api.nvim_set_option_value("buftype", "nofile", { buf = thread_buffer_id })
-		api.nvim_buf_set_lines(
-			thread_buffer_id,
-			0,
-			-1,
-			false,
-			{ string.rep(" ", 28) .. get_separator() .. "Loading thread..." }
-		)
+		vim.bo[thread_buffer_id].filetype = constants.ROOM_FILETYPE
+		vim.bo[thread_buffer_id].buftype = "nofile"
+		util.buffer_write(thread_buffer_id, { string.rep(" ", 28) .. get_separator() .. "Loading thread..." }, 0, -1)
 
 		-- Open in a vertical split to the right
 		vim.cmd("rightbelow vsplit")
@@ -1724,6 +1719,43 @@ M.open_thread = function()
 
 		return nil
 	end)
+end
+
+--- Show information about the current room
+M.show_room_info = function()
+	local buffer_id = vim.api.nvim_get_current_buf()
+	local room_id = vim.b[buffer_id].room_id
+	local info = require("neoment.room_info")
+
+	-- Check if info buffer already exists and find its window
+	local bufs = vim.api.nvim_list_bufs()
+	for _, buf in ipairs(bufs) do
+		if vim.api.nvim_buf_is_loaded(buf) then
+			if vim.b[buf].room_id == room_id and vim.bo[buf].filetype == constants.INFO_ROOM_FILETYPE then
+				-- Find if there's a window showing this buffer
+				local wins = vim.fn.win_findbuf(buf)
+				if #wins > 0 then
+					-- Focus the existing window
+					vim.api.nvim_set_current_win(wins[1])
+				else
+					-- Buffer exists but not visible, open it in a new split to the right
+					vim.cmd("rightbelow vsplit")
+					vim.api.nvim_set_current_buf(buf)
+					vim.api.nvim_win_set_width(0, 50)
+					-- Update buffer in case messages were added since it was closed
+					info.update_buffer(buf)
+				end
+				return nil
+			end
+		end
+	end
+
+	-- Open in a vertical split to the right
+	vim.cmd("rightbelow vsplit")
+	local new_win = vim.api.nvim_get_current_win()
+	vim.api.nvim_win_set_width(new_win, 50)
+
+	info.open_info(room_id)
 end
 
 -- Expose for testing
