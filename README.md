@@ -286,6 +286,16 @@ Filetype: `neoment_space`
 | Quit window (close the buffer)   | `<Plug>NeomentSpaceQuit`           | `<localleader>q` |
 | Toggle room list                 | `<Plug>NeomentSpaceToggleRoomList` | `<localleader>l` |
 
+#### Room Info Buffer
+
+Filetype: `neoment_info_room`
+
+| Description                           | Mapping                           | Default          |
+| ------------------------------------- | --------------------------------- | ---------------- |
+| Find room (open `vim.ui.select`)      | `<Plug>NeomentInfoRoomFind`       | `<localleader>f` |
+| Find open room (open `vim.ui.select`) | `<Plug>NeomentInfoRoomFindOpen`   | `<localleader>F` |
+| Toggle room list                      | `<Plug>NeomentInfoRoomToggleList` | `<localleader>l` |
+
 ## Inspiration
 
 Neoment draws inspiration from some excellent Matrix clients:
