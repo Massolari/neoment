@@ -689,16 +689,18 @@ end
 local function rooms_to_picker_rooms(rooms_and_spaces)
 	local icon = config.get().icon
 
-	return vim.tbl_map(function(room)
-		local line
-		if matrix.is_space(room.id) then
-			line = icon.space .. "  " .. matrix.get_room_display_name(room.id)
-		else
-			local room_icon = room.is_direct and icon.people or icon.room
-			line = room_icon .. "  " .. get_room_line(room, true)
-		end
-		return { room = room, line = line }
-	end, rooms_and_spaces)
+	return vim.iter(ipairs(rooms_and_spaces))
+		:map(function(_, room)
+			local line
+			if matrix.is_space(room.id) then
+				line = icon.space .. "  " .. matrix.get_room_display_name(room.id)
+			else
+				local room_icon = room.is_direct and icon.people or icon.room
+				line = room_icon .. "  " .. get_room_line(room, true)
+			end
+			return { room = room, line = line }
+		end)
+		:totable()
 end
 
 --- Pick a room from the list and call a callback function with the selected room
