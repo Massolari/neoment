@@ -1,5 +1,6 @@
 local M = {}
 
+local constants = require("neoment.constants")
 local config = require("neoment.config")
 local notify = require("neoment.notify")
 local sync = require("neoment.sync")
@@ -24,8 +25,7 @@ local function handle_sync(updated_rooms)
 				if vim.api.nvim_buf_is_loaded(buf) then
 					local buf_room_id = vim.b[buf].room_id
 					--- @type string
-					local filetype = vim.api.nvim_get_option_value("filetype", { buf = buf })
-					if buf_room_id == room_id and not filetype:match("neoment_compose") then
+					if buf_room_id == room_id and vim.bo[buf].filetype == constants.ROOM_FILETYPE then
 						room.update_buffer(buf)
 					end
 				end
