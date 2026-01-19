@@ -956,17 +956,25 @@ M.set_room_topic = function(room_id, topic)
 end
 
 --- Get the members of a room.
+--- If it's an invited room, returns an empty table.
 --- @param room_id string The ID of the room.
 --- @return table<string, string> The members of the room. The keys are user IDs and the values are display names.
 M.get_room_members = function(room_id)
 	vim.validate("room_id", room_id, "string")
-	return vim.tbl_map(function(id)
-		local displayname = client.client.display_names[id]
-		if not displayname or displayname == vim.NIL then
-			return id
-		end
-		return displayname.display_name
-	end, client.get_room(room_id).members)
+	-- If it's an invited room, return empty table
+	if not M.has_room(room_id) then
+		return {}
+	end
+
+	return vim.iter(pairs(client.get_room(room_id).members))
+		:map(function(id, name)
+			local displayname = client.client.display_names[id]
+			if not displayname or displayname == vim.NIL then
+				return name
+			end
+			return displayname.display_name
+		end)
+		:totable()
 end
 
 --- Get the other members of a room.
