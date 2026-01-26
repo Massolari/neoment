@@ -295,7 +295,7 @@ end
 
 --- Add an alias to a room.
 --- @param room_id string The ID of the room.
---- @param aliases table<string> The alias to add to the room.
+--- @param aliases table<string> The aliases to set for the room.
 M.set_room_alias = function(room_id, aliases)
 	local room = M.get_room(room_id)
 
