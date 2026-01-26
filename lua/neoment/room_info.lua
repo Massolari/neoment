@@ -79,8 +79,8 @@ M.update_buffer = function(buffer_id)
 	local aliases = matrix.get_room_aliases(room_id)
 	if #aliases > 0 then
 		table.insert(lines, "**Aliases:**")
-		vim.iter(aliases):each(function(line)
-			table.insert(lines, " - " .. line)
+		vim.iter(aliases):each(function(alias)
+			table.insert(lines, " - " .. alias)
 		end)
 	end
 	table.insert(lines, "")
