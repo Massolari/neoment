@@ -176,13 +176,6 @@ M.desktop_message = function(room, message)
 	local sender_with_room = sender_name == room.name and sender_name
 		or string.format("[%s] %s", room.name, sender_name)
 
-	-- Per-room override
-	local room_config = notifications_config.per_room[room.id]
-	if room_config then
-		send_notification(room_config, notifications_config.handler, message, sender_with_room)
-		return
-	end
-
 	-- Buffer rooms
 	if room.is_tracked then
 		local current_buf_room_id = vim.b.room_id
@@ -197,6 +190,13 @@ M.desktop_message = function(room, message)
 		if handled then
 			return
 		end
+	end
+
+	-- Per-room override
+	local room_config = notifications_config.per_room[room.id]
+	if room_config then
+		send_notification(room_config, notifications_config.handler, message, sender_with_room)
+		return
 	end
 
 	-- Favorite rooms
