@@ -562,18 +562,16 @@ M.handle = function(room_id, event)
 				return a ~= nil
 			end)
 			:totable()
-		-- We only want to update the name with the alias if it is not already set
 		local alias = aliases[1]
 
 		client.set_room_alias(room_id, aliases)
 		local message = canonical_alias_state_event_to_message(event)
 		client.add_room_message(room_id, message)
-		if alias then
-			if room.name == room.id then
-				client.get_room(room_id).name = event.content.alias
-				return true
-			end
+		-- We only want to update the name with the alias if it is not already set
+		if alias and room.name == room.id then
+			client.get_room(room_id).name = alias
 		end
+		return true
 	elseif event.type == "m.room.topic" then
 		client.get_room(room_id).topic = event.content.topic
 		return true
@@ -668,13 +666,12 @@ M.handle_multiple = function(room_id, events)
 	table.sort(events, function(a, b)
 		return (a.origin_server_ts or 0) < (b.origin_server_ts or 0)
 	end)
-	-- for _, event in ipairs(events) do
 	vim.iter(events):each(function(event)
 		if M.handle(room_id, event) then
 			handled = true
 		end
 
-		if not event or not event.event_id then
+		if not event.event_id then
 			-- Skip events without an ID
 			return
 		end
