@@ -133,6 +133,12 @@ vim.g.neoment = {
 		favorites = "all",
 		people = "all",
 		rooms = "mentions"
+		
+		-- You can also set notification levels per room ID by using a table:
+		per_room = {
+			-- ["!roomid:matrix.org"] = "all",
+			-- ["!anotherroomid:matrix.org"] = "mentions",
+		},
 	},
 	
 	-- Picker configuration (optional)

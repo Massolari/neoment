@@ -56,6 +56,7 @@
 --- @field favorites? neoment.config.DesktopNotificationLevel Notification level for favorite rooms
 --- @field people? neoment.config.DesktopNotificationLevel Notification level for people rooms
 --- @field rooms? neoment.config.DesktopNotificationLevel Notification level for non-favorite, non-direct rooms
+--- @field per_room? table<string, neoment.config.DesktopNotificationLevel> Notification levels per room ID
 
 --- @alias neoment.config.DesktopNotificationHandler fun(title: string, content: string): nil
 --- @alias neoment.config.DesktopNotificationLevel "all"|"mentions"|"none"
@@ -108,6 +109,7 @@
 --- @field favorites neoment.config.DesktopNotificationLevel Notification level for favorite rooms
 --- @field people neoment.config.DesktopNotificationLevel Notification level for people rooms
 --- @field rooms neoment.config.DesktopNotificationLevel Notification level for non-favorite, non-direct rooms
+--- @field per_room table<string, neoment.config.DesktopNotificationLevel> Notification levels per room ID
 
 local M = {}
 
@@ -165,6 +167,7 @@ local default = {
 		favorites = "all",
 		people = "all",
 		rooms = "mentions",
+		per_room = {},
 	},
 	picker = {
 		rooms = default_room_picker,
