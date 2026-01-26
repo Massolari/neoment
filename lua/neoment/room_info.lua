@@ -4,6 +4,13 @@ local constants = require("neoment.constants")
 local util = require("neoment.util")
 local matrix = require("neoment.matrix")
 
+--- Converts a Matrix path (room ID or alias) to a matrix.to link.
+--- @param path string The Matrix path (room ID or alias).
+--- @return string The matrix.to link.
+local function to_matrix_link(path)
+	return "https://matrix.to/#/" .. vim.uri_encode(path)
+end
+
 --- Opens the room info window for the given room ID.
 --- @param room_id string The ID of the room to open info for.
 --- @return number The buffer number of the room info window.
@@ -68,8 +75,20 @@ M.update_buffer = function(buffer_id)
 
 	-- Room ID
 	table.insert(lines, "**Room ID:** " .. room_id)
-	local room_link = "https://matrix.to/#/" .. vim.uri_encode(room_id)
-	table.insert(lines, "**Room link:** " .. room_link)
+	-- Aliases
+	local aliases = matrix.get_room_aliases(room_id)
+	if #aliases > 0 then
+		table.insert(lines, "**Aliases:**")
+		vim.iter(aliases):each(function(line)
+			table.insert(lines, " - " .. line)
+		end)
+	end
+	table.insert(lines, "")
+	table.insert(lines, "**Room links:**")
+	table.insert(lines, " - " .. to_matrix_link(room_id))
+	vim.iter(aliases):each(function(alias)
+		table.insert(lines, " - " .. to_matrix_link(alias))
+	end)
 	table.insert(lines, "")
 
 	-- Topic/Description

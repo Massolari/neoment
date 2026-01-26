@@ -16,6 +16,7 @@ M.client = nil
 --- @field id string The ID of the room.
 --- @field is_tracked boolean Indicates if events for this room are being stored. If false, we only store the last message and state events.
 --- @field name string The name of the room.
+--- @field aliases table<string> A table to store aliases of the room.
 --- @field topic string The topic of the room.
 --- @field members table<string, string> A table to store members of the room, mapped as user ID to display name.
 --- @field events neoment.matrix.client.Events A table to store events associated with the room.
@@ -149,9 +150,11 @@ end
 --- @return neoment.matrix.client.Room The created room object
 local function create_new_room(room_id)
 	vim.validate("room_id", room_id, "string")
+	--- @type neoment.matrix.client.Room
 	return {
 		id = room_id,
 		name = room_id,
+		aliases = {},
 		topic = "",
 		events = {},
 		pending_events = {},
@@ -288,6 +291,15 @@ M.add_room_message = function(room_id, message)
 	end
 
 	return message
+end
+
+--- Add an alias to a room.
+--- @param room_id string The ID of the room.
+--- @param aliases table<string> The alias to add to the room.
+M.set_room_alias = function(room_id, aliases)
+	local room = M.get_room(room_id)
+
+	room.aliases = aliases
 end
 
 --- Add a member to a room.

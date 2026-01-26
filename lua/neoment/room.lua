@@ -341,11 +341,6 @@ local function messages_to_lines(buffer_id)
 		-- Check if the content exists
 		local content = message.content or ""
 
-		-- Handle membership events specially
-		if message.is_state then
-			content = "Membership: " .. content
-		end
-
 		-- If there's a formatted content, convert it to markdown
 		if message.formatted_content then
 			content = markdown.from_html(message.formatted_content)
@@ -573,9 +568,9 @@ local function apply_highlights(buffer_id, room_id, lines)
 			end
 
 			if message.is_header then
-				-- Special handling for membership events
+				-- Special handling for state events
 				if message.is_state then
-					-- Apply Comment highlight for membership events and no header
+					-- Apply Comment highlight for state events and no header
 					api.nvim_buf_set_extmark(buffer_id, EXTMARK_NAMESPACE, index - 1, 0, {
 						virt_text = {
 							{ string.rep(" ", 28) .. " " .. config_icon.vertical_bar .. " ", SEPARATOR_HIGHLIGHT },
