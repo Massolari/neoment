@@ -975,6 +975,24 @@ M.get_room_members = function(room_id)
 	end, client.get_room(room_id).members)
 end
 
+--- Get the aliases of a room.
+--- @param room_id string The ID of the room.
+--- @return table<string> The aliases of the room.
+M.get_room_aliases = function(room_id)
+	vim.validate("room_id", room_id, "string")
+
+	-- If it's an invited room, return empty table
+	if not M.has_room(room_id) then
+		return {}
+	end
+
+	local room = client.get_room(room_id)
+	if not room then
+		return {}
+	end
+	return room.aliases or {}
+end
+
 --- Get the other members of a room.
 --- @param room_id string The ID of the room.
 --- @return table<string, string> The other members of the room. The keys are user IDs and the values are display names.

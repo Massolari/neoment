@@ -212,10 +212,49 @@ local function event_to_message(event, replying_to)
 	}
 end
 
---- Convert a Matrix state event to a message.
+--- Convert a Matrix `m.room.canonical_alias` state event to a message.
+--- @param event neoment.matrix.ClientEventWithoutRoomID The state event to convert.
+--- @return neoment.matrix.client.Message The converted message object.
+local function canonical_alias_state_event_to_message(event)
+	local aliases = vim.iter({ event.content.alias, event.content.alt_aliases or {} })
+		:flatten()
+		:filter(function(a)
+			return a ~= nil
+		end)
+		:join(", ")
+
+	local sender_name = require("neoment.matrix").get_display_name_or_fetch(event.sender)
+	local content
+	if #aliases > 0 then
+		content = string.format("%s set the room aliases to %s", sender_name, aliases)
+	else
+		content = string.format("%s removed the room aliases", sender_name)
+	end
+
+	--- @type neoment.matrix.client.Message
+	return {
+		id = event.event_id,
+		sender = event.sender,
+		content = content,
+		formatted_content = nil,
+		timestamp = event.origin_server_ts,
+		age = event.unsigned and event.unsigned.age or nil,
+		was_edited = false,
+		was_redacted = false,
+		mentions = {},
+		replying_to = nil,
+		reactions = {},
+		attachment = nil,
+		is_state = true,
+		thread_root_id = nil,
+		thread_replies_count = nil,
+	}
+end
+
+--- Convert a Matrix `m.room.member` state event to a message.
 --- @param event neoment.matrix.ClientEventWithoutRoomID The state event to convert.
 --- @return neoment.matrix.client.Message? The converted message object.
-local function state_event_to_message(event)
+local function member_state_event_to_message(event)
 	local membership = event.content.membership
 	local prev_content = event.unsigned and event.unsigned.prev_content or nil
 	local sender_name = require("neoment.matrix").get_display_name_or_fetch(event.sender)
@@ -290,7 +329,7 @@ local function state_event_to_message(event)
 
 	local display_name = require("neoment.matrix").get_display_name(event.state_key)
 
-	local content = string.format("%s %s", display_name, message_action)
+	local content = string.format("Membership: %s %s", display_name, message_action)
 
 	--- @type neoment.matrix.client.Message
 	return {
@@ -519,18 +558,22 @@ M.handle = function(room_id, event)
 		return true
 	elseif event.type == "m.room.canonical_alias" then
 		local room = client.get_room(room_id)
-		-- We only want to update the name with the alias if it is not already set
-		if room.name == room.id then
-			local alias = event.content.alias
-			if not alias and event.content.alt_aliases then
-				alias = event.content.alt_aliases[1]
-			end
+		local aliases = vim.iter({ event.content.alias, event.content.alt_aliases or {} })
+			:flatten()
+			:filter(function(a)
+				return a ~= nil
+			end)
+			:totable()
+		local alias = aliases[1]
 
-			if alias then
-				client.get_room(room_id).name = event.content.alias
-			end
-			return true
+		client.set_room_aliases(room_id, aliases)
+		local message = canonical_alias_state_event_to_message(event)
+		client.add_room_message(room_id, message)
+		-- We only want to update the name with the alias if it is not already set
+		if alias and room.name == room.id then
+			client.get_room(room_id).name = alias
 		end
+		return true
 	elseif event.type == "m.room.topic" then
 		client.get_room(room_id).topic = event.content.topic
 		return true
@@ -541,7 +584,7 @@ M.handle = function(room_id, event)
 			client.remove_room_member(room_id, event.state_key)
 		end
 
-		local message = state_event_to_message(event)
+		local message = member_state_event_to_message(event)
 		if message then
 			client.add_room_message(room_id, message)
 		end
@@ -621,14 +664,18 @@ end
 --- @return boolean True if any event was handled, false otherwise
 M.handle_multiple = function(room_id, events)
 	local handled = false
-	for _, event in ipairs(events) do
+	-- Sort the events by origin_server_ts to ensure they are processed in order
+	table.sort(events, function(a, b)
+		return (a.origin_server_ts or 0) < (b.origin_server_ts or 0)
+	end)
+	vim.iter(events):each(function(event)
 		if M.handle(room_id, event) then
 			handled = true
 		end
 
-		if not event or not event.event_id then
+		if not event.event_id then
 			-- Skip events without an ID
-			goto continue
+			return
 		end
 
 		-- Handle pending actions
@@ -637,8 +684,7 @@ M.handle_multiple = function(room_id, events)
 			M.handle_multiple(room_id, vim.tbl_values(pending_events))
 			client.get_room(room_id).pending_events[event.event_id] = nil
 		end
-		::continue::
-	end
+	end)
 
 	return handled
 end
