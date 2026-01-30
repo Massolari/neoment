@@ -216,17 +216,19 @@ end
 --- @param event neoment.matrix.ClientEventWithoutRoomID The state event to convert.
 --- @return neoment.matrix.client.Message The converted message object.
 local function canonical_alias_state_event_to_message(event)
-	local alias = event.content.alias
-	if not alias and event.content.alt_aliases then
-		alias = event.content.alt_aliases[1]
-	end
+	local aliases = vim.iter({ event.content.alias, event.content.alt_aliases or {} })
+		:flatten()
+		:filter(function(a)
+			return a ~= nil
+		end)
+		:join(", ")
 
 	local sender_name = require("neoment.matrix").get_display_name_or_fetch(event.sender)
 	local content
-	if alias then
-		content = string.format("%s set the room alias to %s", sender_name, alias)
+	if #aliases > 0 then
+		content = string.format("%s set the room aliases to %s", sender_name, aliases)
 	else
-		content = string.format("%s removed the room alias", sender_name)
+		content = string.format("%s removed the room aliases", sender_name)
 	end
 
 	--- @type neoment.matrix.client.Message
