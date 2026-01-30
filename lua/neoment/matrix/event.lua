@@ -566,7 +566,7 @@ M.handle = function(room_id, event)
 			:totable()
 		local alias = aliases[1]
 
-		client.set_room_alias(room_id, aliases)
+		client.set_room_aliases(room_id, aliases)
 		local message = canonical_alias_state_event_to_message(event)
 		client.add_room_message(room_id, message)
 		-- We only want to update the name with the alias if it is not already set

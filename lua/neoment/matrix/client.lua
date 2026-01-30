@@ -293,10 +293,10 @@ M.add_room_message = function(room_id, message)
 	return message
 end
 
---- Add an alias to a room.
+--- Set the aliases for a room.
 --- @param room_id string The ID of the room.
 --- @param aliases table<string> The aliases to set for the room.
-M.set_room_alias = function(room_id, aliases)
+M.set_room_aliases = function(room_id, aliases)
 	local room = M.get_room(room_id)
 
 	room.aliases = aliases
