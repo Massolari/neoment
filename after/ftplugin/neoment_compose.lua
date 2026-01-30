@@ -24,15 +24,11 @@ set_mapping("i", "<C-s>", "SendInsert", function()
 	require("neoment.room").send_and_close_compose(vim.api.nvim_get_current_buf())
 end, opts)
 
-local function abort()
-	local current_win = vim.api.nvim_get_current_win()
-	vim.api.nvim_set_current_win(vim.b.room_win)
-	vim.api.nvim_win_close(current_win, true)
-end
-
 -- Ctrl+C to cancel
-set_mapping("n", "<C-c>", "Abort", abort, opts)
+set_mapping("n", "<C-c>", "Abort", function()
+	require("neoment.room").close_compose(vim.api.nvim_get_current_buf())
+end, opts)
 set_mapping("i", "<C-c>", "AbortInsert", function()
 	vim.cmd("stopinsert")
-	abort()
+	require("neoment.room").close_compose(vim.api.nvim_get_current_buf())
 end, opts)

@@ -967,19 +967,19 @@ M.prompt_message = function(params)
 	end
 
 	-- Create a new buffer for input
-	local input_buf = vim.api.nvim_create_buf(false, true) -- listed=false, scratch=true
+	local compose_buf = vim.api.nvim_create_buf(false, true) -- listed=false, scratch=true
 	-- Store room_id and parent window in buffer variables
-	vim.b[input_buf].room_id = room_id
-	vim.b[input_buf].thread_root_id = thread_root_id
-	vim.b[input_buf].room_win = room_win
-	vim.b[input_buf].members = matrix.get_room_other_members(room_id)
-	vim.bo[input_buf].filetype = "neoment_compose.markdown"
+	vim.b[compose_buf].room_id = room_id
+	vim.b[compose_buf].thread_root_id = thread_root_id
+	vim.b[compose_buf].room_win = room_win
+	vim.b[compose_buf].members = matrix.get_room_other_members(room_id)
+	vim.bo[compose_buf].filetype = "neoment_compose.markdown"
 
 	local lines = {}
 
 	if params then
 		if params.relation then
-			vim.b[input_buf].relation = params.relation
+			vim.b[compose_buf].relation = params.relation
 			if params.relation.relation == "reply" then
 				buffer_name = string.format(
 					"neoment://compose/Replying to %s",
@@ -994,37 +994,56 @@ M.prompt_message = function(params)
 		end
 
 		if params.attachment then
-			vim.b[input_buf].attachment = params.attachment
+			vim.b[compose_buf].attachment = params.attachment
 			buffer_name = string.format("%s with the attachment %s", buffer_name, params.attachment.filename)
 		end
 	end
 
-	vim.api.nvim_buf_set_name(input_buf, buffer_name)
+	vim.api.nvim_buf_set_name(compose_buf, buffer_name)
 
 	-- Open split at bottom
-	local win = vim.api.nvim_open_win(input_buf, true, {
+	local win = vim.api.nvim_open_win(compose_buf, true, {
 		split = "below",
 		height = 10,
 	})
 
-	vim.wo[win].breakindent = false
-	vim.wo[win].conceallevel = 0
-	vim.wo[win].number = false
-	vim.wo[win].relativenumber = false
-	vim.wo[win].cursorline = true
-	vim.wo[win].winfixheight = true
+	vim.wo[win][0].breakindent = false
+	vim.wo[win][0].conceallevel = 0
+	vim.wo[win][0].number = false
+	vim.wo[win][0].relativenumber = false
+	vim.wo[win][0].cursorline = true
+	vim.wo[win][0].winfixheight = true
 
-	vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, lines)
+	vim.api.nvim_buf_set_lines(compose_buf, 0, -1, false, lines)
 
 	if params and params.relation and params.relation.relation == "replace" then
 		-- Go to the end of the message (last line and last column)
-		local last_line = vim.api.nvim_buf_line_count(input_buf)
+		local last_line = vim.api.nvim_buf_line_count(compose_buf)
 		local last_col = vim.fn.strdisplaywidth(lines[#lines])
 		vim.api.nvim_win_set_cursor(win, { last_line, last_col })
 	else
 		-- Start in insert mode
 		vim.cmd("startinsert")
 	end
+end
+
+--- Close the compose buffer and restore the room window height
+--- @param compose_buf number The ID of the compose buffer
+M.close_compose = function(compose_buf)
+	local room_win = vim.b[compose_buf].room_win
+	local current_win = vim.api.nvim_get_current_win()
+	local compose_win_height = vim.api.nvim_win_get_height(current_win)
+	local room_win_height = vim.api.nvim_win_get_height(room_win)
+	local total_height = compose_win_height + room_win_height + 1 -- +1 for the separator line
+
+	vim.schedule(function()
+		vim.api.nvim_win_close(current_win, true)
+		-- Restore room window height to its original value
+		if vim.api.nvim_win_is_valid(room_win) then
+			vim.api.nvim_win_set_height(room_win, total_height)
+		end
+		vim.api.nvim_set_current_win(room_win)
+	end)
 end
 
 --- Function to send message and close the compose buffer
@@ -1034,7 +1053,6 @@ M.send_and_close_compose = function(compose_buf)
 	local message = table.concat(lines, "\n")
 	local room_id = vim.b[compose_buf].room_id
 	local thread_root_id = vim.b[compose_buf].thread_root_id
-	local room_win = vim.b[compose_buf].room_win
 
 	if not room_id then
 		notify.error("Couldn't identify the current room")
@@ -1056,19 +1074,7 @@ M.send_and_close_compose = function(compose_buf)
 
 	send_message(room_id, message, params)
 
-	vim.schedule(function()
-		local current_win = vim.api.nvim_get_current_win()
-		local compose_win_height = vim.api.nvim_win_get_height(current_win)
-		local room_win_height = vim.api.nvim_win_get_height(room_win)
-		local total_height = compose_win_height + room_win_height + 1 -- +1 for the separator line
-
-		vim.api.nvim_win_close(current_win, true)
-		-- Restore room window height to its original value
-		if vim.api.nvim_win_is_valid(room_win) then
-			vim.api.nvim_win_set_height(room_win, total_height)
-		end
-		vim.api.nvim_set_current_win(room_win)
-	end)
+	M.close_compose(compose_buf)
 end
 
 --- Load more messages in the room
