@@ -134,10 +134,10 @@ vim.g.neoment = {
 		people = "all",
 		rooms = "mentions"
 		
-		-- You can also set notification levels per room ID by using a table:
+		-- You can also set notification levels per room ID or alias by using a table:
 		per_room = {
 			-- ["!roomid:matrix.org"] = "all",
-			-- ["!anotherroomid:matrix.org"] = "mentions",
+			-- ["#a_room_alias:matrix.org"] = "mentions",
 		},
 	},
 	

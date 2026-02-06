@@ -166,6 +166,7 @@ M.desktop_message = function(room, message)
 		return
 	end
 
+	-- Check if the message is sent by the user or is a state event, if so, skip notifications
 	local user_id = require("neoment.matrix").get_user_id()
 	if not user_id or message.is_state or message.sender == user_id then
 		return
@@ -193,7 +194,13 @@ M.desktop_message = function(room, message)
 	end
 
 	-- Per-room override
-	local room_config = notifications_config.per_room[room.id]
+	local room_config = vim.iter({ room.id, room.aliases })
+		:flatten()
+		:map(function(id_alias)
+			return notifications_config.per_room[id_alias]
+		end)
+		:totable()[1]
+
 	if room_config then
 		send_notification(room_config, notifications_config.handler, message, sender_with_room)
 		return
