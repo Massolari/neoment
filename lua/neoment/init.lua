@@ -112,6 +112,29 @@ M.join_room = function(room_id_or_alias)
 		return
 	end
 
+	local existing_room_id = nil
+	if room_id_or_alias:match("^!") then
+		if matrix.is_user_member_of_room(room_id_or_alias) then
+			existing_room_id = room_id_or_alias
+		end
+	else
+		for _, user_room in pairs(matrix.get_user_rooms()) do
+			local aliases = matrix.get_room_aliases(user_room.id)
+			if vim.tbl_contains(aliases, room_id_or_alias) then
+				existing_room_id = user_room.id
+				break
+			end
+		end
+	end
+
+	if existing_room_id then
+		notify.info("Room " .. room_id_or_alias .. " already joined. Opening...")
+		vim.schedule(function()
+			rooms.open_room(existing_room_id)
+		end)
+		return
+	end
+
 	matrix.join_room(room_id_or_alias, function(join_response)
 		error.match(join_response, function(room_id)
 			notify.info("Successfully joined room " .. room_id_or_alias)
