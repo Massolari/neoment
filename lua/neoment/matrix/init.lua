@@ -836,6 +836,28 @@ M.set_room_read_marker = function(room_id, markers, callback)
 	})
 end
 
+--- Create a new room.
+--- @param options table The options for creating the room.
+--- @param callback fun(data: neoment.Error<string, neoment.matrix.api.Error>): any The callback function to handle the response. The response will be the room ID of the created room.
+M.create_room = function(options, callback)
+	api.post(
+		client.client.homeserver .. "/_matrix/client/v3/createRoom",
+		options,
+		function(response)
+			local result = error.map(response, function(data)
+				return data.room_id
+			end) --[[@as neoment.Error<string, neoment.matrix.api.Error>]]
+
+			callback(result)
+		end,
+		{
+			headers = {
+				Authorization = "Bearer " .. client.client.access_token,
+			},
+		}
+	)
+end
+
 --- Join a room by ID or alias.
 --- @param room_id_or_alias string The ID or alias of the room to join.
 --- @param callback fun(data: neoment.Error<string, neoment.matrix.api.Error>): any The callback function to handle the response. The response will be the room ID of the joined room.

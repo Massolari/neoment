@@ -105,22 +105,65 @@ M.init = function()
 end
 
 --- Join a room by its ID or alias
---- @param room_id_or_alias string The room ID (!room:server.com) or alias (#alias:server.com)
-M.join_room = function(room_id_or_alias)
+--- @param room_id_or_alias_or_user_id string The room ID, alias, or user ID (for DMs) to join
+M.join_room = function(room_id_or_alias_or_user_id)
 	if not matrix.is_logged_in() then
 		notify.error("Not logged in")
 		return
 	end
 
+	-- Check if it is a user ID (Direct Message)
+	if room_id_or_alias_or_user_id:match("^@") then
+		local target_user_id = room_id_or_alias_or_user_id
+		local current_user_id = matrix.get_user_id()
+
+		-- Check if a DM already exists
+		local existing_dm_room_id = nil
+		for _, user_room in pairs(matrix.get_user_rooms()) do
+			local members = matrix.get_room_members(user_room.id)
+			if vim.tbl_count(members) == 2 and members[target_user_id] and members[current_user_id] then
+				existing_dm_room_id = user_room.id
+				break
+			end
+		end
+
+		if existing_dm_room_id then
+			notify.info("Opening existing DM with " .. target_user_id)
+			vim.schedule(function()
+				rooms.open_room(existing_dm_room_id)
+			end)
+			return
+		end
+
+		-- Create new DM
+		notify.info("Creating DM with " .. target_user_id .. "...")
+		matrix.create_room({
+			invite = { target_user_id },
+			is_direct = true,
+			preset = "trusted_private_chat",
+		}, function(response)
+			error.match(response, function(room_id)
+				notify.info("Created DM with " .. target_user_id)
+				vim.schedule(function()
+					rooms.open_room(room_id)
+				end)
+				return nil
+			end, function(err)
+				notify.error("Failed to create DM: " .. err.error)
+			end)
+		end)
+		return
+	end
+
 	local existing_room_id = nil
-	if room_id_or_alias:match("^!") then
-		if matrix.is_user_member_of_room(room_id_or_alias) then
-			existing_room_id = room_id_or_alias
+	if room_id_or_alias_or_user_id:match("^!") then
+		if matrix.is_user_member_of_room(room_id_or_alias_or_user_id) then
+			existing_room_id = room_id_or_alias_or_user_id
 		end
 	else
 		for _, user_room in pairs(matrix.get_user_rooms()) do
 			local aliases = matrix.get_room_aliases(user_room.id)
-			if vim.tbl_contains(aliases, room_id_or_alias) then
+			if vim.tbl_contains(aliases, room_id_or_alias_or_user_id) then
 				existing_room_id = user_room.id
 				break
 			end
@@ -128,22 +171,22 @@ M.join_room = function(room_id_or_alias)
 	end
 
 	if existing_room_id then
-		notify.info("Room " .. room_id_or_alias .. " already joined. Opening...")
+		notify.info("Room " .. room_id_or_alias_or_user_id .. " already joined. Opening...")
 		vim.schedule(function()
 			rooms.open_room(existing_room_id)
 		end)
 		return
 	end
 
-	matrix.join_room(room_id_or_alias, function(join_response)
+	matrix.join_room(room_id_or_alias_or_user_id, function(join_response)
 		error.match(join_response, function(room_id)
-			notify.info("Successfully joined room " .. room_id_or_alias)
+			notify.info("Successfully joined room " .. room_id_or_alias_or_user_id)
 			vim.schedule(function()
 				rooms.open_room(room_id)
 			end)
 			return nil
 		end, function(err)
-			notify.error("Failed to join room " .. room_id_or_alias .. ": " .. err.error)
+			notify.error("Failed to join room " .. room_id_or_alias_or_user_id .. ": " .. err.error)
 		end)
 	end)
 end
