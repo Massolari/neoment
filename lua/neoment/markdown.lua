@@ -210,6 +210,36 @@ M.from_html = function(html)
 	markdown = markdown:gsub("<br/>", "\n")
 	markdown = markdown:gsub("<br />", "\n")
 
+	-- Capture code blocks
+	local preserved_code_blocks = {}
+	local preserved_count = 0
+	local function preserve(text)
+		preserved_count = preserved_count + 1
+		local placeholder = "{{CODEBLOCK" .. preserved_count .. "}}"
+		preserved_code_blocks[placeholder] = text
+		return placeholder
+	end
+
+	-- Code blocks with language
+	markdown = markdown:gsub([[<pre><code class=["']language%-([^"']+)["']>(.-)</code></pre>]], function(lang, code)
+		return preserve("\n```" .. lang .. "\n" .. code .. "\n```\n")
+	end)
+
+	-- Code blocks without language
+	markdown = markdown:gsub("<pre><code>(.-)</code></pre>", function(code)
+		return preserve("\n```\n" .. code .. "\n```\n")
+	end)
+
+	-- Code blocks with language (inline/fallback)
+	markdown = markdown:gsub([[<code class=["']language%-([^"]+)["']>(.-)</code>]], function(lang, code)
+		return preserve("\n```" .. lang .. "\n" .. code .. "\n```\n")
+	end)
+
+	-- Inline code
+	markdown = markdown:gsub("<code>(.-)</code>", function(code)
+		return preserve("`" .. code .. "`")
+	end)
+
 	-- Strip Matrix reply blocks as we support rich replies
 	markdown = markdown:gsub("<mx%-reply>%s*<blockquote>(.-)</blockquote>%s*</mx%-reply>", "")
 
@@ -273,17 +303,7 @@ M.from_html = function(html)
 	markdown = markdown:gsub("<em>(.-)</em>", "_%1_")
 	markdown = markdown:gsub("<i>(.-)</i>", "_%1_")
 
-	-- Code blocks with language
-	markdown = markdown:gsub([[<pre><code class=["']language%-([^"']+)["']>(.-)</code></pre>]], "\n```%1\n%2\n```\n")
 
-	-- Code blocks without language
-	markdown = markdown:gsub("<pre><code>(.-)</code></pre>", "\n```\n%1\n```\n")
-
-	-- Code blocks with language
-	markdown = markdown:gsub([[<code class=["']language%-([^"]+)["']>(.-)</code>]], "\n```%1\n%2\n```\n")
-
-	-- Code blocks without language
-	markdown = markdown:gsub("<code>(.-)</code>", "`%1`")
 
 	-- Headers
 	markdown = markdown:gsub("<h1>(.-)</h1>", "# %1")
@@ -299,6 +319,11 @@ M.from_html = function(html)
 
 	-- Clean up any remaining HTML tags
 	markdown = markdown:gsub("<[^>]+>(.-)</[^>]+>", "%1")
+
+	-- Restore code blocks
+	for placeholder, code in pairs(preserved_code_blocks) do
+		markdown = markdown:gsub(placeholder, code)
+	end
 
 	return markdown
 end

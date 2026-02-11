@@ -165,6 +165,13 @@ describe("markdown: to_html", function()
 			assert.are.same(expected_output, result)
 		end)
 
+		it("should parse HTML in code blocks as literal text", function()
+			local input = '<pre><code class="language-lua">print("<div>bold</div>")</code></pre>'
+			local expected_output = '\n```lua\nprint("<div>bold</div>")\n```\n'
+			local result = markdown.from_html(input)
+			assert.are.same(expected_output, result)
+		end)
+
 		it("should convert headers to Markdown", function()
 			local input = "<h1>Header 1</h1><h2>Header 2</h2><h3>Header 3</h3>"
 			local expected_output = "# Header 1## Header 2### Header 3"
