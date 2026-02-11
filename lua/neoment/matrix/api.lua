@@ -19,7 +19,7 @@ local function handler(response)
 	-- local data = json.decode(response.body)
 	local ok, data = pcall(json.decode, response.body)
 	if not ok then
-		return error.error({ error = "Failed to decode JSON response" })
+		return error.error({ error = "Failed to decode JSON response: " .. response.body })
 	end
 
 	if data.error then
