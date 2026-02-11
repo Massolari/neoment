@@ -1,9 +1,3 @@
-local assert = require("luassert.assert")
-local spy = require("luassert.spy")
-local busted = require("plenary.busted")
-local describe = busted.describe
-local it = busted.it
-
 local room = require("neoment.room")
 
 describe("Room", function()

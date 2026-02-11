@@ -14,5 +14,3 @@ end
 
 load_module("plenary.nvim", "https://github.com/nvim-lua/plenary.nvim")
 vim.opt.rtp:append(".")
-vim.cmd("runtime plugin/plenary.vim")
-require("plenary.busted")

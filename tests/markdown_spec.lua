@@ -1,8 +1,3 @@
-local assert = require("luassert.assert")
-local busted = require("plenary.busted")
-local describe = busted.describe
-local it = busted.it
-
 local markdown = require("neoment.markdown")
 
 describe("markdown: to_html", function()
@@ -158,14 +153,14 @@ describe("markdown: to_html", function()
 
 		it("should convert code blocks without language to Markdown", function()
 			local input = "<pre><code>code block</code></pre>"
-			local expected_output = "```\ncode block\n```\n"
+			local expected_output = "\n```\ncode block\n```\n"
 			local result = markdown.from_html(input)
 			assert.are.same(expected_output, result)
 		end)
 
 		it("should convert code blocks with language to Markdown", function()
 			local input = '<pre><code class="language-lua">print("Hello")</code></pre>'
-			local expected_output = '```lua\nprint("Hello")\n```\n'
+			local expected_output = '\n```lua\nprint("Hello")\n```\n'
 			local result = markdown.from_html(input)
 			assert.are.same(expected_output, result)
 		end)

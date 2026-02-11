@@ -5,6 +5,54 @@
       "last_modified": "2026-01-02T14:39:32Z",
       "resolved": "github:NixOS/nixpkgs/16c7794d0a28b5a37904d55bcca36003b9109aaa?lastModified=1767364772&narHash=sha256-fFUnEYMla8b7UKjijLnMe%2BoVFOz6HjijGGNS1l7dYaQ%3D"
     },
+    "luajitPackages.busted@latest": {
+      "last_modified": "2026-01-23T17:20:52Z",
+      "resolved": "github:NixOS/nixpkgs/a1bab9e494f5f4939442a57a58d0449a109593fe#luajitPackages.busted",
+      "source": "devbox-search",
+      "version": "2.3.0-1",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/01h26km2lzjlxxxwjf1kxka3bgzlhvs2-luajit2.1-busted-2.3.0-1",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/01h26km2lzjlxxxwjf1kxka3bgzlhvs2-luajit2.1-busted-2.3.0-1"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/ij7r9lbhd8g0crkdf22cjf2dc80n00b9-luajit2.1-busted-2.3.0-1",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/ij7r9lbhd8g0crkdf22cjf2dc80n00b9-luajit2.1-busted-2.3.0-1"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/s37p9r6y28408q6jbz8fk6r9sgb68fib-luajit2.1-busted-2.3.0-1",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/s37p9r6y28408q6jbz8fk6r9sgb68fib-luajit2.1-busted-2.3.0-1"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/0w2rzjh10qpbj1a49vkzvn46czkvffji-luajit2.1-busted-2.3.0-1",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/0w2rzjh10qpbj1a49vkzvn46czkvffji-luajit2.1-busted-2.3.0-1"
+        }
+      }
+    },
     "stylua@2.3.1": {
       "last_modified": "2025-11-23T21:50:36Z",
       "resolved": "github:NixOS/nixpkgs/ee09932cedcef15aaf476f9343d1dea2cb77e261#stylua",

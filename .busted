@@ -1,0 +1,6 @@
+return {
+	_all = {
+		lua = "nvim -u ./tests/init.lua -l",
+		ROOT = { "tests" },
+	},
+}
