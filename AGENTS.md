@@ -1,9 +1,9 @@
 # Neoment.nvim - Agent Guidelines
 
 ## Build/Test Commands
-- `make test` - Run all tests using Plenary/Busted
-- `make test-watch` - Run tests in watch mode
-- Tests use Plenary test framework with luassert assertions
+- `devbox run test` - Run all tests using Busted
+- `devbox run test:watch` - Run tests in watch mode
+- Tests use Busted test framework with luassert assertions
 
 ## Code Style
 - Use tabs for indentation

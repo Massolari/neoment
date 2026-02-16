@@ -129,6 +129,22 @@ describe("markdown: to_html", function()
 		assert.are.same(expected_output, result)
 	end)
 
+	it("should handle Lua pattern captures in code blocks without error", function()
+		local input = '```lua\n:luado return line:gsub("(%a+), (%a+)", "%2 %1")\n```'
+		-- Newlines are converted to <br /> in the main content, but code blocks are preserved.
+		-- However, the implementation of to_html converts \n to <br /> AFTER processing code blocks and replacing them with placeholders.
+		-- Then it restores the code blocks.
+		-- BUT, it does `html = html:gsub("\n", "<br />")` which affects everything NOT inside placeholders.
+		-- The placeholders are just text like {{CODEBLOCK1}}.
+		-- So the content inside preserved_blocks (which contains newlines) is NOT converted to <br />.
+		-- This is correct.
+
+		local expected_output =
+			'<pre><code class="language-lua">:luado return line:gsub("(%a+), (%a+)", "%2 %1")</code></pre>'
+		local result = markdown.to_html(input)
+		assert.are.same(expected_output, result)
+	end)
+
 	describe("markdown: from_html", function()
 		it("should convert bold HTML tags to Markdown", function()
 			local input = "<strong>bold text</strong> and <b>more bold</b>"
@@ -294,6 +310,14 @@ describe("markdown: to_html", function()
 		it("should preserve multiple line breaks from HTML", function()
 			local input = "Line 1<br /><br /><br />Line 2<br /><br /><br /><br />Line 3"
 			local expected_output = "Line 1\n\n\nLine 2\n\n\n\nLine 3"
+			local result = markdown.from_html(input)
+			assert.are.same(expected_output, result)
+		end)
+
+		it("should handle Lua pattern captures in code blocks without error", function()
+			local input =
+				'<pre><code class="language-lua">:luado return line:gsub("(%a+), (%a+)", "%2 %1")</code></pre>'
+			local expected_output = '\n```lua\n:luado return line:gsub("(%a+), (%a+)", "%2 %1")\n```\n'
 			local result = markdown.from_html(input)
 			assert.are.same(expected_output, result)
 		end)

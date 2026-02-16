@@ -167,7 +167,9 @@ M.to_html = function(markdown_text)
 
 	-- Restaurar os blocos de código
 	for placeholder, code_block in pairs(preserved_blocks) do
-		html = html:gsub(placeholder, code_block)
+		-- Escape % to %% to avoid Lua pattern capture errors (e.g. %1, %2 in code)
+		local safe_code = code_block:gsub("%%", "%%%%")
+		html = html:gsub(placeholder, safe_code)
 	end
 
 	-- Processar listas não ordenadas para adicionar <ul> tags
@@ -303,8 +305,6 @@ M.from_html = function(html)
 	markdown = markdown:gsub("<em>(.-)</em>", "_%1_")
 	markdown = markdown:gsub("<i>(.-)</i>", "_%1_")
 
-
-
 	-- Headers
 	markdown = markdown:gsub("<h1>(.-)</h1>", "# %1")
 	markdown = markdown:gsub("<h2>(.-)</h2>", "## %1")
@@ -322,7 +322,9 @@ M.from_html = function(html)
 
 	-- Restore code blocks
 	for placeholder, code in pairs(preserved_code_blocks) do
-		markdown = markdown:gsub(placeholder, code)
+		-- Escape % to %% to avoid Lua pattern capture errors (e.g. %1, %2 in code)
+		local safe_code = code:gsub("%%", "%%%%")
+		markdown = markdown:gsub(placeholder, safe_code)
 	end
 
 	return markdown
