@@ -973,7 +973,8 @@ M.prompt_message = function(params)
 	vim.b[compose_buf].thread_root_id = thread_root_id
 	vim.b[compose_buf].room_win = room_win
 	vim.b[compose_buf].members = matrix.get_room_other_members(room_id)
-	vim.bo[compose_buf].filetype = "neoment_compose.markdown"
+	vim.bo[compose_buf].filetype = "neoment_compose"
+	vim.treesitter.start(compose_buf, "markdown")
 
 	local lines = {}
 
