@@ -1655,7 +1655,7 @@ M.open_thread = function()
 	local error_message = get_message_under_cursor()
 	error.map(error_message, function(message)
 		-- Check if this is a thread root or a thread indicator line
-		local thread_root_id = message.thread_replies_count and message.id or message.thread_root_id
+		local thread_root_id = message.thread_replies_count and matrix.get_message_id(message) or message.thread_root_id
 
 		if not thread_root_id then
 			-- This message is not part of a thread yet, so start a new thread

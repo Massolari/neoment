@@ -1392,6 +1392,12 @@ M.set_room_direct = function(room_id, is_direct)
 	client.get_room(room_id).is_direct = is_direct
 end
 
+--- Get the message ID of a message, taking into account edits.
+--- @param message neoment.matrix.client.Message The message object.
+M.get_message_id = function(message)
+	return message.edit_data.id or message.id
+end
+
 --- @type neoment.matrix.client.Client
 M.client = nil
 M.get_room = client.get_room
