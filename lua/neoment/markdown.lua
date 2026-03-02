@@ -314,7 +314,7 @@ M.from_html = function(html)
 	markdown = markdown:gsub([[<a href=["'](.-)["']>(.-)</a>]], "[%2](%1)")
 
 	-- Lists
-	markdown = markdown:gsub("<li>(.-)</li>", "- %1")
+	markdown = markdown:gsub("\n?<li>(.-)</li>", "\n- %1")
 	markdown = markdown:gsub("<ul>(.-)</ul>", "%1")
 
 	-- Clean up any remaining HTML tags

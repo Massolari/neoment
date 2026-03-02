@@ -204,7 +204,14 @@ describe("markdown: to_html", function()
 
 		it("should convert list items to Markdown", function()
 			local input = "<ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul>"
-			local expected_output = "- Item 1- Item 2- Item 3"
+			local expected_output = "\n- Item 1\n- Item 2\n- Item 3"
+			local result = markdown.from_html(input)
+			assert.are.same(expected_output, result)
+		end)
+
+		it("should convert list items with newline separator to Markdown", function()
+			local input = "<ul>\n<li>Item 1</li>\n<li>Item 2</li>\n<li>Item 3</li>\n</ul>"
+			local expected_output = "\n- Item 1\n- Item 2\n- Item 3\n"
 			local result = markdown.from_html(input)
 			assert.are.same(expected_output, result)
 		end)
