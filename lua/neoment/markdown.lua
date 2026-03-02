@@ -276,6 +276,18 @@ M.from_html = function(html)
 		return quoted
 	end)
 
+	-- Convert Matrix custom emoji/images to markdown images
+	markdown = markdown:gsub("<img([^>]+)>", function(attributes)
+		if not attributes:match("data%-mx%-emoticon") then
+			return nil -- Not a matrix emoticon, let it be handled or stripped later
+		end
+
+		local src = attributes:match('src="([^"]+)"') or ""
+		local title = attributes:match('title="([^"]+)"') or attributes:match('alt="([^"]+)"') or ""
+
+		return string.format("![%s](%s)", title, src)
+	end)
+
 	-- Handle tags with data-md attribute
 	markdown = markdown:gsub(
 		[[<(%w+)%s+data%-md=["'](.-)["']>(.-)</(%w+)>]],
