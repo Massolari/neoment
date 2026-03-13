@@ -331,7 +331,7 @@ describe("markdown: to_html", function()
 
 		it("should convert Matrix emoticons to Markdown images", function()
 			local input = '<img data-mx-emoticon height="24" src="mxc://example.com/image" alt="" title="My Emoji">'
-			local expected_output = "![My Emoji](mxc://example.com/image)"
+			local expected_output = "[img: My Emoji]"
 			local result = markdown.from_html(input)
 			assert.are.same(expected_output, result)
 		end)
@@ -339,7 +339,7 @@ describe("markdown: to_html", function()
 		it("should handle guild list with emoticons correctly", function()
 			local input =
 				'<ul><li><img data-mx-emoticon height="24" src="mxc://server.com/img" alt="" title="Guild"> Devs (<code>123</code>)</li></ul>'
-			local expected_output = "\n- ![Guild](mxc://server.com/img) Devs (`123`)"
+			local expected_output = "\n- [img: Guild] Devs (`123`)"
 			local result = markdown.from_html(input)
 			assert.are.same(expected_output, result)
 		end)

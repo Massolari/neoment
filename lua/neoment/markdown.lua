@@ -282,10 +282,9 @@ M.from_html = function(html)
 			return nil -- Not a matrix emoticon, let it be handled or stripped later
 		end
 
-		local src = attributes:match('src="([^"]+)"') or ""
 		local title = attributes:match('title="([^"]+)"') or attributes:match('alt="([^"]+)"') or ""
 
-		return string.format("![%s](%s)", title, src)
+		return string.format("[img: %s]", title)
 	end)
 
 	-- Handle tags with data-md attribute
