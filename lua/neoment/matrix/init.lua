@@ -1390,7 +1390,7 @@ end
 --- Get the message ID of a message, taking into account edits.
 --- @param message neoment.matrix.client.Message The message object.
 M.get_message_id = function(message)
-	return message.edit_data.id or message.id
+	return vim.tbl_get(message, "edit_data", "id") or message.id
 end
 
 --- @type neoment.matrix.client.Client
