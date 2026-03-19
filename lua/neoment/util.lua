@@ -269,4 +269,15 @@ M.win_count = function()
 	end, vim.api.nvim_tabpage_list_wins(0))
 end
 
+M.set_common_mappings = function(buffer_id)
+	--- @type vim.keymap.set.Opts
+	local opts = { remap = true, silent = true, buffer = buffer_id }
+	local function set_opts_desc(desc)
+		return vim.tbl_extend("force", opts, { desc = desc })
+	end
+	vim.keymap.set("n", "<localleader>f", "<Plug>NeomentPickRooms", set_opts_desc("[F]ind room"))
+	vim.keymap.set("n", "<localleader>F", "<Plug>NeomentPickOpenRooms", set_opts_desc("[F]ind open room"))
+	vim.keymap.set("n", "<localleader>l", "<Plug>NeomentToggleRoomsList", set_opts_desc("Toggle room [l]ist"))
+end
+
 return M

@@ -121,3 +121,15 @@ function _G.neoment_compose_omnifunc(findstart, base)
 		return res
 	end
 end
+
+vim.keymap.set("n", "<Plug>NeomentPickRooms", function()
+	require("neoment.rooms").pick()
+end)
+
+vim.keymap.set("n", "<Plug>NeomentPickOpenRooms", function()
+	require("neoment.rooms").pick_open()
+end)
+
+vim.keymap.set("n", "<Plug>NeomentToggleRoomsList", function()
+	require("neoment.rooms").toggle_room_list()
+end)

@@ -231,11 +231,11 @@ Filetype: `neoment_rooms`
 | --------------------------------------| ------------------------------------- | ---------------- |
 | Open room/space under cursor          | `<Plug>NeomentRoomsEnter`             | `<CR>`           |
 | Toggle fold under cursor              | `<Plug>NeomentRoomsToggleFold`        | `<Tab>`          |
-| Close window                          | `<Plug>NeomentRoomsClose`             | `q`              |
+| Close window                          | `<Plug>NeomentToggleRoomsList`        | `q`              |
 | Toggle favorite                       | `<Plug>NeomentRoomsToggleFavorite`    | `<localleader>a` |
 | Toggle direct messaging room          | `<Plug>NeomentRoomsToggleDirect`      | `<localleader>d` |
-| Find room (open `vim.ui.select`)      | `<Plug>NeomentRoomsPick`              | `<localleader>f` |
-| Find open room (open `vim.ui.select`) | `<Plug>NeomentRoomsPickOpen`          | `<localleader>F` |
+| Find room (open `vim.ui.select`)      | `<Plug>NeomentPickRooms`              | `<localleader>f` |
+| Find open room (open `vim.ui.select`) | `<Plug>NeomentPickOpenRooms`          | `<localleader>F` |
 | Show room information                 | `<Plug>NeomentRoomsShowRoomInfo`      | `<localleader>i` |
 | Toggle low priority                   | `<Plug>NeomentRoomsToggleLowPriority` | `<localleader>l` |
 | Toggle read/unread                    | `<Plug>NeomentRoomsToggleRead`        | `<localleader>r` |
@@ -250,10 +250,10 @@ Filetype: `neoment_room`
 | React to message                       | `<Plug>NeomentRoomReact`                | `<localleader>a` |
 | Redact (delete) message                | `<Plug>NeomentRoomRedact`               | `<localleader>d` |
 | Edit message                           | `<Plug>NeomentRoomEdit`                 | `<localleader>e` |
-| Find room (open `vim.ui.select`)       | `<Plug>NeomentRoomFind`                 | `<localleader>f` |
-| Find open room (open `vim.ui.select`)  | `<Plug>NeomentRoomFindOpen`             | `<localleader>F` |
+| Find room (open `vim.ui.select`)       | `<Plug>NeomentPickRooms`                | `<localleader>f` |
+| Find open room (open `vim.ui.select`)  | `<Plug>NeomentPickOpenRooms`            | `<localleader>F` |
 | Show current room information          | `<Plug>NeomentRoomShowRoomInfo`         | `<localleader>i` |
-| Toggle room list                       | `<Plug>NeomentRoomToggleRoomList`       | `<localleader>l` |
+| Toggle room list                       | `<Plug>NeomentToggleRoomsList`          | `<localleader>l` |
 | Leave room                             | `<Plug>NeomentRoomLeave`                | `<localleader>L` |
 | Set read marker                        | `<Plug>NeomentRoomSetReadMarker`        | `<localleader>m` |
 | Open attachment                        | `<Plug>NeomentRoomOpenAttachment`       | `<localleader>o` |
@@ -285,12 +285,13 @@ You can type `<C-x><C-o>` in insert mode, after typing `@`, to trigger the compl
 
 Filetype: `neoment_space`
 
-| Description                      | Mapping                            | Default          |
-| -------------------------------- | ---------------------------------- | ---------------- |
-| Open room/space under cursor     | `<Plug>NeomentSpaceEnter`          | `<CR>`           |
-| Find room (open `vim.ui.select`) | `<Plug>NeomentSpaceFind`           | `<localleader>f` |
-| Quit window (close the buffer)   | `<Plug>NeomentSpaceQuit`           | `<localleader>q` |
-| Toggle room list                 | `<Plug>NeomentSpaceToggleRoomList` | `<localleader>l` |
+| Description                           | Mapping                            | Default          |
+| ------------------------------------- | ---------------------------------- | ---------------- |
+| Open room/space under cursor          | `<Plug>NeomentSpaceEnter`          | `<CR>`           |
+| Find room (open `vim.ui.select`)      | `<Plug>NeomentPickRooms`           | `<localleader>f` |
+| Find open room (open `vim.ui.select`) | `<Plug>NeomentPickOpenRooms`       | `<localleader>F` |
+| Quit window (close the buffer)        | `<Plug>NeomentSpaceQuit`           | `<localleader>q` |
+| Toggle room list                      | `<Plug>NeomentToggleRoomsList`     | `<localleader>l` |
 
 #### Room Info Buffer
 
@@ -298,9 +299,10 @@ Filetype: `neoment_info_room`
 
 | Description                           | Mapping                           | Default          |
 | ------------------------------------- | --------------------------------- | ---------------- |
-| Find room (open `vim.ui.select`)      | `<Plug>NeomentInfoRoomFind`       | `<localleader>f` |
-| Find open room (open `vim.ui.select`) | `<Plug>NeomentInfoRoomFindOpen`   | `<localleader>F` |
-| Toggle room list                      | `<Plug>NeomentInfoRoomToggleList` | `<localleader>l` |
+| Quit info (close the buffer)          | `<Plug>NeomentInfoRoomQuit`       | `q`              |
+| Find room (open `vim.ui.select`)      | `<Plug>NeomentPickRooms`          | `<localleader>f` |
+| Find open room (open `vim.ui.select`) | `<Plug>NeomentPickOpenRooms`      | `<localleader>F` |
+| Toggle room list                      | `<Plug>NeomentToggleRoomsList`    | `<localleader>l` |
 
 ## Inspiration
 
