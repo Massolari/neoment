@@ -538,7 +538,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 
 		-- Mentions
 		local mention_start, mention_end, link = line:find("%[.-%]%((%S+%))")
-		if mention_start and mention_end then
+		while mention_start and mention_end do
 			if link:find("https://matrix.to/#/@[^%s]+:[^%s]+%)") == 1 then
 				local hlgroup = "NeomentMention"
 				if link:find(matrix.get_user_id()) then
@@ -553,6 +553,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 					{ index - 1, mention_end }
 				)
 			end
+			mention_start, mention_end, link = line:find("%[.-%]%((%S+%))", mention_end)
 		end
 
 		---@type neoment.room.LineMessage
