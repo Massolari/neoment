@@ -313,8 +313,8 @@ M.from_html = function(html)
 	markdown = markdown:gsub("<b>(.-)</b>", "**%1**")
 
 	-- Italic
-	markdown = markdown:gsub("<em>(.-)</em>", "_%1_")
-	markdown = markdown:gsub("<i>(.-)</i>", "_%1_")
+	markdown = markdown:gsub("<em>(.-)</em>", "*%1*")
+	markdown = markdown:gsub("<i>(.-)</i>", "*%1*")
 
 	-- Headers
 	markdown = markdown:gsub("<h1>(.-)</h1>", "# %1")

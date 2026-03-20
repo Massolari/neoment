@@ -23,6 +23,13 @@ describe("markdown: to_html", function()
 		assert.are.same(expected_output, result)
 	end)
 
+	it("should convert italic text with number to HTML", function()
+		local input = "this is an *italic123* _text_"
+		local expected_output = "this is an <em>italic123</em> <em>text</em>"
+		local result = markdown.to_html(input)
+		assert.are.same(expected_output, result)
+	end)
+
 	it("shouldn't convert underline in links to italic when converting to HTML", function()
 		local input = "[this is a_link](https://an_link.com)"
 		local expected_output = '<a href="https://an_link.com">this is a_link</a>'
@@ -155,7 +162,14 @@ describe("markdown: to_html", function()
 
 		it("should convert italic HTML tags to Markdown", function()
 			local input = "<em>italic text</em> and <i>more italic</i>"
-			local expected_output = "_italic text_ and _more italic_"
+			local expected_output = "*italic text* and *more italic*"
+			local result = markdown.from_html(input)
+			assert.are.same(expected_output, result)
+		end)
+
+		it("should convert italic HTML with number tags to Markdown", function()
+			local input = "<em>italic123 text</em> and <i>more italic456</i>"
+			local expected_output = "*italic123 text* and *more italic456*"
 			local result = markdown.from_html(input)
 			assert.are.same(expected_output, result)
 		end)
@@ -302,7 +316,7 @@ describe("markdown: to_html", function()
 			local input =
 				'<p>This is <strong>bold</strong> and <em>italic</em> text with <code>code</code> and a <a href="https://example.com">link</a>.</p>'
 			local expected_output =
-				"This is **bold** and _italic_ text with `code` and a [link](https://example.com).\n"
+				"This is **bold** and *italic* text with `code` and a [link](https://example.com).\n"
 			local result = markdown.from_html(input)
 			assert.are.same(expected_output, result)
 		end)
