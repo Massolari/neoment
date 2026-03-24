@@ -1298,7 +1298,7 @@ M.react_message = function()
 				end
 			end
 
-			matrix.send_reaction(room_id, message.id, chosen_emoji, function(response)
+			matrix.send_reaction(room_id, matrix.get_message_id(message), chosen_emoji, function(response)
 				error.map(response, function()
 					return vim.schedule(function()
 						M.update_buffer(current_buf)
