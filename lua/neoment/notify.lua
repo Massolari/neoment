@@ -1,6 +1,7 @@
 local M = {}
 
 local config = require("neoment.config")
+local notified_about_unable_to_notify = false
 
 --- Show a notification with Neoment prefix
 --- @param msg string The message to display
@@ -68,6 +69,15 @@ $Toast.Group = "Neovim";
 
 M.desktop = function(title, content)
 	if jit.os == "Linux" or jit.os == "BSD" then
+		if vim.fn.executable("gdbus") == 0 then
+			if not notified_about_unable_to_notify then
+				M.warning(
+					"Desktop notifications are enabled but 'gdbus' is not available. Please install 'gdbus' to receive notifications."
+				)
+				notified_about_unable_to_notify = true
+				return
+			end
+		end
 		vim.system({
 			"gdbus",
 			"call",
