@@ -357,5 +357,12 @@ describe("markdown: to_html", function()
 			local result = markdown.from_html(input)
 			assert.are.same(expected_output, result)
 		end)
+
+		it("should handle slash in the text correctly", function()
+			local input = "This is a test with a slash &#47; in the text."
+			local expected_output = "This is a test with a slash / in the text."
+			local result = markdown.from_html(input)
+			assert.are.same(expected_output, result)
+		end)
 	end)
 end)

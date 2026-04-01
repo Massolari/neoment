@@ -204,6 +204,11 @@ M.from_html = function(html)
 	markdown = markdown:gsub("&amp;", "&")
 	markdown = markdown:gsub("&quot;", '"')
 
+	-- Replace numeric HTML entities (e.g., &#47; for /)
+	markdown = markdown:gsub("&#(%d+);", function(code)
+		return string.char(tonumber(code))
+	end)
+
 	-- Paragraphs
 	markdown = markdown:gsub("<p>(.-)</p>", "%1\n")
 
