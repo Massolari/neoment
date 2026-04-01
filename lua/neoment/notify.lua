@@ -39,6 +39,18 @@ M.with_opts = function(msg, level, opts)
 	return config.get().notifier("[Neoment] " .. msg, level, opts)
 end
 
+--- Get the ID of a notification for use in replacement
+--- Works with both snacks.nvim (table with id field) and nvim-notify (direct value)
+--- @param notification any The notification object returned by with_opts
+--- @return table opts Table with id and replace fields for use in with_opts
+M.get_id = function(notification)
+	local id = notification and (type(notification) == "table" and notification.id or notification)
+	return {
+		id = id, -- For snacks
+		replace = notification, -- For nvim-notify
+	}
+end
+
 local powershell_cmd = [[& {
 [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] > $null;
 [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null;

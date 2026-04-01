@@ -1099,6 +1099,8 @@ M.load_more_messages = function(buffer_id)
 	local notification = notify.with_opts("Loading more messages...", vim.log.levels.INFO, {
 		timeout = false,
 	})
+	local notification_id = notify.get_id(notification)
+
 	matrix.load_more_messages(room_id, function(response)
 		local notify_data = error.match(response, function()
 			vim.schedule(function()
@@ -1120,13 +1122,11 @@ M.load_more_messages = function(buffer_id)
 			}
 		end)
 
-		notify.with_opts(notify_data.message, notify_data.level, {
-			-- For snacks
-			id = notification and (type(notification) == "table" and notification.id or notification),
-			-- For nvim-notify
-			replace = notification,
-			timeout = 3000,
-		})
+		notify.with_opts(
+			notify_data.message,
+			notify_data.level,
+			vim.tbl_extend("force", notification_id, { timeout = 3000 })
+		)
 	end)
 
 	return true
@@ -1592,6 +1592,92 @@ M.upload_image_from_clipboard = function()
 	end)
 end
 
+--- Ask user if they want to load more messages to find the replied message
+--- @param message string The message to display
+--- @param on_yes function Callback to execute if user confirms
+local function ask_load_more_for_replied(message, on_yes)
+	local choice = vim.fn.confirm(message, "&Yes\n&No", 1, "Question")
+	if choice == 1 then
+		on_yes()
+	end
+end
+
+--- Try to find and go to a replied message by its ID
+--- @param buffer_id number The buffer ID
+--- @param replied_message_id string The ID of the replied message to find
+--- @return boolean found Whether the message was found
+local function try_go_to_replied_message(buffer_id, replied_message_id)
+	local line_to_message = get_buffer_data(buffer_id).line_to_message
+
+	-- Search for the replied message in the current buffer
+	for line_num, line_message in pairs(line_to_message) do
+		if
+			line_message.id == replied_message_id
+			or (line_message.edit_data and line_message.edit_data.id == replied_message_id)
+		then
+			-- Add current position to jump list before moving
+			vim.cmd("normal! m'")
+			-- Move cursor to the replied message
+			vim.api.nvim_win_set_cursor(0, { line_num, 0 })
+			return true
+		end
+	end
+
+	return false
+end
+
+--- Load more messages and try to find the replied message
+--- @param buffer_id number The buffer ID
+--- @param room_id string The room ID
+--- @param replied_message_id string The ID of the replied message to find
+local function load_and_find_replied_message(buffer_id, room_id, replied_message_id)
+	local prev_batch = matrix.get_room_prev_batch(room_id)
+	if prev_batch == "End" then
+		notify.warning("The replied message was not found in the room history")
+		return
+	end
+
+	local notification = notify.with_opts("Loading more messages...", vim.log.levels.INFO, {
+		timeout = false,
+	})
+	local notification_id = notify.get_id(notification)
+
+	matrix.load_more_messages(room_id, function(response)
+		error.match(response, function()
+			vim.schedule(function()
+				M.update_buffer(buffer_id)
+
+				-- Try to find the replied message after loading
+				if try_go_to_replied_message(buffer_id, replied_message_id) then
+					notify.with_opts(
+						"Found replied message",
+						vim.log.levels.INFO,
+						vim.tbl_extend("force", notification_id, { timeout = 3000 })
+					)
+				else
+					-- Ask user if they want to continue loading
+					notify.with_opts(
+						"Messages loaded",
+						vim.log.levels.INFO,
+						vim.tbl_extend("force", notification_id, { timeout = 3000 })
+					)
+
+					ask_load_more_for_replied("The replied message was not found. Load more messages?", function()
+						load_and_find_replied_message(buffer_id, room_id, replied_message_id)
+					end)
+				end
+			end)
+			return nil
+		end, function(err)
+			notify.with_opts(
+				"Error loading more messages: " .. (err.error or "Unknown error"),
+				vim.log.levels.ERROR,
+				vim.tbl_extend("force", notification_id, { timeout = 3000 })
+			)
+		end)
+	end)
+end
+
 --- Go to the replied message of the message under the cursor
 M.go_to_replied_message = function()
 	local error_message = get_message_under_cursor()
@@ -1602,25 +1688,21 @@ M.go_to_replied_message = function()
 		end
 
 		local buffer_id = vim.api.nvim_get_current_buf()
+		local room_id = vim.b[buffer_id].room_id
 		local replied_message_id = message.replying_to.id
-		local line_to_message = get_buffer_data(buffer_id).line_to_message
 
-		-- Search for the replied message in the current buffer
-		for line_num, line_message in pairs(line_to_message) do
-			if
-				line_message.id == replied_message_id
-				or (line_message.edit_data and line_message.edit_data.id == replied_message_id)
-			then
-				-- Add current position to jump list before moving
-				vim.cmd("normal! m'")
-				-- Move cursor to the replied message
-				vim.api.nvim_win_set_cursor(0, { line_num, 0 })
-				return nil
-			end
+		-- Try to find the replied message in the current buffer
+		if try_go_to_replied_message(buffer_id, replied_message_id) then
+			return nil
 		end
 
 		-- If we reach here, the replied message is not in the current buffer
-		notify.warning("The replied message is older than the loaded messages")
+		ask_load_more_for_replied(
+			"The replied message is older than the loaded messages. Load more messages?",
+			function()
+				load_and_find_replied_message(buffer_id, room_id, replied_message_id)
+			end
+		)
 		return nil
 	end)
 end
