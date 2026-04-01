@@ -239,6 +239,7 @@ Filetype: `neoment_rooms`
 | Show room information                 | `<Plug>NeomentRoomsShowRoomInfo`      | `<localleader>i` |
 | Toggle low priority                   | `<Plug>NeomentRoomsToggleLowPriority` | `<localleader>l` |
 | Toggle read/unread                    | `<Plug>NeomentRoomsToggleRead`        | `<localleader>r` |
+| Change status                         | `<Plug>NeomentRoomsChangeStatus`      | `<localleader>s` |
 
 #### Room Buffer
 
@@ -267,6 +268,7 @@ Filetype: `neoment_room`
 | Upload image from clipboard            | `<Plug>NeomentRoomUploadClipboardImage` | `<localleader>U` |
 | Forward message                        | `<Plug>NeomentRoomForwardMessage`       | `<localleader>w` |
 | Toggle zoom of image under cursor      | `<Plug>NeomentRoomToggleZoomImage`      | `<localleader>z` |
+| Show event data                        | `<Plug>NeomentRoomShowEvent`            | `<localleader>V` |
 
 #### Compose Buffer
 
