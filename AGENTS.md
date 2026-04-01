@@ -17,6 +17,7 @@
 - File organization: One module per file, grouped by functionality
 - Tests: Use `describe()` and `it()` with descriptive names
 - Vim API: Prefer `vim.api.*` over legacy `vim.fn.*` where possible
+- Buffer/Window options: Use `vim.bo[buf]` and `vim.wo[win]` instead of `nvim_set_option_value`
 
 ## Architecture
 - Matrix client implementation for Neovim

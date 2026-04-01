@@ -1102,6 +1102,15 @@ M.get_typing_users = function(room_id)
 	return client.get_room(room_id).typing
 end
 
+--- Get an event from a room by its ID.
+--- @param room_id string The ID of the room.
+--- @param event_id string The ID of the event.
+--- @return neoment.matrix.ClientEventWithoutRoomID? The event if found, nil otherwise.
+M.get_room_event = function(room_id, event_id)
+	local room = client.get_room(room_id)
+	return room.events[event_id]
+end
+
 --- Get a display name for a room from the members
 --- @param members table<string, string> The members of the room.
 --- @return string The display name of the room.

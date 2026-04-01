@@ -1761,6 +1761,66 @@ M.show_room_info = function()
 	info.open_info(room_id)
 end
 
+--- Show the raw event data for the message under the cursor in a float window
+M.show_event = function()
+	local error_message = get_message_under_cursor()
+	error.map(error_message, function(message)
+		local buffer_id = vim.api.nvim_get_current_buf()
+		local room_id = vim.b[buffer_id].room_id
+		local event = matrix.get_room_event(room_id, message.id)
+
+		if not event then
+			notify.error("Event not found for this message")
+			return nil
+		end
+
+		-- Convert event to JSON string with pretty formatting
+		local event_json = vim.fn.json_encode(event)
+		local formatted_json = vim.fn.system({ "jq", "." }, event_json)
+		if vim.v.shell_error ~= 0 then
+			-- Fallback if jq is not available
+			formatted_json = vim.inspect(event)
+		end
+
+		local lines = vim.split(formatted_json, "\n")
+
+		-- Calculate window dimensions
+		local max_width = 0
+		for _, line in ipairs(lines) do
+			max_width = math.max(max_width, #line)
+		end
+		local width = math.min(max_width + 2, math.floor(vim.o.columns * 0.8))
+		local height = math.min(#lines, math.floor(vim.o.lines * 0.8))
+
+		-- Create buffer
+		local float_buf = vim.api.nvim_create_buf(false, true)
+		vim.api.nvim_buf_set_lines(float_buf, 0, -1, false, lines)
+		vim.bo[float_buf].bufhidden = "wipe"
+		vim.bo[float_buf].filetype = "json"
+		vim.bo[float_buf].modifiable = false
+
+		-- Create float window
+		local float_win = vim.api.nvim_open_win(float_buf, true, {
+			relative = "editor",
+			width = width,
+			height = height,
+			row = math.floor((vim.o.lines - height) / 2),
+			col = math.floor((vim.o.columns - width) / 2),
+			style = "minimal",
+			border = "rounded",
+			title = " Event: " .. message.id .. " ",
+			title_pos = "center",
+		})
+
+		-- Set mapping to close the window with 'q'
+		vim.keymap.set("n", "q", function()
+			vim.api.nvim_win_close(float_win, true)
+		end, { buffer = float_buf, noremap = true, silent = true })
+
+		return nil
+	end)
+end
+
 -- Expose for testing
 M._update_buffer_lines_diff = update_buffer_lines_diff
 
