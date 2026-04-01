@@ -69,6 +69,9 @@ M.start = function(client, on_done, options)
 
 	sync_options.timeout = 30000 -- Set a timeout for the sync request
 
+	-- Use the desired presence if set, otherwise default to online
+	sync_options.set_presence = matrix.get_desired_presence() or "online"
+
 	matrix.sync(sync_options, function(data)
 		status = error.match(data, function(actual_data)
 			error_count = 0

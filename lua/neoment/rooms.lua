@@ -969,4 +969,37 @@ M.show_room_info = function()
 	require("neoment.room_info").open_info(room_id)
 end
 
+--- Change the current user's presence status
+M.change_status = function()
+	local current_presence = matrix.get_current_user_presence()
+	local current_status = current_presence and current_presence.presence or "offline"
+
+	local options = { "online", "unavailable", "offline" }
+	local prompt = string.format("Change status (current: %s):", current_status)
+
+	vim.ui.select(options, {
+		prompt = prompt,
+		format_item = function(item)
+			local icon = ""
+			if item == "online" then
+				icon = "●"
+			elseif item == "unavailable" then
+				icon = "◐"
+			else
+				icon = "○"
+			end
+			return string.format("%s %s", icon, item)
+		end,
+	}, function(choice)
+		if not choice then
+			return
+		end
+
+		-- Set the desired presence for future syncs
+		matrix.set_desired_presence(choice)
+		M.update_room_list()
+		notify.info("Status will change to '" .. choice .. "' on next sync")
+	end)
+end
+
 return M

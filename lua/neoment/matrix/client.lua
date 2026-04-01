@@ -10,6 +10,7 @@ local M = {}
 ---@field sync_token? string The token to supply in the since param of the next /sync request. (next_batch)
 ---@field display_names table<string, neoment.matrix.client.DisplayName> A table to store display names for users.
 ---@field user_presence table<string, neoment.matrix.client.UserPresence> A table to store user presence information.
+---@field desired_presence? "online"|"offline"|"unavailable" The desired presence state set by the user.
 M.client = nil
 
 --- @class neoment.matrix.client.Room
@@ -437,6 +438,18 @@ end
 --- @return neoment.matrix.client.UserPresence|nil The presence information or nil if not found.
 M.get_user_presence = function(user_id)
 	return M.client.user_presence[user_id]
+end
+
+--- Set the desired presence state
+--- @param presence "online"|"offline"|"unavailable" The desired presence state.
+M.set_desired_presence = function(presence)
+	M.client.desired_presence = presence
+end
+
+--- Get the desired presence state
+--- @return "online"|"offline"|"unavailable"|nil The desired presence state or nil if not set.
+M.get_desired_presence = function()
+	return M.client.desired_presence
 end
 
 return M

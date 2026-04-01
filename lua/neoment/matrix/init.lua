@@ -668,6 +668,18 @@ M.get_current_user_presence = function()
 	return nil
 end
 
+--- Set the desired presence state (used during sync)
+--- @param presence "online"|"offline"|"unavailable" The desired presence state.
+M.set_desired_presence = function(presence)
+	client.set_desired_presence(presence)
+end
+
+--- Get the desired presence state
+--- @return "online"|"offline"|"unavailable"|nil The desired presence state or nil if not set.
+M.get_desired_presence = function()
+	return client.get_desired_presence()
+end
+
 -- Room
 
 --- Loads more messages from a room.
