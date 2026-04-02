@@ -58,13 +58,29 @@ local function get_room_mark_under_cursor()
 end
 
 --- Format the last synchronization time
---- @return string Formatted last synchronization time
-local function format_last_sync_time()
+--- @return string, string Formatted sync status icon and time
+local function format_sync_status()
 	local sync_status = sync.get_status()
-	if sync_status.kind == "never" then
-		return "No sync yet"
+
+	-- Never synced
+	if sync_status.last_sync == nil then
+		if sync_status.kind == "syncing" then
+			return "◇", "connecting"
+		end
+		return "◇", "offline"
 	end
-	return tostring(vim.fn.strftime("%H:%M:%S", sync_status.last_sync))
+
+	-- Calculate relative time since last sync
+	local now = os.time()
+	local diff = now - sync_status.last_sync
+
+	if diff < 60 then
+		return "●", "synced"
+	elseif diff < 3600 then
+		return "●", math.floor(diff / 60) .. "m ago"
+	else
+		return "○", vim.fn.strftime("%H:%M", sync_status.last_sync)
+	end
 end
 
 --- Get the logged user info
@@ -242,6 +258,7 @@ M.toggle_room_list = function()
 	vim.wo[new_win][0].relativenumber = false
 	vim.wo[new_win][0].cursorline = true
 	vim.wo[new_win][0].winfixwidth = true
+	vim.wo[new_win][0].signcolumn = "no"
 	M.update_room_list()
 end
 
@@ -276,31 +293,102 @@ local function get_section_icon(section)
 	end
 end
 
---- Get the line for a room
+--- Get the room icon based on room type
+--- @param room neoment.matrix.client.InvitedRoom|neoment.matrix.client.Room The room object
+--- @return string The icon for the room
+local function get_room_icon(room)
+	local icon = config.get().icon
+	if matrix.is_space(room.id) then
+		return icon.space
+	elseif room.is_direct then
+		return icon.people
+	else
+		return icon.room
+	end
+end
+
+--- Format relative time from timestamp
+--- @param timestamp number The timestamp in milliseconds
+--- @return string The formatted relative time
+local function format_relative_time(timestamp)
+	local now = os.time() * 1000
+	local diff = now - timestamp
+	local seconds = diff / 1000
+	local minutes = seconds / 60
+	local hours = minutes / 60
+	local days = hours / 24
+
+	if days >= 7 then
+		return vim.fn.strftime("%d/%m", math.floor(timestamp / 1000))
+	elseif days >= 1 then
+		local d = math.floor(days)
+		return d .. "d"
+	elseif hours >= 1 then
+		local h = math.floor(hours)
+		return h .. "h"
+	elseif minutes >= 1 then
+		local m = math.floor(minutes)
+		return m .. "m"
+	else
+		return "now"
+	end
+end
+
+--- @class neoment.rooms.RoomLineInfo
+--- @field name string The display name of the room
+--- @field time string|nil The formatted time of last activity
+--- @field notification_icon string|nil The notification icon to display
+--- @field room_icon string The icon for the room type
+--- @field is_unread boolean Whether the room has unread messages
+
+--- Get the line info for a room
+--- @param room neoment.matrix.client.Room|neoment.matrix.client.InvitedRoom The room object
+--- @param show_space boolean Whether to show the space name in the line
+--- @return neoment.rooms.RoomLineInfo The room line info
+local function get_room_line_info(room, show_space)
+	local last_activity = matrix.get_room_last_activity(room.id)
+	local get_name = show_space and matrix.get_room_display_name_with_space or matrix.get_room_display_name
+	local config_icon = config.get().icon
+
+	local info = {
+		name = get_name(room.id),
+		time = nil,
+		notification_icon = nil,
+		room_icon = get_room_icon(room),
+		is_unread = false,
+	}
+
+	if last_activity and last_activity.timestamp > 0 then
+		info.time = format_relative_time(last_activity.timestamp)
+
+		if room.unread_highlights and room.unread_highlights > 0 then
+			info.notification_icon = config_icon.bell
+			info.is_unread = true
+		elseif room.unread_notifications and room.unread_notifications > 0 then
+			info.notification_icon = config_icon.dot_circle
+			info.is_unread = true
+		elseif matrix.is_room_unread(room.id) then
+			info.notification_icon = config_icon.dot
+			info.is_unread = true
+		end
+	end
+
+	return info
+end
+
+--- Get the line for a room (legacy format for picker compatibility)
 --- @param room neoment.matrix.client.Room|neoment.matrix.client.InvitedRoom The room object
 --- @param show_space boolean Whether to show the space name in the line
 --- @return string The formatted line for the room
 local function get_room_line(room, show_space)
-	local last_activity = matrix.get_room_last_activity(room.id)
+	local info = get_room_line_info(room, show_space)
+	local display = info.name
 
-	local get_name = show_space and matrix.get_room_display_name_with_space or matrix.get_room_display_name
-
-	local display = get_name(room.id)
-
-	if last_activity and last_activity.timestamp > 0 then
-		local time = vim.fn.strftime("%H:%M", math.floor(last_activity.timestamp / 1000))
-		display = display .. " [" .. time .. "]"
-		local display_icon = nil
-		local icon = config.get().icon
-		if room.unread_highlights and room.unread_highlights > 0 then
-			display_icon = icon.bell
-		elseif room.unread_notifications and room.unread_notifications > 0 then
-			display_icon = icon.dot_circle
-		elseif matrix.is_room_unread(room.id) then
-			display_icon = icon.dot
+	if info.time then
+		display = display .. " [" .. info.time .. "]"
+		if info.notification_icon then
+			display = display .. " " .. info.notification_icon
 		end
-
-		display = display_icon and (display .. " " .. display_icon) or display
 	end
 
 	return display
@@ -354,10 +442,12 @@ local function render_room(room, lines, line_index, extmarks, opts)
 	vim.validate("opts.show_space", opts.show_space, "boolean")
 	vim.validate("opts.indentation_level", opts.indentation_level, "number")
 
-	local display = get_room_line(room, opts.show_space)
-
+	local info = get_room_line_info(room, opts.show_space)
 	local indentation = string.rep("  ", opts.indentation_level)
-	table.insert(lines, indentation .. display)
+
+	-- Build the line: just the room name (highlights and virtual text will add the rest)
+	table.insert(lines, indentation .. info.name)
+
 	--- @type neoment.rooms.RoomMark
 	local extmark = {
 		line = line_index,
@@ -368,6 +458,7 @@ local function render_room(room, lines, line_index, extmarks, opts)
 			or (room.unread_highlights and room.unread_highlights > 0),
 		is_space = false,
 		indentation_level = opts.indentation_level,
+		room_info = info, -- Store info for highlight application
 	}
 	table.insert(extmarks, extmark)
 end
@@ -444,41 +535,59 @@ local function get_last_message_virtual_lines(display_last_message, room_mark)
 	if string.len(last_message.content) > 0 then
 		content = last_message.content
 	elseif last_message.attachment and last_message.attachment.filename then
-		content = "[Attachment: " .. last_message.attachment.filename .. "]"
+		local config_icon = config.get().icon
+		content = config_icon.file .. " " .. last_message.attachment.filename
 	end
 
 	if not content then
 		return nil
 	end
 
+	-- Truncate long messages
+	local max_length = 40
+	if vim.fn.strdisplaywidth(content) > max_length then
+		content = vim.fn.strcharpart(content, 0, max_length - 1) .. "…"
+	end
+
+	-- Remove newlines for cleaner display
+	content = content:gsub("\n", " ")
+
 	local indentation = string.rep("  ", room_mark.indentation_level)
+	local config_icon = config.get().icon
+	local tree_char = config_icon.vertical_bar
 
 	if display_last_message == "message" then
 		return {
 			{
-				{ indentation .. "└┤ " .. content, "Comment" },
+				{ indentation .. "  " .. tree_char .. " ", "NeomentLastMessageTree" },
+				{ content, "NeomentLastMessage" },
 			},
 		}
 	end
 
 	local sender = matrix.get_display_name(last_message.sender)
+	-- Truncate sender name if too long
+	if vim.fn.strdisplaywidth(sender) > 15 then
+		sender = vim.fn.strcharpart(sender, 0, 14) .. "…"
+	end
 
 	if display_last_message == "sender_message" then
 		return {
 			{
-				{ indentation .. "└┤ " .. sender, "Comment" },
+				{ indentation .. "  " .. tree_char .. " ", "NeomentLastMessageTree" },
+				{ sender, "NeomentLastMessageSender" },
 			},
 			{
-				{ indentation .. " │ " .. content, "Comment" },
+				{ indentation .. "  " .. tree_char .. " ", "NeomentLastMessageTree" },
+				{ content, "NeomentLastMessage" },
 			},
 		}
 	elseif display_last_message == "sender_message_inline" then
 		return {
 			{
-				{
-					indentation .. "└┤ " .. sender .. ": " .. content,
-					"Comment",
-				},
+				{ indentation .. "  " .. tree_char .. " ", "NeomentLastMessageTree" },
+				{ sender .. ": ", "NeomentLastMessageSender" },
+				{ content, "NeomentLastMessage" },
 			},
 		}
 	end
@@ -557,8 +666,8 @@ M.update_room_list = function()
 
 	-- Montar a lista
 	local lines = {
-		"Neoment - Last sync: " .. format_last_sync_time(),
-		"",
+		"", -- Logo line (will be filled with virtual text)
+		"", -- User info line (will be filled with virtual text)
 		"",
 	}
 	--- @class neoment.rooms.RoomMark
@@ -569,6 +678,7 @@ M.update_room_list = function()
 	--- @field has_unread boolean
 	--- @field is_space boolean
 	--- @field indentation_level number
+	--- @field room_info? neoment.rooms.RoomLineInfo
 
 	--- @type table<neoment.rooms.RoomMark>
 	local extmarks = {}
@@ -631,25 +741,51 @@ M.update_room_list = function()
 	local ns_id = api.nvim_create_namespace("neoment_room_list")
 	api.nvim_buf_clear_namespace(rooms_buffer_id, ns_id, 0, -1)
 
-	-- Highlight the title
-	vim.hl.range(rooms_buffer_id, ns_id, "NeomentRoomsTitle", { 0, 0 }, { 0, 7 })
-	vim.hl.range(rooms_buffer_id, ns_id, "Comment", { 0, 7 }, { 0, -1 })
+	-- Header: Logo centered with decorations based on window width
+	local win_width = window_width
+	-- Try to get actual window width if buffer is displayed
+	for _, win in ipairs(api.nvim_list_wins()) do
+		if api.nvim_win_is_valid(win) and api.nvim_win_get_buf(win) == rooms_buffer_id then
+			win_width = api.nvim_win_get_width(win)
+			break
+		end
+	end
 
-	-- Add user status line with highlighting
-	-- Add user status as virtual text on the second line
+	local title = "Neoment"
+	local title_len = vim.fn.strdisplaywidth(title)
+	local decoration_char = "─"
+	local total_decoration = win_width - title_len - 2 -- -2 for spaces around title
+	local left_len = math.floor(total_decoration / 2)
+	local right_len = math.ceil(total_decoration / 2)
+
+	api.nvim_buf_set_extmark(rooms_buffer_id, ns_id, 0, 0, {
+		virt_text = {
+			{ string.rep(decoration_char, left_len) .. " ", "NeomentHeaderDecoration" },
+			{ title, "NeomentRoomsTitle" },
+			{ " " .. string.rep(decoration_char, right_len), "NeomentHeaderDecoration" },
+		},
+		virt_text_pos = "overlay",
+	})
+
+	-- Header: User info with presence and sync status
 	local config_icon = config.get().icon
 	local icon = require("neoment.icon")
 	local user_display_name, user_status_text = get_logged_user_info()
+	local sync_icon, sync_text = format_sync_status()
+	local sync_hl = sync_icon == "●" and "DiagnosticOk" or "Comment"
+
 	api.nvim_buf_set_extmark(rooms_buffer_id, ns_id, 1, 0, {
 		virt_text = {
-			{ icon.border_left, "NeomentBubbleBorder" }, -- Left border
+			{ icon.border_left, "NeomentBubbleBorder" },
 			{
-				string.format("%s %s %s", user_display_name, config_icon.vertical_bar, user_status_text),
+				" " .. user_display_name .. " " .. config_icon.vertical_bar .. " " .. user_status_text .. " ",
 				"NeomentBubbleContent",
-			}, -- Use a nice highlight group for username
-			{ icon.border_right, "NeomentBubbleBorder" }, -- Right border
+			},
+			{ icon.border_right, "NeomentBubbleBorder" },
+			{ "  " .. sync_icon .. " ", sync_hl },
+			{ sync_text, "Comment" },
 		},
-		virt_text_pos = "inline",
+		virt_text_pos = "overlay",
 	})
 
 	-- Highlight the section titles
@@ -659,7 +795,7 @@ M.update_room_list = function()
 
 	local display_last_message = config.get().rooms.display_last_message
 
-	-- Highlight the room lines
+	-- Highlight the room lines with the new modern design
 	for _, m in ipairs(extmarks) do
 		--- @type neoment.rooms.RoomMark
 		local mark = m
@@ -674,10 +810,48 @@ M.update_room_list = function()
 
 		local last_message_lines = get_last_message_virtual_lines(display_last_message, mark)
 
+		-- Build end-of-line virtual text (time + notification badge)
+		local eol_virt_text = {}
+		local room_info = mark.room_info
+		if room_info then
+			if room_info.time then
+				table.insert(eol_virt_text, { " " .. room_info.time, "NeomentRoomTime" })
+			end
+			if room_info.notification_icon then
+				local notif_hl = "NeomentNotificationDot"
+				if room_info.notification_icon == config_icon.bell then
+					notif_hl = "NeomentNotificationBell"
+				elseif room_info.notification_icon == config_icon.dot_circle then
+					notif_hl = "NeomentNotificationCircle"
+				end
+				table.insert(eol_virt_text, { " " .. room_info.notification_icon, notif_hl })
+			end
+		end
+
+		-- Set extmark with line highlight and virtual lines (last message)
 		if line_hl_group or last_message_lines then
 			api.nvim_buf_set_extmark(rooms_buffer_id, ns_id, mark.line - 1, 0, {
 				line_hl_group = line_hl_group,
 				virt_lines = last_message_lines,
+			})
+		end
+
+		-- Add a separate extmark for EOL elements (time + notification)
+		if #eol_virt_text > 0 then
+			api.nvim_buf_set_extmark(rooms_buffer_id, ns_id, mark.line - 1, 0, {
+				virt_text = eol_virt_text,
+				virt_text_pos = "eol",
+			})
+		end
+
+		-- Add inline icon extmark for rooms (not spaces, they have fold arrows)
+		if room_info and not mark.is_space then
+			local icon_hl = mark.is_buffer and "NeomentRoomIconBuffer"
+				or (room_info.is_unread and "NeomentRoomIconUnread" or "NeomentRoomIcon")
+			local indentation_offset = mark.indentation_level * 2
+			api.nvim_buf_set_extmark(rooms_buffer_id, ns_id, mark.line - 1, indentation_offset, {
+				virt_text = { { room_info.room_icon .. "  ", icon_hl } },
+				virt_text_pos = "inline",
 			})
 		end
 	end

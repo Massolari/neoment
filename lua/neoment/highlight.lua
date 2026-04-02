@@ -1,8 +1,8 @@
 local M = {}
 
 function M.define_highlights()
-	-- Definir grupos de highlight
-	vim.api.nvim_set_hl(0, "NeomentRoomsTitle", { link = "@text.title.2.markdown" })
+	vim.api.nvim_set_hl(0, "NeomentRoomsTitle", { link = "Title" })
+	vim.api.nvim_set_hl(0, "NeomentHeaderDecoration", { link = "NonText" })
 	vim.api.nvim_set_hl(0, "NeomentSectionTitle", { link = "Title" })
 	vim.api.nvim_set_hl(0, "NeomentBufferRoom", { link = "@keyword" })
 	vim.api.nvim_set_hl(0, "NeomentRoomUnread", { link = "Bold" })
@@ -13,6 +13,20 @@ function M.define_highlights()
 	vim.api.nvim_set_hl(0, "NeomentBubbleBorder", { link = "ColorColumn" })
 	vim.api.nvim_set_hl(0, "NeomentBubbleActiveContent", { link = "IncSearch" })
 	vim.api.nvim_set_hl(0, "NeomentBubbleActiveBorder", { link = "IncSearch" })
+
+	-- Room list highlights
+	vim.api.nvim_set_hl(0, "NeomentRoomIcon", { link = "Comment" })
+	vim.api.nvim_set_hl(0, "NeomentRoomIconBuffer", { link = "@keyword" })
+	vim.api.nvim_set_hl(0, "NeomentRoomIconUnread", { link = "@constant" })
+	vim.api.nvim_set_hl(0, "NeomentRoomTime", { link = "Comment" })
+	vim.api.nvim_set_hl(0, "NeomentNotificationDot", { link = "DiagnosticInfo" })
+	vim.api.nvim_set_hl(0, "NeomentNotificationCircle", { link = "DiagnosticWarn" })
+	vim.api.nvim_set_hl(0, "NeomentNotificationBell", { link = "DiagnosticError" })
+
+	-- Last message highlights
+	vim.api.nvim_set_hl(0, "NeomentLastMessageTree", { link = "NonText" })
+	vim.api.nvim_set_hl(0, "NeomentLastMessageSender", { link = "@variable" })
+	vim.api.nvim_set_hl(0, "NeomentLastMessage", { link = "Comment" })
 
 	-- Apply bold to NeomentBufferRoom
 	local hl_buffer_room_undead = vim.api.nvim_get_hl(0, { name = "NeomentBufferRoomUnread", link = false })
