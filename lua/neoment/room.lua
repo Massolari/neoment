@@ -1351,9 +1351,6 @@ M.forward_message = function()
 				content = markdown.from_html(message.formatted_content)
 			end
 
-			-- Format the forwarded message
-			local forwarded_content = string.format("_↪️ Forwarded:_\n\n%s", content)
-
 			--- @type neoment.room.PromptMessageParams
 			local params = {}
 
@@ -1367,7 +1364,7 @@ M.forward_message = function()
 				}
 			end
 
-			send_message(room.id, forwarded_content, params)
+			send_message(room.id, content, params)
 
 			local target_room_name = matrix.get_room_display_name(room.id)
 			notify.info(string.format("Message forwarded to %s", target_room_name))
