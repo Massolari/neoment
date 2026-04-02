@@ -13,6 +13,9 @@ local data_path = vim.fn.stdpath("data") .. "/neoment/data.json"
 --- Path to the cache file
 local cache_path = vim.fn.stdpath("cache") .. "/neoment/cache.json"
 
+--- Path to the UI state file
+local ui_state_path = vim.fn.stdpath("data") .. "/neoment/ui_state.json"
+
 --- Get the path to a temporary file
 --- @param file string The name of the file
 --- @param opts {path: string[]}|nil Options for the temporary file
@@ -189,14 +192,19 @@ end
 function M.clear_session()
 	local cache_exists = vim.fn.filereadable(cache_path) == 1
 	local data_exists = vim.fn.filereadable(data_path) == 1
+	local ui_state_exists = vim.fn.filereadable(ui_state_path) == 1
 
-	if not cache_exists and not data_exists then
+	if not cache_exists and not data_exists and not ui_state_exists then
 		notify.info("No session data found to remove")
 		return true
 	end
 
 	if cache_exists then
 		M.clear_cache()
+	end
+
+	if ui_state_exists then
+		M.clear_ui_state()
 	end
 
 	if data_exists then
@@ -343,6 +351,38 @@ M.save_clipboard_image = function()
 	end
 
 	return error.ok(temp_file)
+end
+
+--- Save UI state (section fold states, etc.)
+--- @param state table The UI state to save
+--- @return boolean True if the state was saved successfully, false otherwise
+function M.save_ui_state(state)
+	local existing = read_file(ui_state_path) or {}
+	local merged = vim.tbl_deep_extend("force", existing, state)
+	return write_file(ui_state_path, merged)
+end
+
+--- Load UI state
+--- @return table|nil The UI state or nil if not found
+function M.load_ui_state()
+	return read_file(ui_state_path)
+end
+
+--- Clear the UI state file
+--- @return boolean True if the UI state was cleared successfully, false otherwise
+function M.clear_ui_state()
+	local ui_state_exists = vim.fn.filereadable(ui_state_path) == 1
+	if not ui_state_exists then
+		return true
+	end
+
+	local success, err = os.remove(ui_state_path)
+	if not success then
+		notify.error("Error removing UI state: " .. (err or "unknown"))
+		return false
+	end
+
+	return true
 end
 
 return M

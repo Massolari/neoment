@@ -8,6 +8,7 @@ local sync = require("neoment.sync")
 local matrix = require("neoment.matrix")
 local util = require("neoment.util")
 local error = require("neoment.error")
+local storage = require("neoment.storage")
 
 local room_list_buffer_name = "neoment://rooms"
 local rooms_buffer_id = nil
@@ -16,11 +17,33 @@ local rooms_buffer_id = nil
 --- @type table<neoment.rooms.Section, boolean>
 local room_list_fold_state = {}
 
+--- Flag to track if fold state has been loaded from storage
+local fold_state_loaded = false
+
+--- Load the fold state from storage
+local function load_fold_state()
+	if fold_state_loaded then
+		return
+	end
+
+	local ui_state = storage.load_ui_state()
+	if ui_state and ui_state.room_list_fold_state then
+		room_list_fold_state = ui_state.room_list_fold_state
+	end
+	fold_state_loaded = true
+end
+
+--- Save the fold state to storage
+local function save_fold_state()
+	storage.save_ui_state({ room_list_fold_state = room_list_fold_state })
+end
+
 --- Get the fold state for a section
 --- @param section neoment.rooms.Section The section name
 --- @param default? boolean Optional default value if the section is not found
 --- @return boolean The fold state of the section
 local function get_fold_state(section, default)
+	load_fold_state()
 	if room_list_fold_state[section] == nil then
 		room_list_fold_state[section] = default or false
 	end
@@ -212,10 +235,11 @@ M.toggle_fold_at_cursor = function()
 
 	if section then
 		room_list_fold_state[section] = not get_fold_state(section)
+		save_fold_state()
 
 		-- Update the fold arrow in the buffer
 		local current_line_text = api.nvim_buf_get_lines(0, current_line - 1, current_line, false)[1]
-		local new_symbol = get_fold_state(section) and "" or ""
+		local new_symbol = get_fold_state(section) and "" or ""
 		local new_line = new_symbol .. current_line_text:sub(2)
 		util.buffer_write(0, { new_line }, current_line - 1, current_line)
 
