@@ -60,7 +60,9 @@ local sections = {
 	rooms = "Rooms",
 	low_priority = "Low priority",
 }
-local window_width = 50
+
+-- Set the window width to 20% of the total columns, but no more than 50
+local ROOM_LIST_WIDTH = math.min(50, math.floor(vim.o.columns * 0.2))
 
 --- Get the room mark under the cursor
 --- @return neoment.rooms.RoomMark|nil The RoomMark if found, nil otherwise
@@ -145,7 +147,7 @@ M.open_room = function(room_id)
 		if util.win_count() == 1 then
 			local win = api.nvim_open_win(0, true, {
 				split = "right",
-				width = vim.o.columns - window_width,
+				width = vim.o.columns - ROOM_LIST_WIDTH,
 			})
 			vim.wo[win].winfixbuf = false
 		else
@@ -274,7 +276,7 @@ M.toggle_room_list = function()
 
 	vim.cmd("topleft vsplit")
 	local new_win = api.nvim_get_current_win()
-	api.nvim_win_set_width(new_win, window_width)
+	api.nvim_win_set_width(new_win, ROOM_LIST_WIDTH)
 
 	switch_to_room_list_buffer()
 	vim.wo[new_win][0].winfixbuf = true
@@ -766,7 +768,7 @@ M.update_room_list = function()
 	api.nvim_buf_clear_namespace(rooms_buffer_id, ns_id, 0, -1)
 
 	-- Header: Logo centered with decorations based on window width
-	local win_width = window_width
+	local win_width = ROOM_LIST_WIDTH
 	-- Try to get actual window width if buffer is displayed
 	for _, win in ipairs(api.nvim_list_wins()) do
 		if api.nvim_win_is_valid(win) and api.nvim_win_get_buf(win) == rooms_buffer_id then
@@ -1156,7 +1158,7 @@ M.show_room_info = function()
 		if util.win_count() == 1 then
 			local win = api.nvim_open_win(0, true, {
 				split = "right",
-				width = vim.o.columns - window_width,
+				width = vim.o.columns - ROOM_LIST_WIDTH,
 			})
 			vim.wo[win].winfixbuf = false
 		else
