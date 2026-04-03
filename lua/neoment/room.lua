@@ -975,6 +975,10 @@ M.prompt_message = function(params)
 	vim.b[compose_buf].room_win = room_win
 	vim.b[compose_buf].members = matrix.get_room_other_members(room_id)
 	vim.bo[compose_buf].filetype = "neoment_compose"
+	vim.bo[compose_buf].bufhidden = "wipe"
+	vim.bo[compose_buf].swapfile = false
+	vim.bo[compose_buf].omnifunc = "v:lua.neoment_compose_omnifunc"
+
 	vim.treesitter.start(compose_buf, "markdown")
 
 	local lines = {}
@@ -1015,6 +1019,8 @@ M.prompt_message = function(params)
 	vim.wo[win][0].relativenumber = false
 	vim.wo[win][0].cursorline = true
 	vim.wo[win][0].winfixheight = true
+	vim.wo[win][0].signcolumn = "no"
+	vim.wo[win][0].wrap = true
 
 	vim.api.nvim_buf_set_lines(compose_buf, 0, -1, false, lines)
 

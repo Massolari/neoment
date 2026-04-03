@@ -5,10 +5,6 @@ vim.b.did_ftplugin = true
 local buffer_id = vim.api.nvim_get_current_buf()
 local util = require("neoment.util")
 
-vim.bo.bufhidden = "wipe"
-vim.bo.swapfile = false
-vim.bo.omnifunc = "v:lua.neoment_compose_omnifunc"
-
 -- Set up keybindings
 local opts = { noremap = true, silent = true, buffer = buffer_id }
 local set_mapping = util.get_plug_mapping_setter("NeomentCompose")
