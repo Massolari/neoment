@@ -333,6 +333,13 @@ M.get_invited_rooms = function()
 	return M.client.invited_rooms
 end
 
+--- Remove a room from the local list (both joined and invited)
+--- @param room_id string The ID of the room to remove.
+M.remove_room = function(room_id)
+	M.client.rooms[room_id] = nil
+	M.client.invited_rooms[room_id] = nil
+end
+
 --- Get a message by its ID.
 --- @param room_id string The ID of the room.
 --- @param message_id string The ID of the message.

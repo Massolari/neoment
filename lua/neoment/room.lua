@@ -1731,6 +1731,17 @@ M.leave_room = function()
 			end)
 			return nil
 		end, function(err)
+			-- If the room is not known, it means the user already left (or the room was deleted)
+			-- So we should remove it from the local list anyway
+			if err.error and err.error:find("Not a known room") then
+				vim.schedule(function()
+					matrix.remove_room(room_id)
+					notify.info("Removed room " .. room_name .. " from list")
+					vim.cmd("bdelete! " .. buffer_id)
+					require("neoment.rooms").update_room_list()
+				end)
+				return nil
+			end
 			notify.error("Error leaving room: " .. err.error)
 		end)
 	end)

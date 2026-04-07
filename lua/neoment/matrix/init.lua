@@ -1420,6 +1420,7 @@ M.get_room = client.get_room
 M.get_invited_room = client.get_invited_room
 M.get_rooms = client.get_rooms
 M.get_invited_rooms = client.get_invited_rooms
+M.remove_room = client.remove_room
 M.set_room = client.set_room
 M.set_invited_room = client.set_invited_room
 M.set_room_tracked = client.set_room_tracked
