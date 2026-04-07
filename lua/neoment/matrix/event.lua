@@ -578,6 +578,7 @@ M.handle = function(room_id, event)
 		client.get_room(room_id).topic = event.content.topic
 		return true
 	elseif event.type == "m.room.member" then
+		local message = member_state_event_to_message(event)
 		if event.content.membership == "join" then
 			client.add_room_member(room_id, event.state_key)
 		elseif event.content.membership == "leave" or event.content.membership == "ban" then
@@ -586,7 +587,6 @@ M.handle = function(room_id, event)
 			-- Check if the current user was removed/left/banned
 			local user_id = require("neoment.matrix").get_user_id()
 			if event.state_key == user_id then
-				local message = member_state_event_to_message(event)
 				local room_name = client.get_room(room_id).name
 				if message then
 					-- Show confirmation dialog with the message content
@@ -609,13 +609,12 @@ M.handle = function(room_id, event)
 						require("neoment.rooms").update_room_list()
 					end)
 				end
-				return true
 			end
 		end
 
-		local message = member_state_event_to_message(event)
 		if message then
 			client.add_room_message(room_id, message)
+			return true
 		end
 	elseif event.type == "m.room.redaction" then
 		if handle_redaction(room_id, event) then
