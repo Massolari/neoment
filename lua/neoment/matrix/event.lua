@@ -582,6 +582,35 @@ M.handle = function(room_id, event)
 			client.add_room_member(room_id, event.state_key)
 		elseif event.content.membership == "leave" or event.content.membership == "ban" then
 			client.remove_room_member(room_id, event.state_key)
+
+			-- Check if the current user was removed/left/banned
+			local user_id = require("neoment.matrix").get_user_id()
+			if event.state_key == user_id then
+				local message = member_state_event_to_message(event)
+				local room_name = client.get_room(room_id).name
+				if message then
+					-- Show confirmation dialog with the message content
+					vim.schedule(function()
+						vim.fn.confirm(
+							string.format("Room: %s\n\n%s\n\nPress OK to acknowledge.", room_name, message.content),
+							"&OK",
+							1,
+							"Warning"
+						)
+						-- Remove the room from the client
+						client.remove_room(room_id)
+						-- Update the room list
+						require("neoment.rooms").update_room_list()
+					end)
+				else
+					-- No message, just remove the room
+					vim.schedule(function()
+						client.remove_room(room_id)
+						require("neoment.rooms").update_room_list()
+					end)
+				end
+				return true
+			end
 		end
 
 		local message = member_state_event_to_message(event)

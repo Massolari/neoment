@@ -417,6 +417,12 @@ M.set_room_read_receipt = function(room_id, read_receipt)
 	end
 end
 
+--- Remove a room from the client
+--- @param room_id string The ID of the room to remove.
+M.remove_room = function(room_id)
+	M.client.rooms[room_id] = nil
+end
+
 --- Add a room to a space
 --- @param space_id string The ID of the space.
 --- @param room_id string The ID of the room to add.
