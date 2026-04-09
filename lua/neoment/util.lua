@@ -123,6 +123,8 @@ M.open_float = function(lines, opts)
 		}, opts)
 	)
 
+	vim.wo[win][0].wrap = false
+
 	local augroup = vim.api.nvim_create_augroup("neoment_float_" .. win, {})
 	vim.api.nvim_create_autocmd("CursorMoved", {
 		group = augroup,

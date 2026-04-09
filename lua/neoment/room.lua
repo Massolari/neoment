@@ -73,7 +73,8 @@ local buffer_data = {}
 
 --- @class neoment.room.ExtmarkData
 --- @field reaction_label string The label of the reaction
---- @field reaction_users? table<string, string[]> The users who reacted to the message
+--- @field reaction_users? table<string> The users who reacted to the message
+--- @field reaction_mxc_url? string The mxc:// URL if the reaction is a custom emoticon
 --- @field emoticon_url? string The URL of the emoticon image (mxc:// format)
 --- @field emoticon_title? string The title/alt text of the emoticon
 
@@ -743,9 +744,16 @@ local function apply_highlights(buffer_id, room_id, lines)
 
 						local emoji_label = reaction_emoji and reaction_emoji.label or content
 
+						-- Check if the reaction content is an mxc:// URL (custom emoticon reaction)
+						local reaction_mxc_url = nil
+						if content:match("^mxc://") then
+							reaction_mxc_url = content
+						end
+
 						local reaction_data = {
 							reaction_users = reaction_users,
 							reaction_label = emoji_label,
+							reaction_mxc_url = reaction_mxc_url,
 						}
 						new_extmarks_data[left_border_id] = reaction_data
 						new_extmarks_data[content_id] = reaction_data
@@ -834,10 +842,6 @@ local function apply_highlights(buffer_id, room_id, lines)
 					zoom = false,
 				}
 				table.insert(get_buffer_data(buffer_id).image_placements, image_placement)
-
-				-- vim.schedule(function()
-				-- 	placement:update()
-				-- end)
 			end
 		end)
 	end
@@ -1488,8 +1492,58 @@ M.handle_cursor_hold = function(buffer_id)
 				table.insert(lines, display_name)
 				max_length = math.max(max_length, vim.fn.strdisplaywidth(display_name))
 			end
-			local height = #lines
 
+			-- If reaction is an mxc:// URL (custom emoticon), show the image
+			if data.reaction_mxc_url and Snacks then
+				local float_width = math.max(20, max_length)
+				local float_height = 9 + #reaction_users + 1 -- Image height + users list + spacing
+
+				-- Add empty lines for the image
+				local image_lines = { data.reaction_label }
+				table.insert(image_lines, "")
+				for _, user in ipairs(reaction_users) do
+					table.insert(image_lines, matrix.get_display_name(user))
+				end
+
+				local float_buf, float_win = util.open_float(image_lines, {
+					width = float_width,
+					height = float_height,
+					border = "rounded",
+				})
+
+				-- Apply bold to the title
+				vim.hl.range(float_buf, EXTMARK_NAMESPACE, "Bold", { 0, 0 }, { 0, -1 })
+
+				-- Display the image in the float window using Snacks
+				local url = util.mxc_to_url(matrix.client.homeserver, data.reaction_mxc_url)
+					.. "?access_token="
+					.. matrix.client.access_token
+				require("snacks.image.terminal").detect(function()
+					--- @type snacks.image.Opts
+					local opts = {
+						pos = { 1, 0 },
+						height = 8,
+						width = float_width,
+						inline = true,
+						type = "image",
+					}
+					local placement = Snacks.image.placement.new(float_buf, url, opts)
+
+					-- Clean up placement when float closes
+					vim.api.nvim_create_autocmd("WinClosed", {
+						pattern = tostring(float_win),
+						once = true,
+						callback = function()
+							if placement then
+								placement:close()
+							end
+						end,
+					})
+				end)
+				break
+			end
+
+			local height = #lines
 			local float_buf = util.open_float(lines, {
 				width = max_length,
 				height = height,
@@ -1522,10 +1576,11 @@ M.toggle_image_zoom = function()
 	notify.error("No image on this line")
 end
 
---- Get the emoticon URL under the cursor (if any)
+--- Get the mxc image data under the cursor (if any)
+--- This includes emoticon links and mxc reaction links
 --- @param buffer_id number The ID of the buffer
---- @return neoment.room.ExtmarkData|nil The emoticon data or nil if not on an emoticon
-local function get_emoticon_under_cursor(buffer_id)
+--- @return neoment.room.ExtmarkData|nil The extmark data or nil if not on an mxc image
+local function get_mxc_image_under_cursor(buffer_id)
 	local pos = vim.api.nvim_win_get_cursor(0)
 	local extmarks = vim.api.nvim_buf_get_extmarks(
 		buffer_id,
@@ -1539,7 +1594,7 @@ local function get_emoticon_under_cursor(buffer_id)
 		local extmark_id = extmark[1]
 		--- @type neoment.room.ExtmarkData|nil
 		local data = get_buffer_data(buffer_id).extmarks_data[extmark_id]
-		if data and data.emoticon_url then
+		if data and (data.emoticon_url or data.reaction_mxc_url) then
 			return data
 		end
 	end
@@ -1551,21 +1606,24 @@ end
 M.open_attachment = function()
 	local buffer_id = vim.api.nvim_get_current_buf()
 
-	-- First check if cursor is on an emoticon link
-	local emoticon_data = get_emoticon_under_cursor(buffer_id)
-	if emoticon_data and emoticon_data.emoticon_url then
-		local title = emoticon_data.emoticon_title or "emoticon"
-		local filename = title:gsub("[^%w%.%-_]", "_") .. ".png"
-		local url = util.mxc_to_url(matrix.client.homeserver, emoticon_data.emoticon_url)
-			.. "?access_token="
-			.. matrix.client.access_token
-		local error_path = storage.fetch_to_temp(filename, url)
+	-- First check if cursor is on an mxc image (emoticon or reaction)
+	local mxc_data = get_mxc_image_under_cursor(buffer_id)
+	if mxc_data then
+		local mxc_url = mxc_data.emoticon_url or mxc_data.reaction_mxc_url
+		if mxc_url then
+			local title = mxc_data.emoticon_title or mxc_data.reaction_label or "image"
+			local filename = title:gsub("[^%w%.%-_]", "_") .. ".png"
+			local url = util.mxc_to_url(matrix.client.homeserver, mxc_url)
+				.. "?access_token="
+				.. matrix.client.access_token
+			local error_path = storage.fetch_to_temp(filename, url)
 
-		error.map(error_path, function(path)
-			vim.ui.open(path)
-			return nil
-		end)
-		return
+			error.map(error_path, function(path)
+				vim.ui.open(path)
+				return nil
+			end)
+			return
+		end
 	end
 
 	-- Otherwise, try to open message attachment

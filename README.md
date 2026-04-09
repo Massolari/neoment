@@ -24,6 +24,7 @@ Neoment is a Matrix protocol client implementation for Neovim that allows you to
 - Forward messages
 - Image display (if you have [Snacks](https://github.com/folke/snacks.nvim))
 - Custom emoticon preview (hover to see image, open with `<localleader>o`)
+- Custom emoticon reactions preview (hover to see image and users)
 - Download/open media
 - Upload file
 - Upload image from clipboard
@@ -272,6 +273,8 @@ Filetype: `neoment_room`
 | Show event data                        | `<Plug>NeomentRoomShowEvent`            | `<localleader>V` |
 
 Custom emoticons (displayed as `[img: name]` links) can be previewed by hovering over them with the cursor (`CursorHold` event) when [Snacks](https://github.com/folke/snacks.nvim) is installed. The emoticon image will be shown in a floating window. You can also open the emoticon image externally using `<localleader>o`.
+
+Custom emoticon reactions (reactions that use `mxc://` URLs instead of standard emoji) are also supported. When hovering over such a reaction, the image will be displayed in the floating window alongside the list of users who reacted. You can open the reaction image externally using `<localleader>o`.
 
 #### Compose Buffer
 
