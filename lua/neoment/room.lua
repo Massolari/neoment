@@ -74,6 +74,8 @@ local buffer_data = {}
 --- @class neoment.room.ExtmarkData
 --- @field reaction_label string The label of the reaction
 --- @field reaction_users? table<string, string[]> The users who reacted to the message
+--- @field emoticon_url? string The URL of the emoticon image (mxc:// format)
+--- @field emoticon_title? string The title/alt text of the emoticon
 
 --- Get the buffer data for a specific buffer
 --- @param buffer_id number The ID of the buffer to get the data for
@@ -554,6 +556,25 @@ local function apply_highlights(buffer_id, room_id, lines)
 				)
 			end
 			mention_start, mention_end, link = line:find("%[.-%]%((%S+%))", mention_end)
+		end
+
+		-- Emoticon links: [img: TITLE](mxc://...)
+		if Snacks then
+			local emoticon_start, emoticon_end, emoticon_title, emoticon_url =
+				line:find("%[img:%s*([^%]]+)%]%(([^%)]+)%)")
+			while emoticon_start and emoticon_end do
+				local extmark_id =
+					vim.api.nvim_buf_set_extmark(buffer_id, EXTMARK_NAMESPACE, index - 1, emoticon_start - 1, {
+						end_col = emoticon_end,
+						hl_group = "NeomentEmoticon",
+					})
+				new_extmarks_data[extmark_id] = {
+					emoticon_url = emoticon_url,
+					emoticon_title = emoticon_title,
+				}
+				emoticon_start, emoticon_end, emoticon_title, emoticon_url =
+					line:find("%[img:%s*([^%]]+)%]%(([^%)]+)%)", emoticon_end)
+			end
 		end
 
 		---@type neoment.room.LineMessage
@@ -1404,6 +1425,56 @@ M.handle_cursor_hold = function(buffer_id)
 			goto continue
 		end
 
+		-- Handle emoticon links - show image in a float window
+		if data.emoticon_url and Snacks then
+			local title = data.emoticon_title or "Emoticon"
+			local float_width = 20
+			local float_height = 10
+
+			-- Create empty lines for the image
+			local lines = { title }
+			for _ = 1, float_height - 1 do
+				table.insert(lines, "")
+			end
+
+			local float_buf, float_win = util.open_float(lines, {
+				width = float_width,
+				height = float_height,
+				border = "rounded",
+			})
+
+			-- Apply bold to the title
+			vim.hl.range(float_buf, EXTMARK_NAMESPACE, "Bold", { 0, 0 }, { 0, -1 })
+
+			-- Display the image in the float window using Snacks
+			local url = util.mxc_to_url(matrix.client.homeserver, data.emoticon_url)
+				.. "?access_token="
+				.. matrix.client.access_token
+			require("snacks.image.terminal").detect(function()
+				--- @type snacks.image.Opts
+				local opts = {
+					pos = { 2, 0 },
+					height = float_height - 2,
+					width = float_width,
+					inline = true,
+					type = "image",
+				}
+				local placement = Snacks.image.placement.new(float_buf, url, opts)
+
+				-- Clean up placement when float closes
+				vim.api.nvim_create_autocmd("WinClosed", {
+					pattern = tostring(float_win),
+					once = true,
+					callback = function()
+						if placement then
+							placement:close()
+						end
+					end,
+				})
+			end)
+			break
+		end
+
 		local reaction_users = data.reaction_users
 		if reaction_users and #reaction_users > 0 then
 			-- Create a float window with the reaction users
@@ -1451,8 +1522,53 @@ M.toggle_image_zoom = function()
 	notify.error("No image on this line")
 end
 
+--- Get the emoticon URL under the cursor (if any)
+--- @param buffer_id number The ID of the buffer
+--- @return neoment.room.ExtmarkData|nil The emoticon data or nil if not on an emoticon
+local function get_emoticon_under_cursor(buffer_id)
+	local pos = vim.api.nvim_win_get_cursor(0)
+	local extmarks = vim.api.nvim_buf_get_extmarks(
+		buffer_id,
+		EXTMARK_NAMESPACE,
+		{ pos[1] - 1, pos[2] },
+		{ pos[1] - 1, pos[2] },
+		{ details = true, overlap = true }
+	)
+
+	for _, extmark in ipairs(extmarks) do
+		local extmark_id = extmark[1]
+		--- @type neoment.room.ExtmarkData|nil
+		local data = get_buffer_data(buffer_id).extmarks_data[extmark_id]
+		if data and data.emoticon_url then
+			return data
+		end
+	end
+
+	return nil
+end
+
 --- Open the attachment of the message under the cursor
 M.open_attachment = function()
+	local buffer_id = vim.api.nvim_get_current_buf()
+
+	-- First check if cursor is on an emoticon link
+	local emoticon_data = get_emoticon_under_cursor(buffer_id)
+	if emoticon_data and emoticon_data.emoticon_url then
+		local title = emoticon_data.emoticon_title or "emoticon"
+		local filename = title:gsub("[^%w%.%-_]", "_") .. ".png"
+		local url = util.mxc_to_url(matrix.client.homeserver, emoticon_data.emoticon_url)
+			.. "?access_token="
+			.. matrix.client.access_token
+		local error_path = storage.fetch_to_temp(filename, url)
+
+		error.map(error_path, function(path)
+			vim.ui.open(path)
+			return nil
+		end)
+		return
+	end
+
+	-- Otherwise, try to open message attachment
 	local error_message = get_message_under_cursor()
 
 	local error_path = error.try(error_message, function(message)

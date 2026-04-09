@@ -23,6 +23,7 @@ Neoment is a Matrix protocol client implementation for Neovim that allows you to
 - Edit messages
 - Forward messages
 - Image display (if you have [Snacks](https://github.com/folke/snacks.nvim))
+- Custom emoticon preview (hover to see image, open with `<localleader>o`)
 - Download/open media
 - Upload file
 - Upload image from clipboard
@@ -257,7 +258,7 @@ Filetype: `neoment_room`
 | Toggle room list                       | `<Plug>NeomentToggleRoomsList`          | `<localleader>l` |
 | Leave room                             | `<Plug>NeomentRoomLeave`                | `<localleader>L` |
 | Set read marker                        | `<Plug>NeomentRoomSetReadMarker`        | `<localleader>m` |
-| Open attachment                        | `<Plug>NeomentRoomOpenAttachment`       | `<localleader>o` |
+| Open attachment or emoticon            | `<Plug>NeomentRoomOpenAttachment`       | `<localleader>o` |
 | Load previous messages                 | `<Plug>NeomentRoomLoadPrevious`         | `<localleader>p` |
 | Quit room (close the buffer)           | `<Plug>NeomentRoomQuit`                 | `<localleader>q` |
 | Reply to message                       | `<Plug>NeomentRoomReply`                | `<localleader>r` |
@@ -269,6 +270,8 @@ Filetype: `neoment_room`
 | Forward message                        | `<Plug>NeomentRoomForwardMessage`       | `<localleader>w` |
 | Toggle zoom of image under cursor      | `<Plug>NeomentRoomToggleZoomImage`      | `<localleader>z` |
 | Show event data                        | `<Plug>NeomentRoomShowEvent`            | `<localleader>V` |
+
+Custom emoticons (displayed as `[img: name]` links) can be previewed by hovering over them with the cursor (`CursorHold` event) when [Snacks](https://github.com/folke/snacks.nvim) is installed. The emoticon image will be shown in a floating window. You can also open the emoticon image externally using `<localleader>o`.
 
 #### Compose Buffer
 

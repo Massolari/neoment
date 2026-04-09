@@ -288,8 +288,9 @@ M.from_html = function(html)
 		end
 
 		local title = attributes:match('title="([^"]+)"') or attributes:match('alt="([^"]+)"') or ""
+		local src = attributes:match('src="([^"]+)"') or ""
 
-		return string.format("[img: %s]", title)
+		return string.format("[img: %s](%s)", title, src)
 	end)
 
 	-- Handle tags with data-md attribute
