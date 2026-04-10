@@ -1142,6 +1142,38 @@ M.toggle_direct = function()
 	notify.info(string.format("%s %s", room_name, action))
 end
 
+--- Refresh the state of the room under the cursor.
+--- This fetches the full room state from the server, useful for
+--- getting state events that may have been missed during sync.
+M.refresh_room_state = function()
+	local mark = get_room_mark_under_cursor()
+
+	if not mark then
+		return
+	end
+
+	local room_id = mark.room_id
+	local room = matrix.get_room(room_id)
+	local room_name = room and room.name or room_id
+
+	notify.info(string.format("Refreshing state for %s...", room_name))
+
+	matrix.refresh_room_state(room_id, function(result)
+		error.match(result, function(updated)
+			if updated then
+				notify.info(string.format("State updated for %s", room_name))
+				M.update_room_list()
+				require("neoment.room").update_room(room_id)
+			else
+				notify.info(string.format("No new state for %s", room_name))
+			end
+			return nil
+		end, function(err)
+			notify.error(string.format("Failed to refresh state: %s", err.error or "Unknown error"))
+		end)
+	end)
+end
+
 --- Show information about the room under the cursor
 M.show_room_info = function()
 	local mark = get_room_mark_under_cursor()

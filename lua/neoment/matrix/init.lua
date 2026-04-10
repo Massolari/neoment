@@ -1409,6 +1409,49 @@ M.set_room_direct = function(room_id, is_direct)
 	client.get_room(room_id).is_direct = is_direct
 end
 
+--- Fetch and process the full state of a room.
+--- This is useful to get state events that may have been missed during sync,
+--- such as m.room.tombstone for upgraded rooms.
+--- Only processes specific state event types to avoid expensive operations
+--- like fetching display names for all room members.
+--- @param room_id string The ID of the room.
+--- @param callback fun(result: neoment.Error<boolean, neoment.matrix.api.Error>): any The callback function. Returns true if any state was updated.
+M.refresh_room_state = function(room_id, callback)
+	-- Only process these state event types to avoid expensive sync operations
+	local allowed_types = {
+		["m.room.tombstone"] = true,
+		["m.room.name"] = true,
+		["m.room.topic"] = true,
+		["m.room.canonical_alias"] = true,
+		["m.space.child"] = true,
+	}
+
+	api.get(
+		client.client.homeserver .. "/_matrix/client/v3/rooms/" .. room_id .. "/state",
+		vim.schedule_wrap(function(response)
+			local result = error.map(response, function(data)
+				--- @type table<neoment.matrix.ClientEventWithoutRoomID>
+				local state_events = data
+
+				-- Filter to only allowed event types
+				local filtered_events = vim.iter(state_events)
+					:filter(function(e)
+						return allowed_types[e.type]
+					end)
+					:totable()
+
+				return event.handle_multiple(room_id, filtered_events)
+			end)
+			callback(result)
+		end),
+		{
+			headers = {
+				Authorization = "Bearer " .. client.client.access_token,
+			},
+		}
+	)
+end
+
 --- Get the message ID of a message, taking into account edits.
 --- @param message neoment.matrix.client.Message The message object.
 M.get_message_id = function(message)

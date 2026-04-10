@@ -72,7 +72,7 @@ local buffer_data = {}
 --- @field zoom boolean Whether the image is zoomed or not
 
 --- @class neoment.room.ExtmarkData
---- @field reaction_label string The label of the reaction
+--- @field reaction_label? string The label of the reaction
 --- @field reaction_users? table<string> The users who reacted to the message
 --- @field reaction_mxc_url? string The mxc:// URL if the reaction is a custom emoticon
 --- @field emoticon_url? string The URL of the emoticon image (mxc:// format)
