@@ -876,6 +876,7 @@ M.join_room = function(room_id_or_alias, callback, via)
 			.. vim.uri_encode(room_id_or_alias)
 			.. "?via="
 			.. vim.uri_encode(client.client.homeserver)
+			.. "&via=matrix.org"
 			.. (via and #via > 0 and "&via=" .. table.concat(via, "&via=") or ""),
 		nil,
 		function(response)
