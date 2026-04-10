@@ -19,6 +19,7 @@ M.client = nil
 --- @field name string The name of the room.
 --- @field aliases table<string> A table to store aliases of the room.
 --- @field topic string The topic of the room.
+--- @field tombstone? neoment.matrix.client.RoomTombstone The tombstone information if the room was upgraded.
 --- @field members table<string, string> A table to store members of the room, mapped as user ID to display name.
 --- @field events neoment.matrix.client.Events A table to store events associated with the room.
 --- @field pending_events table<string, neoment.matrix.client.Events> A table to store pending events associated with the room.
@@ -35,6 +36,10 @@ M.client = nil
 --- @field unread_highlights integer The number of unread highlights for this room.
 --- @field unread boolean Indicates if the room was marked as unread.
 --- @field read_receipt? neoment.matrix.client.ReadReceipt The read receipt of the user in the room, containing the event ID and timestamp of the last read event.
+
+--- @class neoment.matrix.client.RoomTombstone
+--- @field body string A server-defined message describing why the room was upgraded.
+--- @field replacement_room string The room ID of the new room.
 
 --- @alias neoment.matrix.client.Events table<string, neoment.matrix.ClientEventWithoutRoomID>
 

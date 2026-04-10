@@ -284,6 +284,7 @@ end
 ---@field is_reaction? boolean Whether the line is a reaction or not
 ---@field is_thread_indicator? boolean Whether the line is a thread indicator or not
 ---@field is_date? boolean Whether the line is the date or not
+---@field is_tombstone? boolean Whether the line is a tombstone message or not
 
 --- Generate the lines from the room messages
 --- @param buffer_id number The ID of the buffer to update
@@ -493,6 +494,57 @@ local function messages_to_lines(buffer_id)
 		end
 	end
 
+	-- Add tombstone message if the room was upgraded
+	local room = matrix.get_room(room_id)
+	local tombstone = room.tombstone
+	if room and tombstone then
+		local tombstone_content = tombstone.body
+		if tombstone.replacement_room then
+			tombstone_content = string.format(
+				"%s\nNew room: %s\nUse :Neoment join %s to join the new room.",
+				tombstone.body,
+				tombstone.replacement_room,
+				tombstone.replacement_room
+			)
+		end
+
+		-- Add empty line before tombstone
+		table.insert(lines, "")
+		line_to_message[line_index] = {
+			id = "new-line",
+			sender = "",
+			content = "",
+			timestamp = 0,
+			was_edited = false,
+			was_redacted = false,
+			mentions = {},
+			reactions = {},
+			is_state = true,
+			is_header = false,
+			is_tombstone = false,
+		}
+		line_index = line_index + 1
+
+		-- Add each line of the tombstone content
+		for tombstone_line in tombstone_content:gmatch("[^\n]+") do
+			table.insert(lines, tombstone_line)
+			line_to_message[line_index] = {
+				id = "tombstone",
+				sender = "",
+				content = tombstone_line,
+				timestamp = 0,
+				was_edited = false,
+				was_redacted = false,
+				mentions = {},
+				reactions = {},
+				is_state = true,
+				is_header = false,
+				is_tombstone = true,
+			}
+			line_index = line_index + 1
+		end
+	end
+
 	return lines
 end
 
@@ -581,6 +633,11 @@ local function apply_highlights(buffer_id, room_id, lines)
 		---@type neoment.room.LineMessage
 		local message = get_buffer_data(buffer_id).line_to_message[index]
 		if message then
+			-- Apply tombstone highlight
+			if message.is_tombstone then
+				vim.hl.range(buffer_id, EXTMARK_NAMESPACE, "NeomentTombstone", { index - 1, 0 }, { index - 1, -1 })
+			end
+
 			-- Show a virtual text when the message was edited
 			if message.edit_data then
 				-- Add the edit text in the last line of this message

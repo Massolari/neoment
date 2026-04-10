@@ -577,6 +577,12 @@ M.handle = function(room_id, event)
 	elseif event.type == "m.room.topic" then
 		client.get_room(room_id).topic = event.content.topic
 		return true
+	elseif event.type == "m.room.tombstone" then
+		client.get_room(room_id).tombstone = {
+			body = event.content.body or "This room has been upgraded",
+			replacement_room = event.content.replacement_room,
+		}
+		return true
 	elseif event.type == "m.room.member" then
 		local message = member_state_event_to_message(event)
 		if event.content.membership == "join" then

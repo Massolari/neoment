@@ -29,6 +29,9 @@ function M.define_highlights()
 	vim.api.nvim_set_hl(0, "NeomentLastMessageSender", { link = "@variable" })
 	vim.api.nvim_set_hl(0, "NeomentLastMessage", { link = "Comment" })
 
+	-- Tombstone (upgraded room) highlights
+	vim.api.nvim_set_hl(0, "NeomentTombstone", { link = "WarningMsg" })
+
 	-- Apply bold to NeomentBufferRoom
 	local hl_buffer_room_undead = vim.api.nvim_get_hl(0, { name = "NeomentBufferRoomUnread", link = false })
 	if hl_buffer_room_undead then
