@@ -63,9 +63,9 @@ For the best experience, it is recommended to install the following companion pl
 
 - [which-key](https://github.com/folke/which-key.nvim): As most of keybindings are under the `<localleader>` key, which-key helps to discover them easily. When pressing `<localleader>`, which-key will show you the available keybindings for the current buffer.
 - [snacks.nvim](https://github.com/folke/snacks.nvim): For displaying images directly in Neovim buffers.
-- Completion engine to easily type emojis in the compose buffer, such as:
-    - [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) with [cmp-emoji](https://github.com/hrsh7th/cmp-emoji/)
-    - [blink.cmp](https://github.com/Saghen/blink.cmp) with [blink-emoji.nvim](https://github.com/moyiz/blink-emoji.nvim)
+- [emoji-completefunc](https://github.com/Massolari/emoji-completefunc): Provides a completion function for emojis, which can be used in the compose buffer to easily type emojis. Alternatively, if you are using a completion engine, you can use one of the following plugins to integrate emoji completion:
+    - [blink-emoji.nvim](https://github.com/moyiz/blink-emoji.nvim) for [blink.cmp](https://github.com/Saghen/blink.cmp)
+    - [cmp-emoji](https://github.com/hrsh7th/cmp-emoji/) for [nvim-cmp](https://github.com/hrsh7th/nvim-cmp)
 - Picker plugin to enhance the room selection experience through `vim.ui.select`, such as:
     - [snacks.nvim](https://github.com/folke/snacks.nvim)
     - [fzf-lua](https://github.com/ibhagwan/fzf-lua/)
