@@ -98,6 +98,7 @@ local function get_stripped_room(room)
 		name = room.name,
 		aliases = room.aliases,
 		tombstone = room.tombstone,
+		avatar_url = room.avatar_url,
 		topic = room.topic,
 		-- No need to store the event history
 		events = {},
