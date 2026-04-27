@@ -1059,7 +1059,7 @@ local function toggle_room_tag(tag)
 	M.toggle_room_tag(tag, mark.room_id)
 end
 
---- Toggle the favorite status of a room
+--- Toggle a tag on a room by ID
 --- @param tag "m.favourite"|"m.lowpriority" The tag to toggle
 --- @param room_id string The ID of the room to toggle the tag on
 --- @param callback? function The callback to call after toggling the tag
