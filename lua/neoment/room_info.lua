@@ -57,7 +57,7 @@ end
 
 --- Render "No image" fallback text
 --- @param buffer_id number
-local function render_fallback_avatar(buffer_id)
+local function render_no_image(buffer_id)
 	vim.api.nvim_buf_set_extmark(buffer_id, ns_id, 0, 0, {
 		virt_lines = { {
 			{ "No image", "Comment" },
@@ -74,13 +74,18 @@ local function render_avatar(buffer_id, room_id)
 	local avatar_url = matrix.get_room_avatar(room_id)
 
 	if not Snacks or not avatar_url then
-		render_fallback_avatar(buffer_id)
+		render_no_image(buffer_id)
 		return
 	end
 
 	local url = util.mxc_to_url(matrix.client.homeserver, avatar_url) .. "?access_token=" .. matrix.client.access_token
 
 	require("snacks.image.terminal").detect(function()
+		local data = buffer_data[buffer_id]
+		if not data then
+			return
+		end
+
 		--- @type snacks.image.Opts
 		local opts = {
 			pos = { 1, 0 },
@@ -91,7 +96,7 @@ local function render_avatar(buffer_id, room_id)
 		}
 
 		local placement = Snacks.image.placement.new(buffer_id, url, opts)
-		buffer_data[buffer_id].avatar.placement = placement
+		data.avatar.placement = placement
 	end)
 end
 
