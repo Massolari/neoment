@@ -79,7 +79,7 @@ local function setup_mocks(room, matrix_opts)
 	}
 
 	package.loaded["neoment.constants"] = {
-		INFO_ROOM_FILETYPE = "neoment-room-info",
+		INFO_ROOM_FILETYPE = "neoment_info_room",
 	}
 
 	package.loaded["neoment.util"] = {
@@ -87,9 +87,9 @@ local function setup_mocks(room, matrix_opts)
 			return nil
 		end,
 		buffer_write = function(buf, lines)
-			vim.api.nvim_buf_set_option(buf, "modifiable", true)
+			vim.bo[buf].modifiable = true
 			vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-			vim.api.nvim_buf_set_option(buf, "modifiable", false)
+			vim.bo[buf].modifiable = false
 		end,
 		mxc_to_url = function(homeserver, mxc)
 			local path = mxc:match("^mxc://[^/]+/(.+)$")
