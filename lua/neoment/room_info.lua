@@ -72,7 +72,7 @@ local function render_no_image(buffer_id)
 	render_image_text(buffer_id, "No image")
 end
 
---- Render "No image" fallback text
+--- Render placeholder text when Snacks is not available to show the avatar
 --- @param buffer_id number
 local function render_image_placeholder(buffer_id)
 	local localleader = vim.g.maplocalleader or "\\"
