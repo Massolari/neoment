@@ -6,6 +6,9 @@ local buffer_id = vim.api.nvim_get_current_buf()
 local util = require("neoment.util")
 local room_info = require("neoment.room_info")
 
+vim.bo.buftype = "nofile"
+vim.bo.swapfile = false
+
 local opts = { noremap = true, silent = true, buffer = buffer_id }
 local function set_opts_desc(desc)
 	return vim.tbl_extend("force", opts, { desc = desc })
