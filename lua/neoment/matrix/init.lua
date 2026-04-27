@@ -1029,17 +1029,13 @@ end
 M.get_room_avatar = function(room_id)
 	if client.has_room(room_id) then
 		local room = client.get_room(room_id)
-		if room.avatar_url then
-			return room.avatar_url
-		end
+		return room.avatar_url
 	end
 
 	-- Also check invited rooms (only if it's actually an invited room)
 	if client.is_invited_room(room_id) then
 		local invited = client.get_invited_room(room_id)
-		if invited.avatar_url then
-			return invited.avatar_url
-		end
+		return invited.avatar_url
 	end
 
 	return nil
