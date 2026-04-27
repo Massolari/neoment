@@ -138,7 +138,7 @@ local function apply_highlights(buffer_id, metadata)
 	local title = metadata.room_name
 	local title_len = vim.fn.strdisplaywidth(title)
 	local decoration_char = "─"
-	local total_decoration = win_width - title_len - 2 -- spaces around title
+	local total_decoration = math.max(win_width - title_len - 2, 0) -- spaces around title
 	local left_len = math.floor(total_decoration / 2)
 	local right_len = math.ceil(total_decoration / 2)
 
