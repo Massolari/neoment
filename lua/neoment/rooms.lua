@@ -1056,11 +1056,21 @@ local function toggle_room_tag(tag)
 		return
 	end
 
-	local room = matrix.get_room(mark.room_id)
+	M.toggle_room_tag(tag, mark.room_id)
+end
+
+--- Toggle the favorite status of a room
+--- @param tag "m.favourite"|"m.lowpriority" The tag to toggle
+--- @param room_id string The ID of the room to toggle the tag on
+--- @param callback? function The callback to call after toggling the tag
+M.toggle_room_tag = function(tag, room_id, callback)
+	local room = matrix.get_room(room_id)
 	if not room then
 		notify.error("Room not found.")
 		return
 	end
+
+	local tag_label = tag == "m.favourite" and "favorites" or "low priority"
 
 	local room_name = matrix.get_room_display_name(room.id)
 
@@ -1085,15 +1095,20 @@ local function toggle_room_tag(tag)
 
 	action.operation(room.id, tag, nil, function(response)
 		error.match(response, function()
-			if action.kind == "remove" then
-				if tag == "m.favourite" then
-					matrix.set_room_favorite(room.id, false)
-				elseif tag == "m.lowpriority" then
-					matrix.set_room_lowpriority(room.id, false)
-				end
+			local is_add = action.kind == "add"
+			if tag == "m.favourite" then
+				matrix.set_room_favorite(room.id, is_add)
+			elseif tag == "m.lowpriority" then
+				matrix.set_room_lowpriority(room.id, is_add)
 			end
+
 			vim.schedule(function()
-				M.update_room_list()
+				if M.get_buffer_id() then
+					M.update_room_list()
+				end
+				if callback then
+					callback()
+				end
 			end)
 			notify.info(string.format("%s %s %s", room_name, action.success, tag_label))
 			return nil
@@ -1126,7 +1141,13 @@ M.toggle_direct = function()
 		return
 	end
 
-	local room = matrix.get_room(mark.room_id)
+	M.toggle_direct_on(mark.room_id)
+end
+
+--- Toggle the direct status of a room by ID (local only)
+--- @param room_id string The ID of the room to toggle direct status on
+M.toggle_direct_on = function(room_id)
+	local room = matrix.get_room(room_id)
 	if not room then
 		notify.error("Room not found.")
 		return

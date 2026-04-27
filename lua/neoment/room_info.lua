@@ -366,9 +366,10 @@ M.update_buffer = function(buffer_id)
 	apply_highlights(buffer_id, metadata)
 end
 
---- Toggle favorite status for the room displayed in this buffer
+--- Toggle a room tag (e.g. favorite, low priority) for the room displayed in this buffer
 --- @param buffer_id number The buffer ID
-M.toggle_favorite = function(buffer_id)
+--- @param tag "m.favourite"|"m.lowpriority"|"m.direct" The tag to toggle
+local function toggle_tag(buffer_id, tag)
 	local room_id = vim.b[buffer_id].room_id
 	if not room_id then
 		return
@@ -379,141 +380,35 @@ M.toggle_favorite = function(buffer_id)
 		return
 	end
 
-	local room = matrix.get_room(room_id)
-	if not room then
-		notify.error("Room not found")
+	local rooms = require("neoment.rooms")
+	if tag == "m.direct" then
+		rooms.toggle_direct_on(room_id)
+		M.update_buffer(buffer_id)
 		return
 	end
 
-	local room_name = matrix.get_room_display_name(room_id)
-	local tag = "m.favourite"
-
-	local action = {
-		kind = "add",
-		operation = matrix.add_room_tag,
-		success = "added to",
-		error_msg = "adding " .. room_name .. " to",
-	}
-
-	if room.is_favorite then
-		action = {
-			kind = "remove",
-			operation = matrix.remove_room_tag,
-			success = "removed from",
-			error_msg = "removing " .. room_name .. " from",
-		}
-	end
-
-	action.operation(room_id, tag, nil, function(response)
-		error.match(response, function()
-			if action.kind == "remove" then
-				matrix.set_room_favorite(room_id, false)
-			end
-			vim.schedule(function()
-				M.update_buffer(buffer_id)
-				local rooms = require("neoment.rooms")
-				if rooms.get_buffer_id() then
-					rooms.update_room_list()
-				end
-			end)
-			notify.info(string.format("%s %s favorites", room_name, action.success))
-			return nil
-		end, function(err)
-			notify.error(string.format("Error %s favorites: %s", action.error_msg, err.error))
-		end)
+	---@cast tag "m.favourite"|"m.lowpriority"
+	rooms.toggle_room_tag(tag, room_id, function()
+		M.update_buffer(buffer_id)
 	end)
+end
+
+--- Toggle favorite status for the room displayed in this buffer
+--- @param buffer_id number The buffer ID
+M.toggle_favorite = function(buffer_id)
+	toggle_tag(buffer_id, "m.favourite")
 end
 
 --- Toggle low priority status for the room displayed in this buffer
 --- @param buffer_id number The buffer ID
 M.toggle_low_priority = function(buffer_id)
-	local room_id = vim.b[buffer_id].room_id
-	if not room_id then
-		return
-	end
-
-	if matrix.has_invited_room(room_id) then
-		notify.info("Cannot modify status for invited rooms")
-		return
-	end
-
-	local room = matrix.get_room(room_id)
-	if not room then
-		notify.error("Room not found")
-		return
-	end
-
-	local room_name = matrix.get_room_display_name(room_id)
-	local tag = "m.lowpriority"
-
-	local action = {
-		kind = "add",
-		operation = matrix.add_room_tag,
-		success = "added to",
-		error_msg = "adding " .. room_name .. " to",
-	}
-
-	if room.is_lowpriority then
-		action = {
-			kind = "remove",
-			operation = matrix.remove_room_tag,
-			success = "removed from",
-			error_msg = "removing " .. room_name .. " from",
-		}
-	end
-
-	action.operation(room_id, tag, nil, function(response)
-		error.match(response, function()
-			if action.kind == "remove" then
-				matrix.set_room_lowpriority(room_id, false)
-			end
-			vim.schedule(function()
-				M.update_buffer(buffer_id)
-				local rooms = require("neoment.rooms")
-				if rooms.get_buffer_id() then
-					rooms.update_room_list()
-				end
-			end)
-			notify.info(string.format("%s %s low priority", room_name, action.success))
-			return nil
-		end, function(err)
-			notify.error(string.format("Error %s low priority: %s", action.error_msg, err.error))
-		end)
-	end)
+	toggle_tag(buffer_id, "m.lowpriority")
 end
 
 --- Toggle direct message status for the room displayed in this buffer
 --- @param buffer_id number The buffer ID
 M.toggle_direct = function(buffer_id)
-	local room_id = vim.b[buffer_id].room_id
-	if not room_id then
-		return
-	end
-
-	if matrix.has_invited_room(room_id) then
-		notify.info("Cannot modify status for invited rooms")
-		return
-	end
-
-	local room = matrix.get_room(room_id)
-	if not room then
-		notify.error("Room not found")
-		return
-	end
-
-	local room_name = matrix.get_room_display_name(room_id)
-	local new_direct_status = not room.is_direct
-
-	matrix.set_room_direct(room_id, new_direct_status)
-
-	M.update_buffer(buffer_id)
-	local rooms = require("neoment.rooms")
-	if rooms.get_buffer_id() then
-		rooms.update_room_list()
-	end
-
-	local action = new_direct_status and "marked as direct" or "unmarked as direct"
-	notify.info(string.format("%s %s", room_name, action))
+	toggle_tag(buffer_id, "m.direct")
 end
 
 --- Toggle the expanded state of the members list
