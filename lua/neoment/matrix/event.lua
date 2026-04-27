@@ -691,10 +691,7 @@ M.handle_invited = function(room_id, event)
 		client.get_invited_room(room_id).topic = event.content.topic
 		return true
 	elseif event.type == "m.room.avatar" then
-		local room = client.get_invited_room(room_id)
-		if room then
-			room.avatar_url = event.content.url
-		end
+		client.get_invited_room(room_id).avatar_url = event.content.url
 		return true
 	elseif event.type == "m.room.member" and event.content.membership == "join" then
 		client.get_invited_room(room_id).members[event.state_key] = event.content.displayname or event.state_key
