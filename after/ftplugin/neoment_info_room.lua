@@ -37,8 +37,6 @@ vim.api.nvim_create_autocmd("BufReadCmd", {
 	callback = function(ev)
 		-- update room buffer context
 		room_info.update_buffer(ev.buf)
-		-- `:e` command also will clear treesitter highlight.
-		vim.treesitter.start(ev.buf, "markdown")
 	end,
 })
 
