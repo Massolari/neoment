@@ -37,11 +37,16 @@ end
 --- Clean up avatar placement for a buffer
 --- @param buffer_id number
 M.cleanup_avatar = function(buffer_id)
-	if buffer_data[buffer_id].avatar.placement then
-		buffer_data[buffer_id].avatar.placement:close()
-		buffer_data[buffer_id].avatar.placement = nil
+	local data = buffer_data[buffer_id]
+	if not data then
+		return
 	end
-	buffer_data[buffer_id].avatar = { placement = nil, zoomed = false }
+
+	if data.avatar.placement then
+		data.avatar.placement:close()
+		data.avatar.placement = nil
+	end
+	data.avatar = { placement = nil, zoomed = false }
 end
 
 --- Clean up the buffer data
