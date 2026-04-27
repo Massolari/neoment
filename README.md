@@ -79,6 +79,7 @@ For the best experience, it is recommended to install the following companion pl
 1. Provide your username and password
 1. The plugin will automatically sync and display your rooms
 
+*if getting errors when logging in, try [Alternative way to log in](#log-in-with-access-token)
 ### Commands
 
 - `:Neoment` - Login to your Matrix account. If already logged in, opens the rooms list
@@ -311,6 +312,20 @@ Filetype: `neoment_info_room`
 | Find room (open `vim.ui.select`)      | `<Plug>NeomentPickRooms`          | `<localleader>f` |
 | Find open room (open `vim.ui.select`) | `<Plug>NeomentPickOpenRooms`      | `<localleader>F` |
 | Toggle room list                      | `<Plug>NeomentToggleRoomsList`    | `<localleader>l` |
+
+### Log in with access token
+
+In case you couldn't log in normally there's an alternative way involving getting your access token with curl and overriding Neoment's memory like so:
+1. Use this command to get the access token
+```bash
+curl -X POST -d '{"type":"m.login.password", "user":"@USERNAME:SERVER.TLD", "password":"PASSWORD"}' "https://FULL.MATRIX.ADDRESS/_matrix/client/r0/login"
+```
+2. Take the values from the output and insert them into this command:
+```lua
+:lua local m = require('neoment.matrix'); m.new("https://FULL.MATRIX.ADDRESS", "YOUR_TOKEN"); m.client.user_id = "@USERNAME:SERVER.TLD"; m.client.device_id = "YOUR_DEVICE_ID"; require('neoment.storage').save_session() 
+```
+3. use :Neoment command as you normally would, if everything works correctly, you should be logged in
+4. Quit neovim, start it again and use :Neoment again, it should start syncing your messages
 
 ## Inspiration
 
