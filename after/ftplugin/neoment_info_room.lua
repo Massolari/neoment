@@ -41,3 +41,10 @@ vim.api.nvim_create_autocmd("BufReadCmd", {
 		vim.treesitter.start(ev.buf, "markdown")
 	end,
 })
+
+vim.api.nvim_create_autocmd("BufDelete", {
+	buffer = buffer_id,
+	callback = function()
+		room_info.cleanup_avatar(buffer_id)
+	end,
+})

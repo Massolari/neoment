@@ -36,7 +36,7 @@ end
 
 --- Clean up avatar placement for a buffer
 --- @param buffer_id number
-local function cleanup_avatar(buffer_id)
+M.cleanup_avatar = function(buffer_id)
 	if buffer_data[buffer_id].avatar.placement then
 		buffer_data[buffer_id].avatar.placement:close()
 		buffer_data[buffer_id].avatar.placement = nil
@@ -58,7 +58,7 @@ end
 --- @param buffer_id number The buffer ID
 --- @param room_id string The room ID
 local function render_avatar(buffer_id, room_id)
-	cleanup_avatar(buffer_id)
+	M.cleanup_avatar(buffer_id)
 
 	local avatar_url = matrix.get_room_avatar(room_id)
 
@@ -218,14 +218,6 @@ M.open_info = function(room_id)
 	vim.wo[win][0].relativenumber = false
 
 	M.update_buffer(buffer_id)
-
-	vim.api.nvim_create_autocmd("BufDelete", {
-		group = vim.api.nvim_create_augroup("neoment_room_info_avatar_cleanup", { clear = true }),
-		buffer = buffer_id,
-		callback = function()
-			cleanup_avatar(buffer_id)
-		end,
-	})
 
 	return buffer_id
 end
