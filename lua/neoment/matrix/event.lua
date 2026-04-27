@@ -578,10 +578,7 @@ M.handle = function(room_id, event)
 		client.get_room(room_id).topic = event.content.topic
 		return true
 	elseif event.type == "m.room.avatar" then
-		local room = client.get_room(room_id)
-		if room then
-			room.avatar_url = event.content.url
-		end
+		client.get_room(room_id).avatar_url = event.content.url
 		return true
 	elseif event.type == "m.room.tombstone" then
 		client.get_room(room_id).tombstone = {
