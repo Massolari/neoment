@@ -130,6 +130,7 @@ local function teardown_mocks()
 	package.loaded["neoment.notify"] = nil
 	package.loaded["neoment.icon"] = nil
 	package.loaded["neoment.error"] = nil
+	package.loaded["neoment.rooms"] = nil
 end
 
 describe("room_info", function()
