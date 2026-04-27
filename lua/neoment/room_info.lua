@@ -242,13 +242,22 @@ M.update_buffer = function(buffer_id)
 		return
 	end
 
+	-- Get room information
+	local room
+	if matrix.has_room(room_id) then
+		room = matrix.get_room(room_id)
+	elseif matrix.has_invited_room(room_id) then
+		room = matrix.get_invited_room(room_id)
+	end
+
+	if not room then
+		return
+	end
+
 	-- Initialize members_expanded state
 	if vim.b[buffer_id].members_expanded == nil then
 		vim.b[buffer_id].members_expanded = false
 	end
-
-	-- Get room information
-	local room = matrix.has_room(room_id) and matrix.get_room(room_id) or matrix.get_invited_room(room_id)
 	local lines = {}
 
 	--- @type table
