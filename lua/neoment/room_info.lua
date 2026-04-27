@@ -513,9 +513,11 @@ M.open_avatar = function(buffer_id)
 		.. matrix.client.access_token
 	local error_path = storage.fetch_to_temp(filename, url)
 
-	error.map(error_path, function(path)
+	error.match(error_path, function(path)
 		vim.ui.open(path)
 		return nil
+	end, function(err)
+		notify.error("Failed to open avatar image: " .. err)
 	end)
 end
 
