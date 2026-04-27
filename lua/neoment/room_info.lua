@@ -2,7 +2,6 @@ local M = {}
 
 local config = require("neoment.config")
 local constants = require("neoment.constants")
-local error = require("neoment.error")
 local icon = require("neoment.icon")
 local notify = require("neoment.notify")
 local util = require("neoment.util")

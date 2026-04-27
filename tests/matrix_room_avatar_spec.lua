@@ -1,5 +1,3 @@
-local client = require("neoment.matrix.client")
-
 describe("matrix get_room_avatar", function()
 	local matrix
 
