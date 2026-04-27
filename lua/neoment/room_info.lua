@@ -434,14 +434,19 @@ end
 --- Toggle the avatar image zoom
 --- @param buffer_id number The buffer ID
 M.toggle_avatar_zoom = function(buffer_id)
-	local placement = buffer_data[buffer_id].avatar.placement
+	local data = buffer_data[buffer_id]
+	if not data then
+		return
+	end
+
+	local placement = data.avatar.placement
 	if not placement then
 		notify.info("No avatar image to zoom")
 		return
 	end
 
-	local zoomed = buffer_data[buffer_id].avatar.zoomed or false
-	buffer_data[buffer_id].avatar.zoomed = not zoomed
+	local zoomed = data.avatar.zoomed or false
+	data.avatar.zoomed = not zoomed
 
 	if not zoomed then
 		placement.opts.height = vim.api.nvim_win_get_height(0)
