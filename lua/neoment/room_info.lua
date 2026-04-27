@@ -76,7 +76,7 @@ end
 --- @param buffer_id number
 local function render_image_placeholder(buffer_id)
 	local localleader = vim.g.maplocalleader or "\\"
-	local text = string.format("Avatar image cannot be displayed. [%so] open Snacks repository", localleader)
+	local text = string.format("Room avatar [%so] open in external viewer", localleader)
 	render_image_text(buffer_id, text)
 end
 
