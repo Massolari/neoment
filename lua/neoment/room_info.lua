@@ -44,6 +44,13 @@ M.cleanup_avatar = function(buffer_id)
 	buffer_data[buffer_id].avatar = { placement = nil, zoomed = false }
 end
 
+--- Clean up the buffer data
+--- @param buffer_id number
+M.cleanup_buffer = function(buffer_id)
+	M.cleanup_avatar(buffer_id)
+	buffer_data[buffer_id] = nil
+end
+
 --- Render "No image" fallback text
 --- @param buffer_id number
 local function render_fallback_avatar(buffer_id)

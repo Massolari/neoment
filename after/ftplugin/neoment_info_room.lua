@@ -45,6 +45,6 @@ vim.api.nvim_create_autocmd("BufReadCmd", {
 vim.api.nvim_create_autocmd("BufDelete", {
 	buffer = buffer_id,
 	callback = function()
-		room_info.cleanup_avatar(buffer_id)
+		room_info.cleanup_buffer(buffer_id)
 	end,
 })
