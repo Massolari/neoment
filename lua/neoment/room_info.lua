@@ -1,5 +1,6 @@
 local M = {}
 
+local error = require("neoment.error")
 local config = require("neoment.config")
 local constants = require("neoment.constants")
 local icon = require("neoment.icon")
@@ -55,14 +56,28 @@ M.cleanup_buffer = function(buffer_id)
 	buffer_data[buffer_id] = nil
 end
 
+--- Helper to render text in place of the avatar image (e.g. when Snacks is not available)
+--- @param buffer_id number
+local function render_image_text(buffer_id, text)
+	vim.api.nvim_buf_set_extmark(buffer_id, ns_id, 0, 0, {
+		virt_lines = { {
+			{ text, "Comment" },
+		} },
+	})
+end
+
 --- Render "No image" fallback text
 --- @param buffer_id number
 local function render_no_image(buffer_id)
-	vim.api.nvim_buf_set_extmark(buffer_id, ns_id, 0, 0, {
-		virt_lines = { {
-			{ "No image", "Comment" },
-		} },
-	})
+	render_image_text(buffer_id, "No image")
+end
+
+--- Render "No image" fallback text
+--- @param buffer_id number
+local function render_image_placeholder(buffer_id)
+	local localleader = vim.g.maplocalleader or "\\"
+	local text = string.format("Avatar image cannot be displayed. [%so] open Snacks repository", localleader)
+	render_image_text(buffer_id, text)
 end
 
 --- Render room avatar if Snacks is available, otherwise render fallback
@@ -73,8 +88,13 @@ local function render_avatar(buffer_id, room_id)
 
 	local avatar_url = matrix.get_room_avatar(room_id)
 
-	if not Snacks or not avatar_url then
+	if not avatar_url then
 		render_no_image(buffer_id)
+		return
+	end
+
+	if not Snacks then
+		render_image_placeholder(buffer_id)
 		return
 	end
 
@@ -109,7 +129,7 @@ end
 --- @param key string The key to display in the hint for toggling this status
 local function render_status(buffer_id, line, active, status_icon, label, key)
 	local localleader = vim.g.maplocalleader or "\\"
-	local hint = "  [" .. localleader .. key .. "] toggle"
+	local hint = string.format("  [%s%s] toggle", localleader, key)
 
 	if active then
 		vim.api.nvim_buf_set_extmark(buffer_id, ns_id, line, 0, {
@@ -238,12 +258,10 @@ M.open_info = function(room_id)
 	return buffer_id
 end
 
---- Updates the content of the room info buffer.
---- @param buffer_id number The buffer number to update.
-M.update_buffer = function(buffer_id)
-	if not vim.api.nvim_buf_is_loaded(buffer_id) then
-		return
-	end
+--- Retrieves the current room information for a given buffer ID, if available.
+--- @param buffer_id number The buffer ID to retrieve room information for.
+--- @return neoment.matrix.client.Room|neoment.matrix.client.InvitedRoom|nil A table containing room information, or nil if not available.
+local function get_current_room(buffer_id)
 	local room_id = vim.b[buffer_id].room_id
 
 	if not room_id then
@@ -258,6 +276,18 @@ M.update_buffer = function(buffer_id)
 		room = matrix.get_invited_room(room_id)
 	end
 
+	return room
+end
+
+--- Updates the content of the room info buffer.
+--- @param buffer_id number The buffer number to update.
+M.update_buffer = function(buffer_id)
+	if not vim.api.nvim_buf_is_loaded(buffer_id) then
+		return
+	end
+
+	local room = get_current_room(buffer_id)
+
 	if not room then
 		return
 	end
@@ -270,8 +300,8 @@ M.update_buffer = function(buffer_id)
 
 	--- @type table
 	local metadata = {
-		room_id = room_id,
-		room_name = matrix.get_room_display_name(room_id),
+		room_id = room.id,
+		room_name = matrix.get_room_display_name(room.id),
 		header_line = 0,
 		is_favorite = room.is_favorite,
 		is_lowpriority = room.is_lowpriority,
@@ -294,7 +324,7 @@ M.update_buffer = function(buffer_id)
 
 	-- Room type
 	local room_type = "Room"
-	if matrix.is_space(room_id) then
+	if matrix.is_space(room.id) then
 		room_type = "Space"
 	elseif room.is_direct then
 		room_type = "Direct Message"
@@ -314,7 +344,7 @@ M.update_buffer = function(buffer_id)
 	end
 
 	-- Space
-	local space_name = matrix.get_space_name(room_id)
+	local space_name = matrix.get_space_name(room.id)
 	if space_name then
 		table.insert(lines, "Space: " .. space_name)
 		table.insert(lines, "")
@@ -333,11 +363,11 @@ M.update_buffer = function(buffer_id)
 	table.insert(lines, "")
 
 	-- Links section
-	local aliases = matrix.get_room_aliases(room_id)
+	local aliases = matrix.get_room_aliases(room.id)
 	local links_line = current_line()
 	table.insert(metadata.section_lines, links_line)
 	table.insert(lines, "── Links ──")
-	table.insert(lines, "Room ID: " .. room_id)
+	table.insert(lines, "Room ID: " .. room.id)
 	if #aliases > 0 then
 		table.insert(lines, "Aliases:")
 		vim.iter(aliases):each(function(alias)
@@ -347,7 +377,7 @@ M.update_buffer = function(buffer_id)
 	table.insert(lines, "")
 
 	-- Members section
-	local members = matrix.get_room_members(room_id)
+	local members = matrix.get_room_members(room.id)
 	local member_count = vim.tbl_count(members)
 	local members_line = current_line()
 	table.insert(metadata.section_lines, members_line)
@@ -460,6 +490,33 @@ M.toggle_avatar_zoom = function(buffer_id)
 		placement.opts.width = IMAGE_WIDTH
 	end
 	placement:update()
+end
+
+--- Open the avatar image in an external viewer (e.g. by copying the URL to the clipboard)
+--- @param buffer_id number The buffer ID
+M.open_avatar = function(buffer_id)
+	local room = get_current_room(buffer_id)
+	if not room then
+		return
+	end
+	local avatar = room.avatar_url
+	if not avatar then
+		notify.info("No avatar image to open")
+		return
+	end
+
+	local storage = require("neoment.storage")
+	local room_name = matrix.get_room_display_name(room.id)
+	local filename = room_name:gsub("[^%w%.%-_]", "_") .. ".png"
+	local url = util.mxc_to_url(matrix.client.homeserver, room.avatar_url)
+		.. "?access_token="
+		.. matrix.client.access_token
+	local error_path = storage.fetch_to_temp(filename, url)
+
+	error.map(error_path, function(path)
+		vim.ui.open(path)
+		return nil
+	end)
 end
 
 return M

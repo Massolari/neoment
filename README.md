@@ -313,6 +313,7 @@ Filetype: `neoment_info_room`
 | Find room (open `vim.ui.select`)      | `<Plug>NeomentPickRooms`                   | `<localleader>f` |
 | Find open room (open `vim.ui.select`) | `<Plug>NeomentPickOpenRooms`               | `<localleader>F` |
 | Toggle low priority status            | `<Plug>NeomentInfoRoomToggleLowPriority`   | `<localleader>l` |
+| Open avatar in external viewer        | `<Plug>NeomentInfoOpenAvatar`              | `<localleader>o` |
 | Quit info (close the buffer)          | `<Plug>NeomentInfoRoomQuit`                | `<localleader>q` |
 | Toggle zoom avatar                    | `<Plug>NeomentInfoRoomToggleZoomAvatar`    | `<localleader>z` |
 

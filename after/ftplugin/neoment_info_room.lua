@@ -24,6 +24,10 @@ set_mapping("n", "<localleader>d", "ToggleDirect", function()
 	room_info.toggle_direct(buffer_id)
 end, set_opts_desc("Toggle [d]irect message status"))
 
+set_mapping("n", "<localleader>o", "OpenAvatar", function()
+	room_info.open_avatar(buffer_id)
+end, set_opts_desc("[O]pen avatar in external viewer"))
+
 set_mapping("n", "<Tab>", "ToggleMembers", function()
 	room_info.toggle_members(buffer_id)
 end, set_opts_desc("Toggle members list"))
