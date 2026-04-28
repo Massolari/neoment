@@ -48,6 +48,7 @@
 
 --- @class neoment.config.Rooms
 --- @field display_last_message? neoment.config.DisplayLastMessage How to display the last message in the room list
+--- @field room_title_format? neoment.config.RoomTitleFormat How to format room titles in the room list
 
 --- @class neoment.config.DesktopNotifications
 --- @field enabled? boolean Whether desktop notifications are enabled
@@ -99,8 +100,10 @@
 
 --- @class neoment.config.InternalRooms
 --- @field display_last_message neoment.config.DisplayLastMessage How to display the last message in the room list
+--- @field room_title_format neoment.config.RoomTitleFormat How to format room titles in the room list
 
 --- @alias neoment.config.DisplayLastMessage "no"|"message"|"sender_message"|"sender_message_inline"
+--- @alias neoment.config.RoomTitleFormat "space_room"|"room"|"room_space"
 
 --- @class neoment.config.InternalDesktopNotifications
 --- @field enabled boolean Whether desktop notifications are enabled
@@ -175,6 +178,7 @@ local default = {
 	},
 	rooms = {
 		display_last_message = "message",
+		room_title_format = "room_space",
 	},
 }
 

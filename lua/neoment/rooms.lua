@@ -360,6 +360,20 @@ local function format_relative_time(timestamp)
 	end
 end
 
+--- Get the display name for a room, formatted based on configuration and context
+--- @param room_id string The ID of the room
+--- @param is_space_section boolean Whether the room is being rendered in a space section (affects display name formatting)
+--- @param force_display_space boolean Whether to display the parent space name in the room line (overrides room_title_format)
+--- @return string The formatted display name for the room
+local function get_room_line_name(room_id, is_space_section, force_display_space)
+	local room_title_format = config.get().rooms.room_title_format
+	if not force_display_space and is_space_section or room_title_format ~= "space_room" then
+		return matrix.get_room_display_name(room_id)
+	end
+
+	return matrix.get_room_display_name_with_space(room_id)
+end
+
 --- @class neoment.rooms.RoomLineInfo
 --- @field name string The display name of the room
 --- @field time string|nil The formatted time of last activity
@@ -369,15 +383,16 @@ end
 
 --- Get the line info for a room
 --- @param room neoment.matrix.client.Room|neoment.matrix.client.InvitedRoom The room object
---- @param show_space boolean Whether to show the space name in the line
+--- @param is_space_section boolean Whether the room is being rendered in a space section (affects display name formatting)
+--- @param force_display_space? boolean Whether to display the parent space name in the room line (overrides room_title_format)
 --- @return neoment.rooms.RoomLineInfo The room line info
-local function get_room_line_info(room, show_space)
+local function get_room_line_info(room, is_space_section, force_display_space)
 	local last_activity = matrix.get_room_last_activity(room.id)
-	local get_name = show_space and matrix.get_room_display_name_with_space or matrix.get_room_display_name
 	local config_icon = config.get().icon
 
+	--- @type neoment.rooms.RoomLineInfo
 	local info = {
-		name = get_name(room.id),
+		name = get_room_line_name(room.id, is_space_section, force_display_space or false),
 		time = nil,
 		notification_icon = nil,
 		room_icon = get_room_icon(room),
@@ -404,10 +419,9 @@ end
 
 --- Get the line for a room (legacy format for picker compatibility)
 --- @param room neoment.matrix.client.Room|neoment.matrix.client.InvitedRoom The room object
---- @param show_space boolean Whether to show the space name in the line
 --- @return string The formatted line for the room
-local function get_room_line(room, show_space)
-	local info = get_room_line_info(room, show_space)
+local function get_room_line(room)
+	local info = get_room_line_info(room, false, true)
 	local display = info.name
 
 	if info.time then
@@ -462,13 +476,13 @@ end
 --- @param lines table The lines to append the rendered room to
 --- @param line_index number The current line index to start rendering
 --- @param extmarks table The extmarks to append the room to
---- @param opts {section: neoment.rooms.Section, show_space: boolean, indentation_level: number} Options for rendering
+--- @param opts {section: neoment.rooms.Section, is_space_section: boolean, indentation_level: number} Options for rendering
 local function render_room(room, lines, line_index, extmarks, opts)
 	opts = opts or {}
-	vim.validate("opts.show_space", opts.show_space, "boolean")
+	vim.validate("opts.is_space_section", opts.is_space_section, "boolean")
 	vim.validate("opts.indentation_level", opts.indentation_level, "number")
 
-	local info = get_room_line_info(room, opts.show_space)
+	local info = get_room_line_info(room, opts.is_space_section)
 	local indentation = string.rep("  ", opts.indentation_level)
 
 	-- Build the line: just the room name (highlights and virtual text will add the rest)
@@ -531,7 +545,7 @@ local function render_space(space, lines, line_index, extmarks, indentation_leve
 				new_line_index = render_space(room, lines, new_line_index, extmarks, indentation_level + 1)
 			else
 				render_room(room, lines, new_line_index, extmarks, {
-					show_space = false,
+					is_space_section = true,
 					indentation_level = indentation_level + 1,
 				})
 				new_line_index = new_line_index + 1
@@ -746,7 +760,7 @@ M.update_room_list = function()
 				else
 					render_room(room, lines, line_index, extmarks, {
 						section = section,
-						show_space = true,
+						is_space_section = false,
 						indentation_level = 1,
 					})
 					line_index = line_index + 1
@@ -794,7 +808,9 @@ M.update_room_list = function()
 	})
 
 	-- Header: User info with presence and sync status
-	local config_icon = config.get().icon
+	local user_config = config.get()
+	local config_icon = user_config.icon
+	local room_title_format = user_config.rooms.room_title_format
 	local icon = require("neoment.icon")
 	local user_display_name, user_status_text = get_logged_user_info()
 	local sync_icon, sync_text = format_sync_status()
@@ -843,6 +859,7 @@ M.update_room_list = function()
 			if room_info.time then
 				table.insert(eol_virt_text, { " " .. room_info.time, "NeomentRoomTime" })
 			end
+
 			if room_info.notification_icon then
 				local notif_hl = "NeomentNotificationDot"
 				if room_info.notification_icon == config_icon.bell then
@@ -851,6 +868,13 @@ M.update_room_list = function()
 					notif_hl = "NeomentNotificationCircle"
 				end
 				table.insert(eol_virt_text, { " " .. room_info.notification_icon, notif_hl })
+			end
+
+			if room_title_format == "room_space" then
+				local space_name = matrix.get_space_name(mark.room_id)
+				if space_name then
+					table.insert(eol_virt_text, { " " .. space_name, "NeomentRoomSpace" })
+				end
 			end
 		end
 
@@ -896,7 +920,7 @@ local function rooms_to_picker_rooms(rooms_and_spaces)
 				line = icon.space .. "  " .. matrix.get_room_display_name(room.id)
 			else
 				local room_icon = room.is_direct and icon.people or icon.room
-				line = room_icon .. "  " .. get_room_line(room, true)
+				line = room_icon .. "  " .. get_room_line(room)
 			end
 			return { room = room, line = line }
 		end)

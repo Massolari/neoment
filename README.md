@@ -181,6 +181,13 @@ vim.g.neoment = {
 		-- "sender_message" - show the sender and last message content, each one on its own line
 		-- "sender_message_inline" - show the sender and last message content on the same line.
 		display_last_message = "message",
+		
+		-- How to display the room title. The room title is shown in the room list.
+		-- Options:
+		-- "space_room" - show the space name followed by the room name (e.g. "Space/Room")
+		-- "room" - show only the room name
+		-- "room_space" - show the space as a virtual text after all other information (e.g. "Room 10m • Space")
+		room_title_format = "room_space",
 	}
 	
 	-- Icon configuration (all optional)
