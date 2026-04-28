@@ -508,9 +508,7 @@ M.open_avatar = function(buffer_id)
 	local storage = require("neoment.storage")
 	local room_name = matrix.get_room_display_name(room.id)
 	local filename = room_name:gsub("[^%w%.%-_]", "_") .. ".png"
-	local url = util.mxc_to_url(matrix.client.homeserver, room.avatar_url)
-		.. "?access_token="
-		.. matrix.client.access_token
+	local url = util.mxc_to_url(matrix.client.homeserver, avatar) .. "?access_token=" .. matrix.client.access_token
 	local error_path = storage.fetch_to_temp(filename, url)
 
 	error.match(error_path, function(path)
