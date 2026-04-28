@@ -36,6 +36,7 @@ M.client = nil
 --- @field unread_highlights integer The number of unread highlights for this room.
 --- @field unread boolean Indicates if the room was marked as unread.
 --- @field read_receipt? neoment.matrix.client.ReadReceipt The read receipt of the user in the room, containing the event ID and timestamp of the last read event.
+--- @field avatar_url? string The URL for the room's avatar (mxc:// format).
 
 --- @class neoment.matrix.client.RoomTombstone
 --- @field body string A server-defined message describing why the room was upgraded.
@@ -48,6 +49,7 @@ M.client = nil
 --- @field name string The name of the room.
 --- @field topic string The topic of the room.
 --- @field members table<string, string> A table to store members of the room, mapped as user ID to display name.
+--- @field avatar_url? string The URL for the room's avatar (mxc:// format).
 
 --- @class neoment.matrix.client.DisplayName
 --- @field user_id string The ID of the user.

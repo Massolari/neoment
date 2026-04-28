@@ -305,12 +305,17 @@ Filetype: `neoment_space`
 
 Filetype: `neoment_info_room`
 
-| Description                           | Mapping                           | Default          |
-| ------------------------------------- | --------------------------------- | ---------------- |
-| Quit info (close the buffer)          | `<Plug>NeomentInfoRoomQuit`       | `q`              |
-| Find room (open `vim.ui.select`)      | `<Plug>NeomentPickRooms`          | `<localleader>f` |
-| Find open room (open `vim.ui.select`) | `<Plug>NeomentPickOpenRooms`      | `<localleader>F` |
-| Toggle room list                      | `<Plug>NeomentToggleRoomsList`    | `<localleader>l` |
+| Description                           | Mapping                                    | Default          |
+| ------------------------------------- | ------------------------------------------ | ---------------- |
+| Toggle members list                   | `<Plug>NeomentInfoRoomToggleMembers`       | `<Tab>`          |
+| Toggle favorite status                | `<Plug>NeomentInfoRoomToggleFavorite`      | `<localleader>a` |
+| Toggle direct message status          | `<Plug>NeomentInfoRoomToggleDirect`        | `<localleader>d` |
+| Find room (open `vim.ui.select`)      | `<Plug>NeomentPickRooms`                   | `<localleader>f` |
+| Find open room (open `vim.ui.select`) | `<Plug>NeomentPickOpenRooms`               | `<localleader>F` |
+| Toggle low priority status            | `<Plug>NeomentInfoRoomToggleLowPriority`   | `<localleader>l` |
+| Open avatar in external viewer        | `<Plug>NeomentInfoRoomOpenAvatar`          | `<localleader>o` |
+| Quit info (close the buffer)          | `<Plug>NeomentInfoRoomQuit`                | `<localleader>q` |
+| Toggle zoom avatar                    | `<Plug>NeomentInfoRoomToggleZoomAvatar`    | `<localleader>z` |
 
 ## Inspiration
 

@@ -1023,6 +1023,24 @@ M.get_room_aliases = function(room_id)
 	return room.aliases or {}
 end
 
+--- Get the avatar URL for a room
+--- @param room_id string The ID of the room
+--- @return string|nil The avatar URL (mxc:// format) or nil if not available
+M.get_room_avatar = function(room_id)
+	if client.has_room(room_id) then
+		local room = client.get_room(room_id)
+		return room.avatar_url
+	end
+
+	-- Also check invited rooms (only if it's actually an invited room)
+	if client.is_invited_room(room_id) then
+		local invited = client.get_invited_room(room_id)
+		return invited.avatar_url
+	end
+
+	return nil
+end
+
 --- Get the other members of a room.
 --- @param room_id string The ID of the room.
 --- @return table<string, string> The other members of the room. The keys are user IDs and the values are display names.
@@ -1473,6 +1491,7 @@ M.get_room_message = client.get_room_message
 M.get_room_last_message = client.get_room_last_message
 M.get_room_unread_mark = client.get_room_unread_mark
 M.has_room = client.has_room
+M.has_invited_room = client.is_invited_room
 
 setmetatable(M, {
 	__index = function(_, key)

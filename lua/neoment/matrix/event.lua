@@ -577,6 +577,9 @@ M.handle = function(room_id, event)
 	elseif event.type == "m.room.topic" then
 		client.get_room(room_id).topic = event.content.topic
 		return true
+	elseif event.type == "m.room.avatar" then
+		client.get_room(room_id).avatar_url = event.content.url
+		return true
 	elseif event.type == "m.room.tombstone" then
 		client.get_room(room_id).tombstone = {
 			body = event.content.body or "This room has been upgraded",
@@ -683,6 +686,9 @@ M.handle_invited = function(room_id, event)
 		return true
 	elseif event.type == "m.room.topic" then
 		client.get_invited_room(room_id).topic = event.content.topic
+		return true
+	elseif event.type == "m.room.avatar" then
+		client.get_invited_room(room_id).avatar_url = event.content.url
 		return true
 	elseif event.type == "m.room.member" and event.content.membership == "join" then
 		client.get_invited_room(room_id).members[event.state_key] = event.content.displayname or event.state_key
