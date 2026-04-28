@@ -1,3 +1,8 @@
+local function get_buf_content(buf)
+	local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+	return table.concat(lines, "\n"), lines
+end
+
 local function make_room(overrides)
 	return vim.tbl_extend("force", {
 		id = "!room1:example.org",
@@ -180,8 +185,7 @@ describe("room_info", function()
 			vim.b[buf].room_id = room.id
 			room_info.update_buffer(buf)
 
-			local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-			local content = table.concat(lines, "\n")
+			local content = get_buf_content(buf)
 
 			assert.truthy(content:find("Room Type: Room"))
 			assert.truthy(content:find("Room ID: " .. room.id))
@@ -196,8 +200,7 @@ describe("room_info", function()
 			vim.b[buf].room_id = room.id
 			room_info.update_buffer(buf)
 
-			local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-			local content = table.concat(lines, "\n")
+			local content = get_buf_content(buf)
 			assert.truthy(content:find("Room Type: Space"))
 		end)
 
@@ -209,8 +212,7 @@ describe("room_info", function()
 			vim.b[buf].room_id = room.id
 			room_info.update_buffer(buf)
 
-			local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-			local content = table.concat(lines, "\n")
+			local content = get_buf_content(buf)
 			assert.truthy(content:find("Room Type: Direct Message"))
 		end)
 
@@ -222,8 +224,7 @@ describe("room_info", function()
 			vim.b[buf].room_id = room.id
 			room_info.update_buffer(buf)
 
-			local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-			local content = table.concat(lines, "\n")
+			local content = get_buf_content(buf)
 			assert.truthy(content:find("Topic:"))
 			assert.truthy(content:find("This is the topic"))
 		end)
@@ -236,8 +237,7 @@ describe("room_info", function()
 			vim.b[buf].room_id = room.id
 			room_info.update_buffer(buf)
 
-			local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-			local content = table.concat(lines, "\n")
+			local content = get_buf_content(buf)
 			assert.falsy(content:find("Topic:"))
 		end)
 
@@ -249,8 +249,7 @@ describe("room_info", function()
 			vim.b[buf].room_id = room.id
 			room_info.update_buffer(buf)
 
-			local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-			local content = table.concat(lines, "\n")
+			local content = get_buf_content(buf)
 			assert.truthy(content:find("Space: My Space"))
 		end)
 
@@ -262,8 +261,7 @@ describe("room_info", function()
 			vim.b[buf].room_id = room.id
 			room_info.update_buffer(buf)
 
-			local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-			local content = table.concat(lines, "\n")
+			local content = get_buf_content(buf)
 			assert.truthy(content:find("Aliases:"))
 			assert.truthy(content:find("#myroom:example.org"))
 		end)
@@ -281,8 +279,7 @@ describe("room_info", function()
 			vim.b[buf].room_id = room.id
 			room_info.update_buffer(buf)
 
-			local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-			local content = table.concat(lines, "\n")
+			local content = get_buf_content(buf)
 			assert.truthy(content:find("── Members %(2%) ──"))
 			assert.truthy(content:find("%[Tab to expand%]"))
 		end)
@@ -301,8 +298,7 @@ describe("room_info", function()
 			vim.b[buf].members_expanded = true
 			room_info.update_buffer(buf)
 
-			local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-			local content = table.concat(lines, "\n")
+			local content = get_buf_content(buf)
 			assert.truthy(content:find("Alice"))
 			assert.truthy(content:find("Bob"))
 			-- Should not have Tab to expand hint
@@ -324,7 +320,7 @@ describe("room_info", function()
 			vim.b[buf].members_expanded = true
 			room_info.update_buffer(buf)
 
-			local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+			local _, lines = get_buf_content(buf)
 			-- Find the positions of each name
 			local alice_pos, mike_pos, zara_pos
 			for i, line in ipairs(lines) do
@@ -338,8 +334,11 @@ describe("room_info", function()
 					zara_pos = i
 				end
 			end
-			assert.truthy(alice_pos < mike_pos)
-			assert.truthy(mike_pos < zara_pos)
+			assert.is_not_nil(alice_pos, "Alice not found in buffer")
+			assert.is_not_nil(mike_pos, "Mike not found in buffer")
+			assert.is_not_nil(zara_pos, "Zara not found in buffer")
+			assert.is_true(alice_pos < mike_pos, "Expected Alice before Mike")
+			assert.is_true(mike_pos < zara_pos, "Expected Mike before Zara")
 		end)
 
 		it("shows member user ID as display when display name equals user ID", function()
@@ -355,8 +354,7 @@ describe("room_info", function()
 			vim.b[buf].members_expanded = true
 			room_info.update_buffer(buf)
 
-			local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-			local content = table.concat(lines, "\n")
+			local content = get_buf_content(buf)
 			-- Should appear without parenthesized duplicate
 			assert.truthy(content:find("@alice:example%.org"))
 			assert.falsy(content:find("@alice:example%.org %("))
@@ -458,6 +456,19 @@ describe("room_info", function()
 			end)
 		end)
 
+		it("shows info notification for invited rooms", function()
+			local room = make_room()
+			local notify_mock = { info = spy.new(function() end), error = function() end }
+			setup_mocks(room, { has_invited_room = true })
+			package.loaded["neoment.notify"] = notify_mock
+			room_info = require("neoment.room_info")
+
+			vim.b[buf].room_id = room.id
+			room_info.toggle_low_priority(buf)
+
+			assert.spy(notify_mock.info).was_called()
+		end)
+
 		it("calls add_room_tag when room is not low priority", function()
 			local add_tag_spy = spy.new(function() end)
 			local room = make_room({ is_lowpriority = false })
@@ -507,30 +518,19 @@ describe("room_info", function()
 
 			assert.spy(notify_mock.info).was_called_with("No avatar image to zoom")
 		end)
-
-		it("zooms in avatar on first toggle", function()
-			local update_spy = spy.new(function() end)
-			local placement = {
-				opts = { height = 8, width = 16 },
-				update = update_spy,
-				close = function() end,
-			}
-			local room = make_room({ avatar_url = "mxc://example.org/abc123" })
-			setup_mocks(room)
-			room_info = require("neoment.room_info")
-
-			vim.b[buf].room_id = room.id
-			-- Initialize buffer_data by updating buffer (avatar won't render without Snacks)
-			room_info.update_buffer(buf)
-
-			-- Since buffer_data is local and avatar placement requires Snacks,
-			-- we verify the no-placement path is handled (tested above).
-			-- The zoom-in/zoom-out logic requires injecting into local state
-			-- which isn't possible without Snacks mock, so we test the guard paths.
-		end)
 	end)
 
 	describe("open_avatar", function()
+		local original_ui_open
+
+		before_each(function()
+			original_ui_open = vim.ui.open
+		end)
+
+		after_each(function()
+			vim.ui.open = original_ui_open
+		end)
+
 		it("does nothing when buffer has no room_id", function()
 			setup_mocks(make_room())
 			room_info = require("neoment.room_info")
@@ -575,8 +575,6 @@ describe("room_info", function()
 				fetch_to_temp = fetch_spy,
 			}
 
-			-- Mock vim.ui.open
-			local original_open = vim.ui.open
 			vim.ui.open = open_spy
 
 			room_info = require("neoment.room_info")
@@ -593,8 +591,6 @@ describe("room_info", function()
 			assert.truthy(call_args.vals[2]:find("access_token=token"))
 
 			assert.spy(open_spy).was_called_with("/tmp/Test_Room.png")
-
-			vim.ui.open = original_open
 		end)
 
 		it("shows error notification when fetch fails", function()
@@ -626,6 +622,19 @@ describe("room_info", function()
 			assert.has_no_errors(function()
 				room_info.toggle_direct(buf)
 			end)
+		end)
+
+		it("shows info notification for invited rooms", function()
+			local room = make_room()
+			local notify_mock = { info = spy.new(function() end), error = function() end }
+			setup_mocks(room, { has_invited_room = true })
+			package.loaded["neoment.notify"] = notify_mock
+			room_info = require("neoment.room_info")
+
+			vim.b[buf].room_id = room.id
+			room_info.toggle_direct(buf)
+
+			assert.spy(notify_mock.info).was_called()
 		end)
 
 		it("sets room as direct when it is not direct", function()
