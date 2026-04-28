@@ -492,7 +492,7 @@ M.toggle_avatar_zoom = function(buffer_id)
 	placement:update()
 end
 
---- Open the avatar image in an external viewer (e.g. by copying the URL to the clipboard)
+--- Open the avatar image in an external viewer
 --- @param buffer_id number The buffer ID
 M.open_avatar = function(buffer_id)
 	local room = get_current_room(buffer_id)
