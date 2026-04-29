@@ -367,7 +367,7 @@ end
 --- @return string The formatted display name for the room
 local function get_room_line_name(room_id, is_space_section, force_display_space)
 	local room_title_format = config.get().rooms.room_title_format
-	if not force_display_space and is_space_section or room_title_format ~= "space_room" then
+	if not force_display_space and (is_space_section or room_title_format ~= "space_room") then
 		return matrix.get_room_display_name(room_id)
 	end
 
