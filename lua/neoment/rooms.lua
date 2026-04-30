@@ -366,8 +366,12 @@ end
 --- @param force_display_space boolean Whether to display the parent space name in the room line (overrides room_title_format)
 --- @return string The formatted display name for the room
 local function get_room_line_name(room_id, is_space_section, force_display_space)
+	if force_display_space then
+		return matrix.get_room_display_name_with_space(room_id)
+	end
+
 	local room_title_format = config.get().rooms.room_title_format
-	if not force_display_space and (is_space_section or room_title_format ~= "space_room") then
+	if is_space_section or room_title_format ~= "space_room" then
 		return matrix.get_room_display_name(room_id)
 	end
 
@@ -504,6 +508,7 @@ local function render_room(room, lines, line_index, extmarks, opts)
 		is_space = false,
 		indentation_level = opts.indentation_level,
 		room_info = info, -- Store info for highlight application
+		section = opts.section,
 	}
 	table.insert(extmarks, extmark)
 end
@@ -724,6 +729,7 @@ M.update_room_list = function()
 	--- @field is_space boolean
 	--- @field indentation_level number
 	--- @field room_info? neoment.rooms.RoomLineInfo
+	--- @field section neoment.rooms.Section
 
 	--- @type table<neoment.rooms.RoomMark>
 	local extmarks = {}
@@ -874,7 +880,7 @@ M.update_room_list = function()
 				table.insert(eol_virt_text, { " " .. room_info.notification_icon, notif_hl })
 			end
 
-			if room_title_format == "room_space" then
+			if room_title_format == "room_space" and mark.section ~= "spaces" then
 				local space_name = matrix.get_space_name(mark.room_id)
 				if space_name then
 					table.insert(eol_virt_text, { " " .. space_name, "NeomentRoomSpace" })
