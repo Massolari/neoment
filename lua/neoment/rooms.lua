@@ -476,13 +476,18 @@ end
 --- @param lines table The lines to append the rendered room to
 --- @param line_index number The current line index to start rendering
 --- @param extmarks table The extmarks to append the room to
---- @param opts {section: neoment.rooms.Section, is_space_section: boolean, indentation_level: number} Options for rendering
+--- @param opts {section: neoment.rooms.Section, indentation_level: number} Options for rendering
 local function render_room(room, lines, line_index, extmarks, opts)
 	opts = opts or {}
-	vim.validate("opts.is_space_section", opts.is_space_section, "boolean")
+	vim.validate("opts.section", opts.section, function(value)
+		return vim.tbl_contains(
+			{ "invited", "buffers", "favorites", "people", "spaces", "rooms", "low_priority" },
+			value
+		)
+	end)
 	vim.validate("opts.indentation_level", opts.indentation_level, "number")
 
-	local info = get_room_line_info(room, opts.is_space_section)
+	local info = get_room_line_info(room, opts.section == "spaces")
 	local indentation = string.rep("  ", opts.indentation_level)
 
 	-- Build the line: just the room name (highlights and virtual text will add the rest)
@@ -545,7 +550,7 @@ local function render_space(space, lines, line_index, extmarks, indentation_leve
 				new_line_index = render_space(room, lines, new_line_index, extmarks, indentation_level + 1)
 			else
 				render_room(room, lines, new_line_index, extmarks, {
-					is_space_section = true,
+					section = "spaces",
 					indentation_level = indentation_level + 1,
 				})
 				new_line_index = new_line_index + 1
@@ -760,7 +765,6 @@ M.update_room_list = function()
 				else
 					render_room(room, lines, line_index, extmarks, {
 						section = section,
-						is_space_section = false,
 						indentation_level = 1,
 					})
 					line_index = line_index + 1
