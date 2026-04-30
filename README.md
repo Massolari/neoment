@@ -186,7 +186,7 @@ vim.g.neoment = {
 		-- Options:
 		-- "space_room" - show the space name followed by the room name (e.g. "Space/Room")
 		-- "room" - show only the room name
-		-- "room_space" - show the space as a virtual text after all other information (e.g. "Room 10m • Space")
+		-- "room_space" - show the space as a virtual text after all other information (e.g. "Room 10m Space")
 		room_title_format = "room_space",
 	}
 	
