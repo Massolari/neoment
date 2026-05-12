@@ -23,6 +23,7 @@ function M.define_highlights()
 	vim.api.nvim_set_hl(0, "NeomentNotificationDot", { link = "DiagnosticInfo" })
 	vim.api.nvim_set_hl(0, "NeomentNotificationCircle", { link = "DiagnosticWarn" })
 	vim.api.nvim_set_hl(0, "NeomentNotificationBell", { link = "DiagnosticError" })
+	vim.api.nvim_set_hl(0, "NeomentRoomSpace", { link = "@comment.note" })
 
 	-- Last message highlights
 	vim.api.nvim_set_hl(0, "NeomentLastMessageTree", { link = "NonText" })
