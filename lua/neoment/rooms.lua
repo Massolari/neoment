@@ -537,6 +537,7 @@ local function render_space(space, lines, line_index, extmarks, indentation_leve
 		has_unread = false,
 		is_space = true,
 		indentation_level = indentation_level,
+		section = "spaces",
 	}
 	table.insert(extmarks, space_mark)
 
