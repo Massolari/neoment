@@ -106,9 +106,12 @@ function _G.neoment_compose_omnifunc(findstart, base)
 		--- @type table<string, string>
 		local members = vim.b[buf].members or {}
 
+		local base_without_at = string.sub(base, 1, 1) == "@" and string.sub(base, 2) or base
+		local lower_base_without_at = string.lower(base_without_at)
+
 		for id, name in pairs(members) do
 			local lower_name = string.lower(name)
-			if string.match(id, base) or string.match("@" .. lower_name, string.lower(base)) then
+			if string.match(id, base) or string.find(lower_name, lower_base_without_at, 1, true) then
 				table.insert(res, {
 					word = id,
 					abbr = name,
@@ -118,7 +121,7 @@ function _G.neoment_compose_omnifunc(findstart, base)
 			end
 		end
 
-		return res
+		return { words = res, refresh = "always" }
 	end
 end
 
