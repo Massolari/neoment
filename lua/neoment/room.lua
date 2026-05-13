@@ -1338,36 +1338,55 @@ M.reply_message = function()
 	end)
 end
 
---- React to the message under the cursor
-M.react_message = function()
-	local error_message = get_message_under_cursor()
-	error.map(error_message, function(message)
-		local emoji = require("neoment.emoji")
+--- @alias neoment.room.ReactionInputType "emoji"|"text"
 
-		-- Prompt for a reaction
-		return vim.ui.select(emoji(), {
+--- @param reaction_type neoment.room.ReactionInputType
+--- @param callback fun(reaction: string): nil A callback function that will be called with the reaction to add
+local function get_input_reaction(reaction_type, callback)
+	if reaction_type == "emoji" then
+		local emoji = require("neoment.emoji")
+		vim.ui.select(emoji(), {
 			prompt = "Select reaction: ",
 			format_item = function(e)
 				return e.label
 			end,
 		}, function(choice)
-			if not choice then
-				return
+			if choice then
+				callback(choice.insertText)
 			end
-			local chosen_emoji = choice.insertText
+		end)
+	elseif reaction_type == "text" then
+		vim.ui.input({
+			prompt = "Enter reaction: ",
+		}, function(input)
+			if input and input ~= "" then
+				callback(input)
+			end
+		end)
+	else
+		notify.error("Invalid reaction input type: " .. tostring(reaction_type))
+	end
+end
+
+--- React to the message under the cursor
+--- @param reaction_type neoment.room.ReactionInputType
+M.react_message = function(reaction_type)
+	local error_message = get_message_under_cursor()
+	error.map(error_message, function(message)
+		get_input_reaction(reaction_type, function(reaction)
 			local current_buf = vim.api.nvim_get_current_buf()
 			local room_id = vim.b[current_buf].room_id
 
 			-- Get the reactions for the message
-			local reactions = message.reactions[chosen_emoji]
+			local reactions = message.reactions[reaction]
 
 			if reactions then
 				-- If the user already made the same reaction, remove it
 				--- @type neoment.matrix.client.MessageReaction|nil
 				local already_reacted = vim.iter(reactions):find(function(r)
 					--- @type neoment.matrix.client.MessageReaction
-					local reaction = r
-					return reaction.sender == matrix.get_user_id()
+					local message_reaction = r
+					return message_reaction.sender == matrix.get_user_id()
 				end)
 
 				if already_reacted then
@@ -1386,7 +1405,7 @@ M.react_message = function()
 				end
 			end
 
-			matrix.send_reaction(room_id, matrix.get_message_id(message), chosen_emoji, function(response)
+			matrix.send_reaction(room_id, matrix.get_message_id(message), reaction, function(response)
 				error.map(response, function()
 					return vim.schedule(function()
 						M.update_buffer(current_buf)
@@ -1394,6 +1413,7 @@ M.react_message = function()
 				end)
 			end)
 		end)
+		return nil
 	end)
 end
 
