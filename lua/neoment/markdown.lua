@@ -193,22 +193,6 @@ M.from_html = function(html)
 
 	local markdown = html
 
-	-- Replace
-	markdown = markdown:gsub("&#39;", "'")
-	markdown = markdown:gsub("&#x27;", "'")
-	markdown = markdown:gsub("&#27;", '"')
-
-	-- Replace common HTML entities
-	markdown = markdown:gsub("&lt;", "<")
-	markdown = markdown:gsub("&gt;", ">")
-	markdown = markdown:gsub("&amp;", "&")
-	markdown = markdown:gsub("&quot;", '"')
-
-	-- Replace numeric HTML entities (e.g., &#47; for /)
-	markdown = markdown:gsub("&#(%d+);", function(code)
-		return string.char(tonumber(code))
-	end)
-
 	-- Paragraphs
 	markdown = markdown:gsub("<p>(.-)</p>", "%1\n")
 
@@ -336,6 +320,18 @@ M.from_html = function(html)
 
 	-- Clean up any remaining HTML tags
 	markdown = markdown:gsub("<[^>]+>(.-)</[^>]+>", "%1")
+
+	-- Replace HTML entities (after tag processing so decoded entities aren't treated as tags)
+	markdown = markdown:gsub("&#39;", "'")
+	markdown = markdown:gsub("&#x27;", "'")
+	markdown = markdown:gsub("&#27;", '"')
+	markdown = markdown:gsub("&lt;", "<")
+	markdown = markdown:gsub("&gt;", ">")
+	markdown = markdown:gsub("&amp;", "&")
+	markdown = markdown:gsub("&quot;", '"')
+	markdown = markdown:gsub("&#(%d+);", function(code)
+		return string.char(tonumber(code))
+	end)
 
 	-- Restore code blocks
 	for placeholder, code in pairs(preserved_code_blocks) do

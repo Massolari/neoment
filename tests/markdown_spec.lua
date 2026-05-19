@@ -364,5 +364,12 @@ describe("markdown: to_html", function()
 			local result = markdown.from_html(input)
 			assert.are.same(expected_output, result)
 		end)
+
+		it("should handle messages with HTML entities correctly", function()
+			local input = "This is a &lt;message&gt;&lt;/message&gt;"
+			local expected_output = "This is a <message></message>"
+			local result = markdown.from_html(input)
+			assert.are.same(expected_output, result)
+		end)
 	end)
 end)
