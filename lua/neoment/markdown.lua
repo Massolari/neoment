@@ -204,6 +204,18 @@ M.from_html = function(html)
 	-- Capture code blocks
 	local preserved_code_blocks = {}
 	local preserved_count = 0
+	local function decode_entities(text)
+		text = text:gsub("&lt;", "<")
+		text = text:gsub("&gt;", ">")
+		text = text:gsub("&amp;", "&")
+		text = text:gsub("&quot;", '"')
+		text = text:gsub("&#39;", "'")
+		text = text:gsub("&#x27;", "'")
+		text = text:gsub("&#(%d+);", function(code)
+			return string.char(tonumber(code))
+		end)
+		return text
+	end
 	local function preserve(text)
 		preserved_count = preserved_count + 1
 		local placeholder = "{{CODEBLOCK" .. preserved_count .. "}}"
@@ -228,7 +240,7 @@ M.from_html = function(html)
 
 	-- Inline code
 	markdown = markdown:gsub("<code>(.-)</code>", function(code)
-		return preserve("`" .. code .. "`")
+		return preserve("`" .. decode_entities(code) .. "`")
 	end)
 
 	-- Strip Matrix reply blocks as we support rich replies
