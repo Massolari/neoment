@@ -1731,10 +1731,12 @@ M.open_attachment = function()
 		end)
 	end) --[[@as neoment.Error<{attachment: neoment.matrix.client.MessageAttachment, path: string}, string>]]
 
-	error.map(error_attachment_path, function(data)
+	error.match(error_attachment_path, function(data)
 		local handler = config.get().room.on_open_attachment
 		handler(data.path, data.attachment)
 		return nil
+	end, function(err)
+		notify.error("Error opening attachment: " .. err)
 	end)
 end
 
