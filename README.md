@@ -181,6 +181,7 @@ vim.g.neoment = {
 		on_open_attachment = function(path, attachment)
 			if vim.fn.executable("mpv") == 1 and attachment.type == "audio" then
 				-- Open audio in a small terminal split using mpv
+				return
 			end
 			vim.ui.open(path)
 		end,
