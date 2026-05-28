@@ -175,7 +175,7 @@ vim.g.neoment = {
 	-- Room settings
 	room = {
 		-- Handler called when opening an attachment (optional)
-		-- Receives the local file path and the attachment metadata table.
+		-- Receives the local file path (URL for location) and the attachment metadata table.
 		-- By default, audio attachments are opened in a small terminal split using mpv (if available),
 		-- and all other attachments are opened with vim.ui.open.
 		on_open_attachment = function(path, attachment)
