@@ -1714,7 +1714,7 @@ M.open_attachment = function()
 
 		if message.attachment.type == "location" then
 			if not message.attachment.url then
-				notify.error("No attachment on this message")
+				notify.error("No URL for this location attachment")
 				return error.error("No URL for this location attachment")
 			end
 
