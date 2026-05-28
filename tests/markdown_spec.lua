@@ -237,9 +237,23 @@ describe("markdown: to_html", function()
 			assert.are.same(expected_output, result)
 		end)
 
-		it("should convert paragraphs to a single newline", function()
+		it("should not convert paragraphs to a newline when it's the last element", function()
+			local input = "Text before\n<p>Paragraph 2</p>"
+			local expected_output = "Text before\nParagraph 2"
+			local result = markdown.from_html(input)
+			assert.are.same(expected_output, result)
+		end)
+
+		it("should convert paragraphs to a newline when it's not the last element", function()
+			local input = "<p>Paragraph 1</p>Text after"
+			local expected_output = "Paragraph 1\nText after"
+			local result = markdown.from_html(input)
+			assert.are.same(expected_output, result)
+		end)
+
+		it("should handle consecutive paragraphs correctly", function()
 			local input = "<p>Paragraph 1</p><p>Paragraph 2</p>"
-			local expected_output = "Paragraph 1\nParagraph 2\n"
+			local expected_output = "Paragraph 1\nParagraph 2"
 			local result = markdown.from_html(input)
 			assert.are.same(expected_output, result)
 		end)
@@ -315,8 +329,7 @@ describe("markdown: to_html", function()
 		it("should handle complex mixed HTML", function()
 			local input =
 				'<p>This is <strong>bold</strong> and <em>italic</em> text with <code>code</code> and a <a href="https://example.com">link</a>.</p>'
-			local expected_output =
-				"This is **bold** and *italic* text with `code` and a [link](https://example.com).\n"
+			local expected_output = "This is **bold** and *italic* text with `code` and a [link](https://example.com)."
 			local result = markdown.from_html(input)
 			assert.are.same(expected_output, result)
 		end)
@@ -382,6 +395,13 @@ describe("markdown: to_html", function()
 			local expected_output = "Test `->`"
 			local result = markdown.from_html(input)
 			assert.are.same(expected_output, result)
+		end)
+
+		it("should handle paragraph with newline after it correctly", function()
+			local input = "<p>Paragraph</p>\n<p>Another paragraph</p>\n"
+			local output = "Paragraph\nAnother paragraph"
+			local result = markdown.from_html(input)
+			assert.are.same(output, result)
 		end)
 	end)
 end)
