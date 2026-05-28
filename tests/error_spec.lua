@@ -1,0 +1,145 @@
+local error_mod = require("neoment.error")
+
+describe("error: error", function()
+	it("should create an error instance", function()
+		local result = error_mod.error("something went wrong")
+		assert.are.same("something went wrong", result.error)
+		assert.is_nil(result.data)
+	end)
+end)
+
+describe("error: ok", function()
+	it("should create an ok instance", function()
+		local result = error_mod.ok(42)
+		assert.are.same(42, result.data)
+		assert.is_nil(result.error)
+	end)
+
+	it("should create an ok instance with nil data", function()
+		local result = error_mod.ok(nil)
+		assert.is_nil(result.data)
+		assert.is_nil(result.error)
+	end)
+end)
+
+describe("error: is_error", function()
+	it("should return true for an error instance", function()
+		local result = error_mod.error("oops")
+		assert.is_true(error_mod.is_error(result))
+	end)
+
+	it("should return false for an ok instance", function()
+		local result = error_mod.ok("value")
+		assert.is_false(error_mod.is_error(result))
+	end)
+end)
+
+describe("error: is_ok", function()
+	it("should return true for an ok instance", function()
+		local result = error_mod.ok("value")
+		assert.is_true(error_mod.is_ok(result))
+	end)
+
+	it("should return false for an error instance", function()
+		local result = error_mod.error("oops")
+		assert.is_false(error_mod.is_ok(result))
+	end)
+end)
+
+describe("error: map", function()
+	it("should apply the function to the data when ok", function()
+		local result = error_mod.map(error_mod.ok(10), function(x)
+			return x * 2
+		end)
+		assert.are.same(20, result.data)
+		assert.is_nil(result.error)
+	end)
+
+	it("should not apply the function when error", function()
+		local original = error_mod.error("fail")
+		local result = error_mod.map(original, function(x)
+			return x * 2
+		end)
+		assert.are.same("fail", result.error)
+		assert.is_nil(result.data)
+	end)
+end)
+
+describe("error: map_error", function()
+	it("should apply the function to the error when error", function()
+		local result = error_mod.map_error(error_mod.error("fail"), function(e)
+			return "mapped: " .. e
+		end)
+		assert.are.same("mapped: fail", result.error)
+		assert.is_nil(result.data)
+	end)
+
+	it("should not apply the function when ok", function()
+		local original = error_mod.ok("value")
+		local result = error_mod.map_error(original, function(e)
+			return "mapped: " .. e
+		end)
+		assert.are.same("value", result.data)
+		assert.is_nil(result.error)
+	end)
+end)
+
+describe("error: try", function()
+	it("should apply the function and return its result when ok", function()
+		local result = error_mod.try(error_mod.ok(5), function(x)
+			return error_mod.ok(x + 1)
+		end)
+		assert.are.same(6, result.data)
+		assert.is_nil(result.error)
+	end)
+
+	it("should propagate the error when the function returns an error", function()
+		local result = error_mod.try(error_mod.ok(5), function(_)
+			return error_mod.error("inner error")
+		end)
+		assert.are.same("inner error", result.error)
+		assert.is_nil(result.data)
+	end)
+
+	it("should not apply the function when already an error", function()
+		local called = false
+		local result = error_mod.try(error_mod.error("outer error"), function(x)
+			called = true
+			return error_mod.ok(x)
+		end)
+		assert.is_false(called)
+		assert.are.same("outer error", result.error)
+	end)
+end)
+
+describe("error: unwrap", function()
+	it("should return the data when ok", function()
+		local result = error_mod.unwrap(error_mod.ok("hello"), "default")
+		assert.are.same("hello", result)
+	end)
+
+	it("should return the default when error", function()
+		local result = error_mod.unwrap(error_mod.error("oops"), "default")
+		assert.are.same("default", result)
+	end)
+end)
+
+describe("error: match", function()
+	it("should call ok_fn when ok", function()
+		local result = error_mod.match(error_mod.ok("value"), function(data)
+			return "ok: " .. data
+		end, function(e)
+			return "error: " .. e
+		end)
+		assert.are.same("ok: value", result)
+	end)
+
+	it("should call error_fn when error", function()
+		local result = error_mod.match(error_mod.error("fail"), function(data)
+			return "ok: " .. data
+		end, function(e)
+			return "error: " .. e
+		end)
+		assert.are.same("error: fail", result)
+	end)
+end)
