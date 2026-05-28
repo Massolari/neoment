@@ -1706,22 +1706,29 @@ M.open_attachment = function()
 	-- Otherwise, try to open message attachment
 	local error_message = get_message_under_cursor()
 
-	local error_path = error.try(error_message, function(message)
+	local error_attachment_path = error.try(error_message, function(message)
 		if not message.attachment then
 			notify.error("No attachment on this message")
-			return error.error("No attachment on this message") --[[@as neoment.Error<string, string>]]
+			return error.error("No attachment on this message")
 		end
 
 		if message.attachment.type == "location" then
-			return error.ok(message.attachment.url)
+			return error.ok({ attachment = message.attachment, path = message.attachment.url })
 		end
 
 		local filename = message.id .. (message.attachment.filename or message.content)
-		return storage.fetch_to_temp(filename, message.attachment.url)
-	end) --[[@as neoment.Error<string, string>]]
 
-	error.map(error_path, function(path)
-		vim.ui.open(path)
+		return error.map(storage.fetch_to_temp(filename, message.attachment.url), function(path)
+			return {
+				attachment = message.attachment,
+				path = path,
+			}
+		end)
+	end) --[[@as neoment.Error<{attachment: neoment.matrix.client.MessageAttachment, path: string}, string>]]
+
+	error.map(error_attachment_path, function(data)
+		local handler = config.get().room.on_open_attachment
+		handler(data.path, data.attachment)
 		return nil
 	end)
 end
