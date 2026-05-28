@@ -7,6 +7,7 @@
 --- @field notifier fun(msg: string, level: vim.log.levels, opts?: table): nil Function to show notifications
 --- @field desktop_notifications? neoment.config.DesktopNotifications Configuration for desktop notifications
 --- @field picker? neoment.config.Picker Picker configuration
+--- @field room? neoment.config.Room
 --- @field rooms? neoment.config.Rooms
 
 --- @alias neoment.config.PickerFunction fun(items: neoment.config.PickerRoom[], callback: fun(room: neoment.matrix.client.Room), options: neoment.config.PickerOptions): nil
