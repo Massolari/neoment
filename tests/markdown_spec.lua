@@ -366,8 +366,13 @@ describe("markdown: to_html", function()
 		end)
 
 		it("should handle messages with HTML entities correctly", function()
-			local input = "This is a &lt;message&gt;&lt;/message&gt;"
-			local expected_output = "This is a <message></message>"
+			local input =
+				"This is a &lt;message&gt;&lt;/message&gt; with &quot;quotes&quot; outside code and inside <pre><code>{ title = &quot;Code&quot;}</code></pre>"
+			local expected_output = [[This is a <message></message> with "quotes" outside code and inside
+```
+{ title = "Code"}
+```
+]]
 			local result = markdown.from_html(input)
 			assert.are.same(expected_output, result)
 		end)

@@ -225,12 +225,12 @@ M.from_html = function(html)
 
 	-- Code blocks with language
 	markdown = markdown:gsub([[<pre><code class=["']language%-([^"']+)["']>(.-)</code></pre>]], function(lang, code)
-		return preserve("\n```" .. lang .. "\n" .. code .. "\n```\n")
+		return preserve("\n```" .. lang .. "\n" .. decode_entities(code) .. "\n```\n")
 	end)
 
 	-- Code blocks without language
 	markdown = markdown:gsub("<pre><code>(.-)</code></pre>", function(code)
-		return preserve("\n```\n" .. code .. "\n```\n")
+		return preserve("\n```\n" .. decode_entities(code) .. "\n```\n")
 	end)
 
 	-- Code blocks with language (inline/fallback)
@@ -349,7 +349,12 @@ M.from_html = function(html)
 	for placeholder, code in pairs(preserved_code_blocks) do
 		-- Escape % to %% to avoid Lua pattern capture errors (e.g. %1, %2 in code)
 		local safe_code = code:gsub("%%", "%%%%")
-		markdown = markdown:gsub(placeholder, safe_code)
+		-- Strip trailing spaces before block-level code placeholders (those that start with newline)
+		if code:sub(1, 1) == "\n" then
+			markdown = markdown:gsub(" *" .. placeholder, safe_code)
+		else
+			markdown = markdown:gsub(placeholder, safe_code)
+		end
 	end
 
 	return markdown
