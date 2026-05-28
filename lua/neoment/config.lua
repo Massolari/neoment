@@ -7,6 +7,7 @@
 --- @field notifier fun(msg: string, level: vim.log.levels, opts?: table): nil Function to show notifications
 --- @field desktop_notifications? neoment.config.DesktopNotifications Configuration for desktop notifications
 --- @field picker? neoment.config.Picker Picker configuration
+--- @field room? neoment.config.Room
 --- @field rooms? neoment.config.Rooms
 
 --- @alias neoment.config.PickerFunction fun(items: neoment.config.PickerRoom[], callback: fun(room: neoment.matrix.client.Room), options: neoment.config.PickerOptions): nil
@@ -46,6 +47,9 @@
 --- @field location? string Icon for location
 --- @field video? string Icon for video files
 
+--- @class neoment.config.Room
+--- @field on_open_attachment? neoment.config.RoomOpenAttachmentHandler Function to handle opening attachments
+
 --- @class neoment.config.Rooms
 --- @field display_last_message? neoment.config.DisplayLastMessage How to display the last message in the room list
 --- @field room_title_format? neoment.config.RoomTitleFormat How to format room titles in the room list
@@ -68,6 +72,7 @@
 --- @field notifier fun(msg: string, level: vim.log.levels, opts?: table): nil Function to show notifications
 --- @field desktop_notifications neoment.config.InternalDesktopNotifications Configuration for desktop notifications
 --- @field picker neoment.config.InternalPicker Picker configuration
+--- @field room neoment.config.InternalRoom
 --- @field rooms neoment.config.InternalRooms
 
 --- @class neoment.config.InternalPicker
@@ -97,6 +102,11 @@
 --- @field audio string Icon for audio files
 --- @field location string Icon for location
 --- @field video string Icon for video files
+
+--- @class neoment.config.InternalRoom
+--- @field on_open_attachment neoment.config.RoomOpenAttachmentHandler Function to handle opening attachments
+
+--- @alias neoment.config.RoomOpenAttachmentHandler fun(path: string, attachment: neoment.matrix.client.MessageAttachment): nil
 
 --- @class neoment.config.InternalRooms
 --- @field display_last_message neoment.config.DisplayLastMessage How to display the last message in the room list
@@ -175,6 +185,18 @@ local default = {
 	picker = {
 		rooms = default_room_picker,
 		open_rooms = default_room_picker,
+	},
+	room = {
+		on_open_attachment = function(path, attachment)
+			if vim.fn.executable("mpv") == 1 and attachment.type == "audio" then
+				vim.cmd("belowright split")
+				vim.cmd.resize(3)
+				vim.cmd.terminal("mpv " .. vim.fn.shellescape(path))
+				vim.cmd.startinsert()
+				return
+			end
+			vim.ui.open(path)
+		end,
 	},
 	rooms = {
 		display_last_message = "message",

@@ -172,6 +172,21 @@ vim.g.neoment = {
 		end,
 	},
 	
+	-- Room settings
+	room = {
+		-- Handler called when opening an attachment (optional)
+		-- Receives the local file path (URL for location) and the attachment metadata table.
+		-- By default, audio attachments are opened in a small terminal split using mpv (if available),
+		-- and all other attachments are opened with vim.ui.open.
+		on_open_attachment = function(path, attachment)
+			if vim.fn.executable("mpv") == 1 and attachment.type == "audio" then
+				-- Open audio in a small terminal split using mpv
+				return
+			end
+			vim.ui.open(path)
+		end,
+	},
+
 	-- Settings for the room list
 	rooms = {
 		-- How to display the last message. The last message is shown below the room name
