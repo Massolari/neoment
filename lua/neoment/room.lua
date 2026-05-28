@@ -1695,11 +1695,12 @@ M.open_attachment = function()
 				.. matrix.client.access_token
 			local error_path = storage.fetch_to_temp(filename, url)
 
-			error.map(error_path, function(path)
+			return error.match(error_path, function(path)
 				vim.ui.open(path)
 				return nil
+			end, function(err)
+				notify.error("Error opening image: " .. err)
 			end)
-			return
 		end
 	end
 
@@ -1708,13 +1709,11 @@ M.open_attachment = function()
 
 	local error_attachment_path = error.try(error_message, function(message)
 		if not message.attachment then
-			notify.error("No attachment on this message")
 			return error.error("No attachment on this message")
 		end
 
 		if message.attachment.type == "location" then
 			if not message.attachment.url then
-				notify.error("No URL for this location attachment")
 				return error.error("No URL for this location attachment")
 			end
 
