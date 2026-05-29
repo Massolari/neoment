@@ -258,6 +258,13 @@ describe("markdown: to_html", function()
 			assert.are.same(expected_output, result)
 		end)
 
+		it("should handle paragraph starting with newlines", function()
+			local input = "<p>\nParagraph 1</p><p>Paragraph 2</p>"
+			local expected_output = "Paragraph 1\nParagraph 2"
+			local result = markdown.from_html(input)
+			assert.are.same(expected_output, result)
+		end)
+
 		it("should convert HTML entities to their characters", function()
 			local input = "&lt;tag&gt; &amp; &quot;quotes&quot;"
 			local expected_output = '<tag> & "quotes"'

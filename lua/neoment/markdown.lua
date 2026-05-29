@@ -196,6 +196,7 @@ M.from_html = function(html)
 	-- Paragraphs: add newline after each, then strip trailing newline at end of string
 	markdown = markdown:gsub("<p>(.-)</p>\n?", "%1\n")
 	markdown = markdown:gsub("\n$", "")
+	markdown = markdown:gsub("^\n", "")
 
 	-- Line breaks
 	markdown = markdown:gsub("<br>", "\n")
