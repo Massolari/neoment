@@ -900,7 +900,13 @@ end
 --- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any The callback function to handle the response. The response will be the room ID of the left room.
 M.leave_room = function(room_id, callback)
 	api.post(client.client.homeserver .. "/_matrix/client/v3/rooms/" .. room_id .. "/leave", nil, function(response)
-		local result = error.map(response, function()
+		local result_recovered = error.recover(response, function(err)
+			if err.errcode == "M_FORBIDDEN" then
+				-- If the user is not a member of the room, we can consider the leave successful
+				return error.ok(nil)
+			end
+		end)
+		local result = error.map(result_recovered, function()
 			-- Remove the room from the client's room list
 			client.get_invited_rooms()[room_id] = nil
 			client.get_rooms()[room_id] = nil

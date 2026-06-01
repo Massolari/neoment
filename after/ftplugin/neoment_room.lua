@@ -23,7 +23,7 @@ vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
 		elseif topic ~= "" then
 			winbar = winbar .. " - " .. topic
 		end
-		vim.api.nvim_set_option_value("winbar", winbar, { win = vim.api.nvim_get_current_win() })
+		vim.wo[0][0].winbar = winbar
 
 		require("neoment.room").mark_read(buffer_id)
 	end,

@@ -105,4 +105,12 @@ M.match = function(value, ok_fn, error_fn)
 	return ok_fn(value.data)
 end
 
+M.recover = function(value, fn)
+	if M.is_ok(value) then
+		return value
+	end
+
+	return fn(value.error)
+end
+
 return M

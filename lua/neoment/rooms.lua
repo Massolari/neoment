@@ -197,6 +197,7 @@ local function handle_invited_room(room_id)
 	matrix.leave_room(room_id, function(response)
 		error.match(response, function()
 			notify.info("Left room: " .. room_name)
+			M.update_room_list()
 			return nil
 		end, function(err)
 			notify.error("Error leaving room: " .. err.error)
