@@ -272,6 +272,8 @@ Filetype: `neoment_room`
 | Description                            | Mapping                                 | Default          |
 | -------------------------------------- | --------------------------------------- | ---------------- |
 | Compose/send message                   | `<Plug>NeomentRoomCompose`              | `<CR>`           |
+| Jump to next message                   | `<Plug>NeomentRoomJumpNextMessage`      | `J`              |
+| Jump to previous message               | `<Plug>NeomentRoomJumpPreviousMessage`  | `K`              |
 | React to message using emoji           | `<Plug>NeomentRoomReactEmoji`           | `<localleader>a` |
 | React to message using text            | `<Plug>NeomentRoomReactText`            | `<localleader>A` |
 | Redact (delete) message                | `<Plug>NeomentRoomRedact`               | `<localleader>d` |

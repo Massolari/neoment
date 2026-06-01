@@ -1272,19 +1272,26 @@ M.mark_read = function(buffer_id)
 	end)
 end
 
---- Get the message under the cursor
---- @return neoment.Error<neoment.room.LineMessage, string> The message under the cursor or an error
-local function get_message_under_cursor()
-	local line_number = vim.api.nvim_win_get_cursor(0)[1]
+--- Get the message for a given line
+--- @return neoment.Error<neoment.room.LineMessage, string> The message for the line or an error
+local function get_message_by_line(line_number)
 	local buffer_id = vim.api.nvim_get_current_buf()
 	local message = get_buffer_data(buffer_id).line_to_message[line_number]
 
 	if not message then
-		notify.error("No message under the cursor")
-		return error.error("No message under the cursor")
+		return error.err("No message found for line " .. line_number)
 	end
 
 	return error.ok(message)
+end
+
+--- Get the message under the cursor
+--- @return neoment.Error<neoment.room.LineMessage, string> The message under the cursor or an error
+local function get_message_under_cursor()
+	local line_number = vim.api.nvim_win_get_cursor(0)[1]
+	return get_message_by_line(line_number):map_error(function()
+		notify.error("No message under the cursor")
+	end)
 end
 
 M.set_read_mark = function()
@@ -2179,6 +2186,38 @@ M.show_event = function()
 
 		return nil
 	end)
+end
+
+--- Helper function to recursively search for the next/previous message, skipping state events and headers
+--- @param row number The current line number to check
+--- @param direction "next"|"previous" The direction to jump
+--- @param message neoment.room.LineMessage|nil The current message (used to skip identical messages when jumping from a message line)
+local function jump_message_helper(row, direction, message)
+	local next_search_line = direction == "next" and row + 1 or row - 1
+	error.match(get_message_by_line(next_search_line), function(next_message)
+		local is_same_message = message and next_message.id == message.id
+		local is_message_body = not next_message.is_header
+
+		if is_same_message or next_message.is_state or is_message_body then
+			-- Skip this line
+			return jump_message_helper(next_search_line, direction, message)
+		end
+
+		vim.api.nvim_win_set_cursor(0, { next_search_line, 0 })
+		return nil
+	end, function()
+		notify.info("No more messages in this direction")
+	end)
+end
+
+--- Jump to the next or previous message
+--- @param direction "next"|"previous" The direction to jump
+M.jump_message = function(direction)
+	local position = vim.api.nvim_win_get_cursor(0)
+
+	local current_message = error.unwrap(get_message_under_cursor(), nil)
+
+	jump_message_helper(position[1], direction, current_message)
 end
 
 -- Expose for testing
