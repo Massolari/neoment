@@ -269,16 +269,16 @@ M.fetch_to_temp = function(name, url)
 		output = temp_path,
 		timeout = 30000, -- 30 seconds timeout
 		on_error = function(err)
-			return error.error("Failed to download file: " .. (err.message or "Unknown error"))
+			return error.err("Failed to download file: " .. (err.message or "Unknown error"))
 		end,
 	})
 
 	if response.exit ~= 0 then
-		return error.error("Failed to download file: curl exited with code " .. response.exit)
+		return error.err("Failed to download file: curl exited with code " .. response.exit)
 	end
 
 	if vim.fn.filereadable(temp_path) == 0 then
-		return error.error("Failed to save downloaded file")
+		return error.err("Failed to save downloaded file")
 	end
 
 	return error.ok(temp_path)
@@ -344,12 +344,12 @@ M.save_clipboard_image = function()
 	end
 
 	if not success then
-		return error.error(error_msg)
+		return error.err(error_msg)
 	end
 
 	-- Check if file was created and has content
 	if vim.fn.filereadable(temp_file) == 0 or vim.fn.getfsize(temp_file) <= 0 then
-		return error.error("Failed to save clipboard image to temporary file")
+		return error.err("Failed to save clipboard image to temporary file")
 	end
 
 	return error.ok(temp_file)

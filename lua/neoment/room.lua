@@ -1709,12 +1709,12 @@ M.open_attachment = function()
 
 	local error_attachment_path = error.try(error_message, function(message)
 		if not message.attachment then
-			return error.error("No attachment on this message")
+			return error.err("No attachment on this message")
 		end
 
 		if message.attachment.type == "location" then
 			if not message.attachment.url then
-				return error.error("No URL for this location attachment")
+				return error.err("No URL for this location attachment")
 			end
 
 			return error.ok({ attachment = message.attachment, path = message.attachment.url })
@@ -1746,7 +1746,7 @@ M.save_attachment = function()
 	error.map(error_message, function(message)
 		if not message.attachment then
 			notify.error("No attachment on this message")
-			return error.error("No attachment on this message") --[[@as neoment.Error<string, string>]]
+			return error.err("No attachment on this message") --[[@as neoment.Error<string, string>]]
 		end
 
 		vim.ui.input({ prompt = "Save attachment to: ", completion = "file" }, function(user_input)

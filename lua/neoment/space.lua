@@ -71,7 +71,7 @@ local function get_room_id_under_cursor()
 	local room = get_buffer_data(buffer_id).line_to_room[line_number]
 	if not room then
 		notify.error("No room or space under the cursor")
-		return error.error("No room or space under the cursor")
+		return error.err("No room or space under the cursor")
 	end
 
 	return error.ok(room)

@@ -687,13 +687,13 @@ end
 --- @param on_done fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any The callback function to handle the response.
 M.load_more_messages = function(room_id, on_done)
 	if not client.get_room(room_id) then
-		on_done(error.error({ error = "No room found with ID: " .. room_id }))
+		on_done(error.err({ error = "No room found with ID: " .. room_id }))
 		return
 	end
 
 	local prev_batch = client.get_room(room_id).prev_batch
 	if prev_batch == "End" then
-		on_done(error.error({ error = "No more messages to load" }))
+		on_done(error.err({ error = "No more messages to load" }))
 		return
 	end
 
@@ -727,7 +727,7 @@ M.load_more_messages = function(room_id, on_done)
 					event.handle_multiple(room_id, events)
 				elseif data["end"] then
 					M.load_more_messages(room_id, on_done)
-					return error.error({ error = "empty chunk" })
+					return error.err({ error = "empty chunk" })
 				end
 
 				return error.ok({})
@@ -738,7 +738,7 @@ M.load_more_messages = function(room_id, on_done)
 				return nil
 			end, function(err)
 				if err.error ~= "empty chunk" then
-					on_done(error.error(err))
+					on_done(error.err(err))
 				end
 			end)
 		end),
@@ -1314,7 +1314,7 @@ end
 local function add_remove_room_tag(room_id, tag, user_id, is_add, callback)
 	local actual_user_id = user_id or M.get_user_id()
 	if not actual_user_id then
-		callback(error.error({ error = "No user ID provided" }))
+		callback(error.err({ error = "No user ID provided" }))
 		return
 	end
 

@@ -19,11 +19,11 @@ local function handler(response)
 	-- local data = json.decode(response.body)
 	local ok, data = pcall(json.decode, response.body)
 	if not ok then
-		return error.error({ error = "Failed to decode JSON response: " .. response.body })
+		return error.err({ error = "Failed to decode JSON response: " .. response.body })
 	end
 
 	if data.error then
-		return error.error(data)
+		return error.err(data)
 	end
 
 	return error.ok(data)
@@ -38,7 +38,7 @@ M.get = function(endpoint, callback, opts)
 	opts = opts or {}
 	curl.get(endpoint, {
 		on_error = function(err)
-			callback(error.error({ error = "Failed to make GET request", err = err }))
+			callback(error.err({ error = "Failed to make GET request", err = err }))
 		end,
 		headers = vim.tbl_extend("force", {
 			["Content-Type"] = "application/json",
@@ -67,7 +67,7 @@ M.get_sync = function(endpoint, opts)
 	})
 
 	if not ok then
-		return error.error({ error = "Failed to make GET request", err = response })
+		return error.err({ error = "Failed to make GET request", err = response })
 	end
 
 	return handler(response)
@@ -98,7 +98,7 @@ M.post_raw = function(endpoint, body, callback, opts)
 	opts = opts or {}
 	curl.post(endpoint, {
 		on_error = function(err)
-			callback(error.error({ error = "Failed to make POST request", err = err }))
+			callback(error.err({ error = "Failed to make POST request", err = err }))
 		end,
 		body = body,
 		headers = opts.headers or {},
@@ -118,7 +118,7 @@ M.put = function(endpoint, body, callback, opts)
 	opts = opts or {}
 	curl.put(endpoint, {
 		on_error = function(err)
-			callback(error.error({ error = "Failed to make PUT request", err = err }))
+			callback(error.err({ error = "Failed to make PUT request", err = err }))
 		end,
 		body = body and json.encode(body) or nil,
 		headers = vim.tbl_extend("force", {
@@ -139,7 +139,7 @@ M.delete = function(endpoint, callback, opts)
 	opts = opts or {}
 	curl.delete(endpoint, {
 		on_error = function(err)
-			callback(error.error({ error = "Failed to make DELETE request", err = err }))
+			callback(error.err({ error = "Failed to make DELETE request", err = err }))
 		end,
 		headers = vim.tbl_extend("force", {
 			["Content-Type"] = "application/json",

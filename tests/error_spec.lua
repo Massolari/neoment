@@ -2,7 +2,7 @@ local error_mod = require("neoment.error")
 
 describe("error: error", function()
 	it("should create an error instance", function()
-		local result = error_mod.error("something went wrong")
+		local result = error_mod.err("something went wrong")
 		assert.are.same("something went wrong", result.error)
 		assert.is_nil(result.data)
 	end)
@@ -24,7 +24,7 @@ end)
 
 describe("error: is_error", function()
 	it("should return true for an error instance", function()
-		local result = error_mod.error("oops")
+		local result = error_mod.err("oops")
 		assert.is_true(error_mod.is_error(result))
 	end)
 
@@ -41,7 +41,7 @@ describe("error: is_ok", function()
 	end)
 
 	it("should return false for an error instance", function()
-		local result = error_mod.error("oops")
+		local result = error_mod.err("oops")
 		assert.is_false(error_mod.is_ok(result))
 	end)
 end)
@@ -56,7 +56,7 @@ describe("error: map", function()
 	end)
 
 	it("should not apply the function when error", function()
-		local original = error_mod.error("fail")
+		local original = error_mod.err("fail")
 		local result = error_mod.map(original, function(x)
 			return x * 2
 		end)
@@ -67,7 +67,7 @@ end)
 
 describe("error: map_error", function()
 	it("should apply the function to the error when error", function()
-		local result = error_mod.map_error(error_mod.error("fail"), function(e)
+		local result = error_mod.map_error(error_mod.err("fail"), function(e)
 			return "mapped: " .. e
 		end)
 		assert.are.same("mapped: fail", result.error)
@@ -95,7 +95,7 @@ describe("error: try", function()
 
 	it("should propagate the error when the function returns an error", function()
 		local result = error_mod.try(error_mod.ok(5), function(_)
-			return error_mod.error("inner error")
+			return error_mod.err("inner error")
 		end)
 		assert.are.same("inner error", result.error)
 		assert.is_nil(result.data)
@@ -103,7 +103,7 @@ describe("error: try", function()
 
 	it("should not apply the function when already an error", function()
 		local called = false
-		local result = error_mod.try(error_mod.error("outer error"), function(x)
+		local result = error_mod.try(error_mod.err("outer error"), function(x)
 			called = true
 			return error_mod.ok(x)
 		end)
@@ -119,7 +119,7 @@ describe("error: unwrap", function()
 	end)
 
 	it("should return the default when error", function()
-		local result = error_mod.unwrap(error_mod.error("oops"), "default")
+		local result = error_mod.unwrap(error_mod.err("oops"), "default")
 		assert.are.same("default", result)
 	end)
 end)
@@ -135,7 +135,7 @@ describe("error: match", function()
 	end)
 
 	it("should call error_fn when error", function()
-		local result = error_mod.match(error_mod.error("fail"), function(data)
+		local result = error_mod.match(error_mod.err("fail"), function(data)
 			return "ok: " .. data
 		end, function(e)
 			return "error: " .. e
