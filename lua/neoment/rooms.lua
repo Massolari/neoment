@@ -588,7 +588,9 @@ local function get_last_message_virtual_lines(display_last_message, room_mark)
 		content = last_message.content
 	elseif last_message.attachment and last_message.attachment.filename then
 		local config_icon = config.get().icon
-		content = config_icon.file .. " " .. last_message.attachment.filename
+		local attachment_type = last_message.attachment.type
+		local attachment_icon = config_icon[attachment_type] or config_icon.file
+		content = attachment_icon .. " " .. last_message.attachment.filename
 	end
 
 	if not content then
