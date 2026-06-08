@@ -2,6 +2,31 @@ local M = {}
 
 local constants = require("neoment.constants")
 
+--- Convert a numeric HTML entity to its character
+--- @param code string Numeric code as string
+--- @return string Character or empty string if out of range
+local function numeric_entity_to_char(code)
+	local n = tonumber(code)
+	if n and n >= 0 and n <= 255 then
+		return string.char(n)
+	end
+	return ""
+end
+
+--- Decode HTML entities in a string
+--- @param text string Text with HTML entities
+--- @return string Text with entities decoded
+local function decode_entities(text)
+	text = text:gsub("&lt;", "<")
+	text = text:gsub("&gt;", ">")
+	text = text:gsub("&amp;", "&")
+	text = text:gsub("&quot;", '"')
+	text = text:gsub("&#39;", "'")
+	text = text:gsub("&#x27;", "'")
+	text = text:gsub("&#(%d+);", numeric_entity_to_char)
+	return text
+end
+
 -- Define patterns for Markdown syntax
 local markdown_patterns = {
 	-- Bold: **text** or __text__
@@ -206,18 +231,6 @@ M.from_html = function(html)
 	-- Capture code blocks
 	local preserved_code_blocks = {}
 	local preserved_count = 0
-	local function decode_entities(text)
-		text = text:gsub("&lt;", "<")
-		text = text:gsub("&gt;", ">")
-		text = text:gsub("&amp;", "&")
-		text = text:gsub("&quot;", '"')
-		text = text:gsub("&#39;", "'")
-		text = text:gsub("&#x27;", "'")
-		text = text:gsub("&#(%d+);", function(code)
-			return string.char(tonumber(code))
-		end)
-		return text
-	end
 	local function preserve(text)
 		preserved_count = preserved_count + 1
 		local placeholder = "{{CODEBLOCK" .. preserved_count .. "}}"
@@ -343,9 +356,7 @@ M.from_html = function(html)
 	markdown = markdown:gsub("&gt;", ">")
 	markdown = markdown:gsub("&amp;", "&")
 	markdown = markdown:gsub("&quot;", '"')
-	markdown = markdown:gsub("&#(%d+);", function(code)
-		return string.char(tonumber(code))
-	end)
+	markdown = markdown:gsub("&#(%d+);", numeric_entity_to_char)
 
 	-- Restore code blocks
 	for placeholder, code in pairs(preserved_code_blocks) do
