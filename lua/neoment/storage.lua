@@ -249,8 +249,8 @@ end
 --- Write a temporary file
 --- @param name string The name of the file
 --- @param url string The URL to fetch the file from
---- @return neoment.Error<string, string> The path to the temporary file or an error message
-M.fetch_to_temp = function(name, url)
+--- @param callback fun(path: neoment.Error<string, string>): any The callback to call with the result, either the path to the temporary file or an error message
+M.fetch_to_temp = function(name, url, callback)
 	vim.validate("name", name, "string")
 	vim.validate("url", url, "string")
 
@@ -262,26 +262,26 @@ M.fetch_to_temp = function(name, url)
 
 	-- Check if the file already exists
 	if vim.fn.filereadable(temp_path) == 1 then
-		return error.ok(temp_path)
+		return callback(error.ok(temp_path))
 	end
 
-	local response = curl.get(url, {
+	curl.get(url, {
 		output = temp_path,
-		timeout = 30000, -- 30 seconds timeout
 		on_error = function(err)
-			return error.err("Failed to download file: " .. (err.message or "Unknown error"))
+			callback(error.err("Failed to download file: " .. (err.message or "Unknown error")))
+		end,
+		callback = function(response)
+			if response.exit ~= 0 then
+				return callback(error.err("Failed to download file: curl exited with code " .. response.exit))
+			end
+
+			if vim.fn.filereadable(temp_path) == 0 then
+				return callback(error.err("Failed to save downloaded file"))
+			end
+
+			callback(error.ok(temp_path))
 		end,
 	})
-
-	if response.exit ~= 0 then
-		return error.err("Failed to download file: curl exited with code " .. response.exit)
-	end
-
-	if vim.fn.filereadable(temp_path) == 0 then
-		return error.err("Failed to save downloaded file")
-	end
-
-	return error.ok(temp_path)
 end
 
 --- Save the image from the clipboard to a temporary file

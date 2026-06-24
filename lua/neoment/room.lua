@@ -1700,49 +1700,52 @@ M.open_attachment = function()
 			local url = util.mxc_to_url(matrix.client.homeserver, mxc_url)
 				.. "?access_token="
 				.. matrix.client.access_token
-			local error_path = storage.fetch_to_temp(filename, url)
 
-			return error.match(error_path, function(path)
-				vim.ui.open(path)
-				return nil
-			end, function(err)
-				notify.error("Error opening image: " .. err)
+			notify.info("Fetching attachment " .. filename .. "...")
+
+			storage.fetch_to_temp(filename, url, function(error_path)
+				error.match(error_path, function(path)
+					notify.info("Opening attachment " .. filename .. "...")
+					vim.schedule(function()
+						vim.ui.open(path)
+					end)
+					return nil
+				end, function(err)
+					notify.error("Error opening image: " .. err)
+				end)
 			end)
+			return
 		end
 	end
 
 	-- Otherwise, try to open message attachment
 	local error_message = get_message_under_cursor()
 
-	local error_attachment_path = error.try(error_message, function(message)
+	error.map(error_message, function(message)
 		if not message.attachment then
-			return error.err("No attachment on this message")
+			return notify.info("No attachment on this message")
 		end
 
-		if message.attachment.type == "location" then
-			if not message.attachment.url then
-				return error.err("No URL for this location attachment")
-			end
-
-			return error.ok({ attachment = message.attachment, path = message.attachment.url })
+		if message.attachment.type == "location" and not message.attachment.url then
+			return notify.info("No URL for this location attachment")
 		end
 
 		local filename = message.id .. (message.attachment.filename or message.content)
 
-		return error.map(storage.fetch_to_temp(filename, message.attachment.url), function(path)
-			return {
-				attachment = message.attachment,
-				path = path,
-			}
-		end)
-	end) --[[@as neoment.Error<{attachment: neoment.matrix.client.MessageAttachment, path: string}, string>]]
+		notify.info("Fetching attachment " .. filename .. "...")
 
-	error.match(error_attachment_path, function(data)
-		local handler = config.get().room.on_open_attachment
-		handler(data.path, data.attachment)
-		return nil
-	end, function(err)
-		notify.error("Error opening attachment: " .. err)
+		return storage.fetch_to_temp(filename, message.attachment.url, function(error_path)
+			error.match(error_path, function(path)
+				notify.info("Opening attachment " .. filename .. "...")
+				local handler = config.get().room.on_open_attachment
+				vim.schedule(function()
+					handler(path, message.attachment)
+				end)
+				return nil
+			end, function(err)
+				notify.error("Error fetching attachment: " .. err)
+			end)
+		end)
 	end)
 end
 
@@ -1763,35 +1766,35 @@ M.save_attachment = function()
 			end
 
 			local filename = message.attachment.filename or message.content
-			local error_path = storage.fetch_to_temp(message.id .. filename, message.attachment.url)
+			storage.fetch_to_temp(message.id .. filename, message.attachment.url, function(error_path)
+				error.match(error_path, function(path)
+					local save_path = vim.fn.expand(user_input)
+					if vim.fn.isdirectory(save_path) == 1 then
+						save_path = save_path .. "/" .. filename
+					end
 
-			error.match(error_path, function(path)
-				local save_path = vim.fn.expand(user_input)
-				if vim.fn.isdirectory(save_path) == 1 then
-					save_path = save_path .. "/" .. filename
-				end
-
-				if vim.fn.filereadable(save_path) == 1 then
-					vim.ui.select({ "Yes", "No" }, { prompt = "File exists. Overwrite?" }, function(choice)
-						if not choice then
-							return
-						end
-						if choice == "No" then
-							local base, ext = save_path:match("^(.*)%.(.*)$")
-							local counter = 1
-							while vim.fn.filereadable(save_path) == 1 do
-								save_path = string.format("%s(%d).%s", base, counter, ext)
-								counter = counter + 1
+					if vim.fn.filereadable(save_path) == 1 then
+						vim.ui.select({ "Yes", "No" }, { prompt = "File exists. Overwrite?" }, function(choice)
+							if not choice then
+								return
 							end
-						end
-					end)
-				end
+							if choice == "No" then
+								local base, ext = save_path:match("^(.*)%.(.*)$")
+								local counter = 1
+								while vim.fn.filereadable(save_path) == 1 do
+									save_path = string.format("%s(%d).%s", base, counter, ext)
+									counter = counter + 1
+								end
+							end
 
-				vim.fn.writefile(vim.fn.readblob(path), save_path)
-				notify.info("Attachment saved to " .. save_path)
-				return nil
-			end, function(err)
-				notify.error("Error saving attachment: " .. err)
+							vim.fn.writefile(vim.fn.readblob(path), save_path)
+							notify.info("Attachment saved to " .. save_path)
+						end)
+					end
+					return nil
+				end, function(err)
+					notify.error("Error saving attachment: " .. err)
+				end)
 			end)
 		end)
 		return nil

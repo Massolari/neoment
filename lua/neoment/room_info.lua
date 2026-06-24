@@ -509,13 +509,17 @@ M.open_avatar = function(buffer_id)
 	local room_name = matrix.get_room_display_name(room.id)
 	local filename = room_name:gsub("[^%w%.%-_]", "_") .. ".png"
 	local url = util.mxc_to_url(matrix.client.homeserver, avatar) .. "?access_token=" .. matrix.client.access_token
-	local error_path = storage.fetch_to_temp(filename, url)
-
-	error.match(error_path, function(path)
-		vim.ui.open(path)
-		return nil
-	end, function(err)
-		notify.error("Failed to open avatar image: " .. err)
+	notify.info("Fetching avatar...")
+	storage.fetch_to_temp(filename, url, function(error_path)
+		error.match(error_path, function(path)
+			vim.schedule(function()
+				notify.info("Opening avatar...")
+				vim.ui.open(path)
+			end)
+			return nil
+		end, function(err)
+			notify.error("Failed to open avatar image: " .. err)
+		end)
 	end)
 end
 

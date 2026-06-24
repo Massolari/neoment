@@ -565,8 +565,10 @@ describe("room_info", function()
 
 		it("fetches avatar and opens it when avatar_url is present", function()
 			local room = make_room({ avatar_url = "mxc://example.org/abc123" })
-			local fetch_spy = spy.new(function()
-				return { _ok = true, data = "/tmp/Test_Room.png" }
+			-- Async fetch_to_temp: invoke the callback synchronously to simulate
+			-- a completed download.
+			local fetch_spy = spy.new(function(_filename, _url, callback)
+				callback({ _ok = true, data = "/tmp/Test_Room.png" })
 			end)
 			local open_spy = spy.new(function() end)
 			setup_mocks(room)
@@ -589,6 +591,14 @@ describe("room_info", function()
 			-- Verify URL is constructed correctly
 			assert.truthy(call_args.vals[2]:find("example.org"))
 			assert.truthy(call_args.vals[2]:find("access_token=token"))
+			-- Verify the third arg is a callback (function)
+			assert.equals("function", type(call_args.vals[3]))
+
+			-- vim.ui.open is invoked inside vim.schedule; wait for the
+			-- scheduled callback to run.
+			vim.wait(100, function()
+				return #open_spy.calls > 0
+			end)
 
 			assert.spy(open_spy).was_called_with("/tmp/Test_Room.png")
 		end)
@@ -600,8 +610,8 @@ describe("room_info", function()
 			package.loaded["neoment.notify"] = notify_mock
 
 			package.loaded["neoment.storage"] = {
-				fetch_to_temp = function()
-					return { _ok = false, error = "download failed" }
+				fetch_to_temp = function(_filename, _url, callback)
+					callback({ _ok = false, error = "download failed" })
 				end,
 			}
 
@@ -611,6 +621,26 @@ describe("room_info", function()
 			room_info.open_avatar(buf)
 
 			assert.spy(notify_mock.error).was_called_with("Failed to open avatar image: download failed")
+		end)
+
+		it("notifies user that the avatar is being fetched", function()
+			local room = make_room({ avatar_url = "mxc://example.org/abc123" })
+			local notify_mock = { info = spy.new(function() end), error = function() end }
+			setup_mocks(room)
+			package.loaded["neoment.notify"] = notify_mock
+
+			-- Never invoke the callback so we can assert the "fetching" notification
+			-- is emitted before the download completes.
+			package.loaded["neoment.storage"] = {
+				fetch_to_temp = function() end,
+			}
+
+			room_info = require("neoment.room_info")
+
+			vim.b[buf].room_id = room.id
+			room_info.open_avatar(buf)
+
+			assert.spy(notify_mock.info).was_called_with("Fetching avatar...")
 		end)
 	end)
 
