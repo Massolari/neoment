@@ -905,6 +905,7 @@ M.leave_room = function(room_id, callback)
 				-- If the user is not a member of the room, we can consider the leave successful
 				return error.ok(nil)
 			end
+			return error.err(err)
 		end)
 		local result = error.map(result_recovered, function()
 			-- Remove the room from the client's room list
