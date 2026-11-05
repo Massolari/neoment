@@ -506,8 +506,9 @@ end
 --- Handle event
 --- @param room_id string The room ID
 --- @param event neoment.matrix.ClientEventWithoutRoomID
+--- @param is_history? boolean True if the event comes from paginated history instead of being live
 --- @return boolean True if the event was handled, false otherwise
-M.handle = function(room_id, event)
+M.handle = function(room_id, event, is_history)
 	if event.event_id then
 		-- Event already processed
 		if client.room_event_exists(room_id, event.event_id) then
@@ -594,8 +595,9 @@ M.handle = function(room_id, event)
 			client.remove_room_member(room_id, event.state_key)
 
 			-- Check if the current user was removed/left/banned
+			-- Historical events are ignored because a later rejoin may have superseded them
 			local user_id = require("neoment.matrix").get_user_id()
-			if event.state_key == user_id then
+			if not is_history and event.state_key == user_id then
 				local room_name = client.get_room(room_id).name
 				if message then
 					-- Show confirmation dialog with the message content
@@ -701,15 +703,16 @@ end
 --- Handle multiple events
 --- @param room_id string The room ID
 --- @param events table A table of events to handle
+--- @param is_history? boolean True if the events come from paginated history instead of being live
 --- @return boolean True if any event was handled, false otherwise
-M.handle_multiple = function(room_id, events)
+M.handle_multiple = function(room_id, events, is_history)
 	local handled = false
 	-- Sort the events by origin_server_ts to ensure they are processed in order
 	table.sort(events, function(a, b)
 		return (a.origin_server_ts or 0) < (b.origin_server_ts or 0)
 	end)
 	vim.iter(events):each(function(event)
-		if M.handle(room_id, event) then
+		if M.handle(room_id, event, is_history) then
 			handled = true
 		end
 
@@ -721,7 +724,7 @@ M.handle_multiple = function(room_id, events)
 		-- Handle pending actions
 		local pending_events = client.get_room(room_id).pending_events[event.event_id] or {}
 		if not vim.tbl_isempty(pending_events) then
-			M.handle_multiple(room_id, vim.tbl_values(pending_events))
+			M.handle_multiple(room_id, vim.tbl_values(pending_events), is_history)
 			client.get_room(room_id).pending_events[event.event_id] = nil
 		end
 	end)

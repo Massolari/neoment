@@ -724,7 +724,7 @@ M.load_more_messages = function(room_id, on_done)
 				if #chunk_events > 0 then
 					local state_events = data.state and data.state.events or {}
 					local events = vim.iter({ chunk_events, state_events }):flatten():totable()
-					event.handle_multiple(room_id, events)
+					event.handle_multiple(room_id, events, true)
 				elseif data["end"] then
 					M.load_more_messages(room_id, on_done)
 					return error.err({ error = "empty chunk" })
