@@ -254,7 +254,7 @@ end
 --- Convert a Matrix `m.room.member` state event to a message.
 --- @param event neoment.matrix.ClientEventWithoutRoomID The state event to convert.
 --- @return neoment.matrix.client.Message? The converted message object.
-local function member_state_event_to_message(event)
+M.member_event_to_message = function(event)
 	local membership = event.content.membership
 	local prev_content = event.unsigned and event.unsigned.prev_content or nil
 	local sender_name = require("neoment.matrix").get_display_name_or_fetch(event.sender)
@@ -588,39 +588,11 @@ M.handle = function(room_id, event, is_history)
 		}
 		return true
 	elseif event.type == "m.room.member" then
-		local message = member_state_event_to_message(event)
+		local message = M.member_event_to_message(event)
 		if event.content.membership == "join" then
 			client.add_room_member(room_id, event.state_key)
 		elseif event.content.membership == "leave" or event.content.membership == "ban" then
 			client.remove_room_member(room_id, event.state_key)
-
-			-- Check if the current user was removed/left/banned
-			-- Historical events are ignored because a later rejoin may have superseded them
-			local user_id = require("neoment.matrix").get_user_id()
-			if not is_history and event.state_key == user_id then
-				local room_name = client.get_room(room_id).name
-				if message then
-					-- Show confirmation dialog with the message content
-					vim.schedule(function()
-						vim.fn.confirm(
-							string.format("Room: %s\n\n%s\n\nPress OK to acknowledge.", room_name, message.content),
-							"&OK",
-							1,
-							"Warning"
-						)
-						-- Remove the room from the client
-						client.remove_room(room_id)
-						-- Update the room list
-						require("neoment.rooms").update_room_list()
-					end)
-				else
-					-- No message, just remove the room
-					vim.schedule(function()
-						client.remove_room(room_id)
-						require("neoment.rooms").update_room_list()
-					end)
-				end
-			end
 		end
 
 		if message then
