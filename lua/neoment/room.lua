@@ -1697,17 +1697,28 @@ M.open_attachment = function()
 		if mxc_url then
 			local title = mxc_data.emoticon_title or mxc_data.reaction_label or "image"
 			local filename = title:gsub("[^%w%.%-_]", "_") .. ".png"
-			local url = util.mxc_to_url(matrix.client.homeserver, mxc_url)
-				.. "?access_token="
-				.. matrix.client.access_token
+			local media_url = util.mxc_to_url(matrix.client.homeserver, mxc_url)
+			local url = media_url .. "?access_token=" .. matrix.client.access_token
+
+			-- The mimetype is a guess, the file is always saved as PNG
+			--- @type neoment.matrix.client.MessageImage
+			local attachment = {
+				type = "image",
+				mimetype = "image/png",
+				url = media_url,
+				mxc_url = mxc_url,
+				filename = filename,
+				origin = mxc_data.emoticon_url and "emoticon" or "reaction",
+			}
 
 			notify.info("Fetching attachment " .. filename .. "...")
 
 			storage.fetch_to_temp(filename, url, function(error_path)
 				error.match(error_path, function(path)
 					notify.info("Opening attachment " .. filename .. "...")
+					local handler = config.get().room.on_open_attachment
 					vim.schedule(function()
-						vim.ui.open(path)
+						handler(path, attachment)
 					end)
 					return nil
 				end, function(err)
@@ -1738,8 +1749,9 @@ M.open_attachment = function()
 			error.match(error_path, function(path)
 				notify.info("Opening attachment " .. filename .. "...")
 				local handler = config.get().room.on_open_attachment
+				local attachment = vim.tbl_extend("force", message.attachment, { origin = "message" })
 				vim.schedule(function()
-					handler(path, message.attachment)
+					handler(path, attachment)
 				end)
 				return nil
 			end, function(err)
@@ -2225,5 +2237,6 @@ end
 
 -- Expose for testing
 M._update_buffer_lines_diff = update_buffer_lines_diff
+M._get_buffer_data = get_buffer_data
 
 return M

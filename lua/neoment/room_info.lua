@@ -508,13 +508,27 @@ M.open_avatar = function(buffer_id)
 	local storage = require("neoment.storage")
 	local room_name = matrix.get_room_display_name(room.id)
 	local filename = room_name:gsub("[^%w%.%-_]", "_") .. ".png"
-	local url = util.mxc_to_url(matrix.client.homeserver, avatar) .. "?access_token=" .. matrix.client.access_token
+	local media_url = util.mxc_to_url(matrix.client.homeserver, avatar)
+	local url = media_url .. "?access_token=" .. matrix.client.access_token
+
+	-- The mimetype is a guess, the file is always saved as PNG
+	--- @type neoment.matrix.client.MessageImage
+	local attachment = {
+		type = "image",
+		mimetype = "image/png",
+		url = media_url,
+		mxc_url = avatar,
+		filename = filename,
+		origin = "avatar",
+	}
+
 	notify.info("Fetching avatar...")
 	storage.fetch_to_temp(filename, url, function(error_path)
 		error.match(error_path, function(path)
+			local handler = config.get().room.on_open_attachment
 			vim.schedule(function()
 				notify.info("Opening avatar...")
-				vim.ui.open(path)
+				handler(path, attachment)
 			end)
 			return nil
 		end, function(err)
