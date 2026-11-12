@@ -153,6 +153,17 @@ M.new = function(homeserver, access_token)
 	}
 end
 
+--- Point the client at a homeserver, creating the client if it does not exist yet.
+--- @param homeserver string The URL of the Matrix server.
+M.set_homeserver = function(homeserver)
+	if not M.client then
+		M.new(homeserver)
+		return
+	end
+
+	M.client.homeserver = homeserver
+end
+
 --- Create a new room
 --- @param room_id string The ID of the room
 --- @return neoment.matrix.client.Room The created room object

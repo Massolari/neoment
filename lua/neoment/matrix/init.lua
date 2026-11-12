@@ -2,6 +2,7 @@ local M = {}
 
 local error = require("neoment.error")
 local api = require("neoment.matrix.api")
+local auth = require("neoment.matrix.auth")
 local markdown = require("neoment.markdown")
 local util = require("neoment.util")
 local event = require("neoment.matrix.event")
@@ -10,6 +11,9 @@ local constants = require("neoment.constants")
 
 --- Create a new Matrix client.
 M.new = client.new
+
+--- Point the client at a homeserver, creating the client if needed.
+M.set_homeserver = client.set_homeserver
 
 --- Check if the client is logged in.
 --- @return boolean True if the client is logged in, false otherwise.
@@ -25,36 +29,22 @@ end
 --- @field user_id string The fully-qualified Matrix ID for the account.
 --- @field well_known table? Optional client configuration provided by the server. If present, clients SHOULD use the provided object to reconfigure themselves.
 
---- Login to a Matrix server using the provided username and password.
---- @param username string The username to log in with.
+--- Login to a Matrix server using the provided Matrix ID and password.
+--- The homeserver is discovered from the server name of the Matrix ID.
+--- @param username string The full Matrix ID to log in with.
 --- @param password string The password to log in with.
 --- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any The callback function to handle the response.
 M.login = function(username, password, callback)
-	local homeserver = "https://" .. username:match("@.*:(.*)")
-	client.new(homeserver)
+	local server_name = auth.parse_server_name(username)
+	if not server_name then
+		callback(error.err({ error = "Invalid Matrix ID: " .. username }))
+		return
+	end
 
-	api.post(
-		client.client.homeserver .. "/_matrix/client/v3/login",
-		{
-			type = "m.login.password",
-			identifier = {
-				type = "m.id.user",
-				user = username,
-			},
-			password = password,
-			device_id = client.client.device_id,
-		},
-		--- @param response neoment.Error<neoment.matrix.LoginResponse, neoment.matrix.api.Error>
-		function(response)
-			local result = error.map(response, function(data)
-				client.client.access_token = data.access_token
-				client.client.user_id = data.user_id
-				return nil
-			end) --[[@as neoment.Error<nil, neoment.matrix.api.Error>]]
-
-			callback(result)
-		end
-	)
+	auth.discover(server_name, function(homeserver)
+		client.set_homeserver(homeserver)
+		auth.login_password(username, password, callback)
+	end)
 end
 
 --- Logout from the Matrix server.

@@ -44,6 +44,20 @@ describe("Matrix API", function()
 			assert.are.same(test_response, result.data)
 		end)
 
+		it("should pass raw curl arguments through", function()
+			local received_raw
+
+			curl_mock.get = function(_, opts)
+				received_raw = opts.raw
+				opts.callback({ status = 200, body = "{}" })
+			end
+
+			local api_reloaded = require("neoment.matrix.api")
+			api_reloaded.get("https://example.org/.well-known/matrix/client", function() end, { raw = { "-L" } })
+
+			assert.are.same({ "-L" }, received_raw)
+		end)
+
 		it("should handle Matrix API error responses", function()
 			local test_endpoint = "https://matrix.org/_matrix/client/r0/login"
 			local error_response = { error = "Invalid token", errcode = "M_UNKNOWN_TOKEN" }
