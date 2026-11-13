@@ -11,7 +11,7 @@ room.lua    M.open_attachment
 room_info.lua M.open_avatar ----------------> vim.ui.open(path)              (bypass)
 ```
 
-The hook is typed as `fun(path, attachment: neoment.matrix.client.MessageAttachment)` (`config.lua`). For emoticons and reactions, the only data available is the extmark data (`emoticon_url` / `reaction_mxc_url`, plus `emoticon_title` / `reaction_label`). For avatars, the only data is `room.avatar_url`. None of them have a MIME type, and both paths already force a `.png` filename. Real attachments store `url = util.mxc_to_url(homeserver, mxc)` without the token. The token is appended only for the download.
+The hook is typed as `fun(path, attachment: neoment.matrix.client.MessageAttachment)` (`config.lua`). For emoticons and reactions, the only data available is the extmark data (`emoticon_url` / `reaction_mxc_url`, plus `emoticon_title` / `reaction_label`). For avatars, the only data is `room.avatar_url`. None of them have a MIME type, and both paths already force a `.png` filename. Real attachments store `url` (and a video's `thumbnail.url`) with the `access_token` query parameter already appended by `matrix/event.lua`, because rendering and saving download from that URL directly. The handler gets a copy of the message attachment with the token removed from those URLs, and the download keeps using the tokenized URL.
 
 ## Goals / Non-Goals
 

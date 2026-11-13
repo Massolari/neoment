@@ -1687,6 +1687,30 @@ local function get_mxc_image_under_cursor(buffer_id)
 end
 
 --- Open the attachment of the message under the cursor
+--- Remove the `access_token` query parameter from a media URL
+--- @param url string The media URL
+--- @return string The URL without the access token
+local function strip_access_token(url)
+	local stripped = url:gsub("([?&])access_token=[^&]*&?", "%1"):gsub("[?&]$", "")
+	return stripped
+end
+
+--- Build the attachment passed to `room.on_open_attachment` from a message attachment
+--- The message attachment URLs carry the access token, so the handler gets a copy without it
+--- @param message_attachment neoment.matrix.client.MessageAttachment The attachment of the message
+--- @return neoment.matrix.client.MessageAttachment The attachment for the handler
+local function to_handler_attachment(message_attachment)
+	local attachment = vim.deepcopy(message_attachment)
+	attachment.origin = "message"
+	if attachment.url then
+		attachment.url = strip_access_token(attachment.url)
+	end
+	if attachment.thumbnail and attachment.thumbnail.url then
+		attachment.thumbnail.url = strip_access_token(attachment.thumbnail.url)
+	end
+	return attachment
+end
+
 M.open_attachment = function()
 	local buffer_id = vim.api.nvim_get_current_buf()
 
@@ -1749,7 +1773,7 @@ M.open_attachment = function()
 			error.match(error_path, function(path)
 				notify.info("Opening attachment " .. filename .. "...")
 				local handler = config.get().room.on_open_attachment
-				local attachment = vim.tbl_extend("force", message.attachment, { origin = "message" })
+				local attachment = to_handler_attachment(message.attachment)
 				vim.schedule(function()
 					handler(path, attachment)
 				end)

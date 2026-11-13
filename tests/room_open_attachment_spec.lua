@@ -130,4 +130,37 @@ describe("room open_attachment", function()
 		assert.equals("voice.ogg", attachment.filename)
 		assert.is_nil(message_attachment.origin)
 	end)
+
+	it("removes the access token from message attachment URLs passed to the handler", function()
+		local url = "https://example.org/_matrix/media/v3/download/example.org/video?access_token=secret_token"
+		local thumbnail_url = "https://example.org/_matrix/media/v3/download/example.org/thumb?access_token=secret_token"
+		local message_attachment = {
+			type = "video",
+			mimetype = "video/mp4",
+			url = url,
+			mxc_url = "mxc://example.org/video",
+			filename = "video.mp4",
+			thumbnail = {
+				type = "image",
+				filename = "thumbnail",
+				url = thumbnail_url,
+				mxc_url = "mxc://example.org/thumb",
+			},
+		}
+		room._get_buffer_data(buf).line_to_message[1] = {
+			id = "$event",
+			content = "video.mp4",
+			attachment = message_attachment,
+		}
+
+		room.open_attachment()
+		flush()
+
+		assert.spy(handler_spy).was_called(1)
+		local attachment = handler_spy.calls[1].vals[2]
+		assert.equals("https://example.org/_matrix/media/v3/download/example.org/video", attachment.url)
+		assert.equals("https://example.org/_matrix/media/v3/download/example.org/thumb", attachment.thumbnail.url)
+		assert.equals(url, message_attachment.url)
+		assert.equals(thumbnail_url, message_attachment.thumbnail.url)
+	end)
 end)

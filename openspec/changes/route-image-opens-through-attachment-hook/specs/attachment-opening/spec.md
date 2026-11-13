@@ -60,6 +60,11 @@ The attachment argument passed to `room.on_open_attachment` SHALL NOT contain th
 - **THEN** the attachment's `url` is the homeserver media URL without an `access_token` query parameter
 - **AND** the attachment's `mxc_url` is the original `mxc://` URI
 
+#### Scenario: Message attachment opened
+- **WHEN** the handler is called for a message attachment
+- **THEN** the attachment's `url` and its `thumbnail.url`, when present, contain no `access_token` query parameter
+- **AND** the message's own attachment keeps its URLs unchanged
+
 ### Requirement: Default handler behavior is preserved
 With no custom handler configured, the client SHALL open emoticon, reaction and avatar images with the system opener, and SHALL keep its existing default behavior for message attachments.
 
