@@ -53,6 +53,28 @@ describe("Matrix auth", function()
 
 			assert.are.equal("https://new.example.org", client.client.homeserver)
 		end)
+
+		it("should discard the previous session state but keep the device ID", function()
+			client.new("https://old.example.org", "old-token")
+			client.client.device_id = "MYDEVICE"
+			client.client.user_id = "@alice:old.example.org"
+			client.client.sync_token = "s123"
+			client.get_room("!room:old.example.org")
+			client.get_invited_room("!invite:old.example.org")
+			client.set_user_presence("@bob:old.example.org", { presence = "online" })
+
+			client.set_homeserver("https://new.example.org")
+
+			assert.are.equal("https://new.example.org", client.client.homeserver)
+			assert.are.equal("MYDEVICE", client.client.device_id)
+			assert.is_nil(client.client.access_token)
+			assert.is_nil(client.client.user_id)
+			assert.is_nil(client.client.sync_token)
+			assert.are.same({}, client.get_rooms())
+			assert.are.same({}, client.get_invited_rooms())
+			assert.is_nil(client.get_user_presence("@bob:old.example.org"))
+			assert.is_false(matrix.is_logged_in())
+		end)
 	end)
 
 	describe("parse_server_name", function()
