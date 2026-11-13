@@ -359,22 +359,25 @@ local function handle_sync_joined_rooms(joined_rooms)
 	return updated_rooms
 end
 
---- Find the latest `m.room.member` event for a user in a list of events.
+--- Find the latest removal (`leave` or `ban`) `m.room.member` event for a user in a list of events.
+--- The events are scanned from the end, as the server order is the reliable ordering, not `origin_server_ts`.
 --- @param events? table<neoment.matrix.ClientEventWithoutRoomID> The events to search
 --- @param user_id string The user ID
---- @return neoment.matrix.ClientEventWithoutRoomID? The latest membership event for the user
-local function find_member_event(events, user_id)
-	local latest
-	for _, e in ipairs(events or {}) do
+--- @return neoment.matrix.ClientEventWithoutRoomID? The latest removal event for the user
+local function find_removal_event(events, user_id)
+	events = events or {}
+	for i = #events, 1, -1 do
+		local e = events[i]
+		local membership = e.content and e.content.membership
 		if
 			e.type == "m.room.member"
 			and e.state_key == user_id
-			and (not latest or (e.origin_server_ts or 0) >= (latest.origin_server_ts or 0))
+			and (membership == "leave" or membership == "ban")
 		then
-			latest = e
+			return e
 		end
 	end
-	return latest
+	return nil
 end
 
 --- Handle left rooms from the sync response.
@@ -382,17 +385,16 @@ end
 --- @param is_initial boolean True if the sync was made without a since token
 local function handle_sync_left_rooms(left_rooms, is_initial)
 	local user_id = M.get_user_id()
-	local removed = false
 
 	for room_id, room_data in pairs(left_rooms or {}) do
 		-- Don't use `get_room` or `get_invited_room` here, as they create unknown rooms
 		if client.has_room(room_id) or client.is_invited_room(room_id) then
-			local member_event = find_member_event(room_data.timeline and room_data.timeline.events, user_id)
-				or find_member_event(room_data.state and room_data.state.events, user_id)
+			local member_event = find_removal_event(room_data.timeline and room_data.timeline.events, user_id)
+				or find_removal_event(room_data.state and room_data.state.events, user_id)
 			local room_name = M.get_room_display_name(room_id)
 
+			-- The room list is refreshed by the sync callback, so there's no need to refresh it here
 			client.remove_room(room_id)
-			removed = true
 
 			-- Only announce removals made by someone else, as the user already knows when they leave
 			if not is_initial and member_event and member_event.sender ~= user_id then
@@ -409,12 +411,6 @@ local function handle_sync_left_rooms(left_rooms, is_initial)
 				end
 			end
 		end
-	end
-
-	if removed then
-		vim.schedule(function()
-			require("neoment.rooms").update_room_list()
-		end)
 	end
 end
 

@@ -286,6 +286,27 @@ describe("matrix membership events", function()
 				assert.is_false(client.has_room(room_id))
 			end)
 
+			it("uses the last removal event in server order, ignoring timestamps", function()
+				local self_leave = member_event("$leave", user_id, "leave", 2000)
+				local kick = removal_event("$kick", "leave")
+				kick.origin_server_ts = 1000
+
+				run_sync(left_sync(room_id, { self_leave, kick }))
+
+				assert.are.equal(1, confirm_calls)
+				assert.is_false(client.has_room(room_id))
+			end)
+
+			it("ignores a non-removal membership event after the removal", function()
+				run_sync(left_sync(room_id, {
+					member_event("$leave", user_id, "leave", 1000),
+					removal_event("$invite", "invite"),
+				}))
+
+				assert.are.equal(0, confirm_calls)
+				assert.is_false(client.has_room(room_id))
+			end)
+
 			it("uses the membership event in the state when the timeline has none", function()
 				run_sync({
 					rooms = { leave = { [room_id] = { state = { events = { removal_event("$kick", "leave") } } } } },

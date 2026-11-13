@@ -31,11 +31,11 @@ It follows the shape of the existing per-section handlers in `init.lua` and is c
 
 For each room:
 1. Skip if the client knows neither a joined nor an invited room with that ID.
-2. Find the current user's latest `m.room.member` event: scan `timeline.events` from the end, then `state.events`.
+2. Find the current user's latest `leave` or `ban` `m.room.member` event by server order (not `origin_server_ts`): scan `timeline.events` from the end, then `state.events`. Other memberships are ignored, as a gappy response can leave an older `invite` or `join` in the arrays.
 3. Capture the room name while the room still exists, using `get_room_display_name`, which is safe at this point because the room exists.
 4. Call `client.remove_room(room_id)` right away. The room disappears from the model in the same sync it was reported.
 5. If not initial, a membership event was found, and `event.sender ~= user_id`, schedule the `vim.fn.confirm` dialog with the room name and message text, as the old flow did.
-6. Refresh the list by calling `require("neoment.rooms").update_room_list()` inside `vim.schedule`, once per sync rather than once per room.
+6. Don't refresh the list here: `neoment.init.handle_sync` already calls `rooms.update_room_list()` after every completed sync, so a second refresh would be redundant.
 
 *Alternative considered:* feed the left room's timeline through `event.handle_multiple` with a "left" flag and keep removal inside the member branch. Rejected: it would recreate the room through `get_room`, process message events for a room we're discarding, and keep removal logic spread across two modules.
 
