@@ -563,7 +563,7 @@ describe("room_info", function()
 			assert.spy(notify_mock.info).was_called_with("No avatar image to open")
 		end)
 
-		it("fetches avatar and opens it when avatar_url is present", function()
+		it("fetches avatar and passes it to the attachment handler when avatar_url is present", function()
 			local room = make_room({ avatar_url = "mxc://example.org/abc123" })
 			-- Async fetch_to_temp: invoke the callback synchronously to simulate
 			-- a completed download.
@@ -571,10 +571,16 @@ describe("room_info", function()
 				callback({ _ok = true, data = "/tmp/Test_Room.png" })
 			end)
 			local open_spy = spy.new(function() end)
+			local handler_spy = spy.new(function() end)
 			setup_mocks(room)
 
 			package.loaded["neoment.storage"] = {
 				fetch_to_temp = fetch_spy,
+			}
+			package.loaded["neoment.config"] = {
+				get = function()
+					return { room = { on_open_attachment = handler_spy } }
+				end,
 			}
 
 			vim.ui.open = open_spy
@@ -594,13 +600,21 @@ describe("room_info", function()
 			-- Verify the third arg is a callback (function)
 			assert.equals("function", type(call_args.vals[3]))
 
-			-- vim.ui.open is invoked inside vim.schedule; wait for the
+			-- The handler is invoked inside vim.schedule; wait for the
 			-- scheduled callback to run.
 			vim.wait(100, function()
-				return #open_spy.calls > 0
+				return #handler_spy.calls > 0
 			end)
 
-			assert.spy(open_spy).was_called_with("/tmp/Test_Room.png")
+			assert.spy(handler_spy).was_called(1)
+			local path, attachment = handler_spy.calls[1].vals[1], handler_spy.calls[1].vals[2]
+			assert.equals("/tmp/Test_Room.png", path)
+			assert.equals("image", attachment.type)
+			assert.equals("avatar", attachment.origin)
+			assert.equals("mxc://example.org/abc123", attachment.mxc_url)
+			assert.equals("https://example.org/_matrix/media/v3/download/abc123", attachment.url)
+			assert.is_nil(attachment.url:find("access_token", 1, true))
+			assert.spy(open_spy).was_not_called()
 		end)
 
 		it("shows error notification when fetch fails", function()

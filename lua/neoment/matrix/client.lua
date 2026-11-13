@@ -95,12 +95,15 @@ M.client = nil
 
 --- @alias neoment.matrix.client.MessageAttachmentType "image"|"file"|"audio"|"location"|"video"
 
+--- @alias neoment.matrix.client.MessageAttachmentOrigin "message"|"emoticon"|"reaction"|"avatar"
+
 --- @class neoment.matrix.client.BaseAttachment
 --- @field type neoment.matrix.client.MessageAttachmentType The type of the attachment.
 --- @field mimetype string The MIME type of the attachment.
 --- @field url string The URL of the attachment.
 --- @field mxc_url string The MXC URL of the attachment.
 --- @field filename string The name of the file.
+--- @field origin? neoment.matrix.client.MessageAttachmentOrigin Where the attachment was opened from, only set when passed to `room.on_open_attachment`.
 
 --- @class neoment.matrix.client.MessageImage : neoment.matrix.client.BaseAttachment
 --- @field height integer? The height of the image.
@@ -116,6 +119,7 @@ M.client = nil
 --- @class neoment.matrix.client.MessageLocation
 --- @field type "location" The type of the attachment.
 --- @field url? string The URL of the location.
+--- @field origin? neoment.matrix.client.MessageAttachmentOrigin Where the attachment was opened from, only set when passed to `room.on_open_attachment`.
 --- @field thumbnail? neoment.matrix.client.MessageImage The thumbnail of the video, if available.
 
 --- @class neoment.matrix.client.MessageVideo : neoment.matrix.client.BaseAttachment

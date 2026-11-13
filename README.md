@@ -174,8 +174,11 @@ vim.g.neoment = {
 	
 	-- Room settings
 	room = {
-		-- Handler called when opening an attachment (optional)
+		-- Handler called when opening an attachment, custom emoticon, custom reaction or room avatar (optional)
 		-- Receives the local file path (URL for location) and the attachment metadata table.
+		-- `attachment.origin` tells where it came from: "message", "emoticon", "reaction" or "avatar".
+		-- Emoticons, reactions and avatars arrive as `type = "image"` with `mimetype = "image/png"`,
+		-- which is a best guess: the image may be in another format, such as GIF.
 		-- By default, audio attachments are opened in a small terminal split using mpv (if available),
 		-- and all other attachments are opened with vim.ui.open.
 		on_open_attachment = function(path, attachment)
@@ -229,6 +232,39 @@ vim.g.neoment = {
 		audio = "",               -- Icon for audio files
 		location = "󰍎",            -- Icon for location
 		video = "",               -- Icon for video files
+	},
+}
+```
+
+### Using neoment on a TTY
+
+Inline images are drawn with [Snacks](https://github.com/folke/snacks.nvim), which needs a terminal that supports an image protocol, so they are not shown on a bare Linux console. You can still view and play media by giving `room.on_open_attachment` a handler that uses terminal programs. Every open action goes through this handler: message attachments, custom emoticons, custom reactions and room avatars. The example below shows images with [chafa](https://hpjansson.org/chafa/), plays audio and video with [mpv](https://mpv.io/) in a terminal split, and falls back to `vim.ui.open` for everything else:
+
+```lua
+vim.g.neoment = {
+	room = {
+		on_open_attachment = function(path, attachment)
+			local function run_in_split(cmd, height)
+				vim.cmd("belowright split")
+				if height then
+					vim.cmd.resize(height)
+				end
+				vim.cmd.terminal(cmd)
+				vim.cmd.startinsert()
+			end
+
+			if attachment.type == "image" and vim.fn.executable("chafa") == 1 then
+				return run_in_split("chafa " .. vim.fn.shellescape(path))
+			end
+			if attachment.type == "audio" and vim.fn.executable("mpv") == 1 then
+				return run_in_split("mpv " .. vim.fn.shellescape(path), 3)
+			end
+			if attachment.type == "video" and vim.fn.executable("mpv") == 1 then
+				-- `--vo=tct` draws the video as text; `--vo=drm` draws it on the framebuffer instead
+				return run_in_split("mpv --vo=tct " .. vim.fn.shellescape(path))
+			end
+			vim.ui.open(path)
+		end,
 	},
 }
 ```
@@ -297,9 +333,9 @@ Filetype: `neoment_room`
 | Toggle zoom of image under cursor      | `<Plug>NeomentRoomToggleZoomImage`      | `<localleader>z` |
 | Show event data                        | `<Plug>NeomentRoomShowEvent`            | `<localleader>V` |
 
-Custom emoticons (displayed as `[img: name]` links) can be previewed by hovering over them with the cursor (`CursorHold` event) when [Snacks](https://github.com/folke/snacks.nvim) is installed. The emoticon image will be shown in a floating window. You can also open the emoticon image externally using `<localleader>o`.
+Custom emoticons (displayed as `[img: name]` links) can be previewed by hovering over them with the cursor (`CursorHold` event) when [Snacks](https://github.com/folke/snacks.nvim) is installed. The emoticon image will be shown in a floating window. You can also open the emoticon image using `<localleader>o`, which calls the `room.on_open_attachment` handler.
 
-Custom emoticon reactions (reactions that use `mxc://` URLs instead of standard emoji) are also supported. When hovering over such a reaction, the image will be displayed in the floating window alongside the list of users who reacted. You can open the reaction image externally using `<localleader>o`.
+Custom emoticon reactions (reactions that use `mxc://` URLs instead of standard emoji) are also supported. When hovering over such a reaction, the image will be displayed in the floating window alongside the list of users who reacted. You can open the reaction image using `<localleader>o`, which calls the `room.on_open_attachment` handler.
 
 #### Compose Buffer
 
@@ -338,7 +374,7 @@ Filetype: `neoment_info_room`
 | Find room (open `vim.ui.select`)      | `<Plug>NeomentPickRooms`                   | `<localleader>f` |
 | Find open room (open `vim.ui.select`) | `<Plug>NeomentPickOpenRooms`               | `<localleader>F` |
 | Toggle low priority status            | `<Plug>NeomentInfoRoomToggleLowPriority`   | `<localleader>l` |
-| Open avatar in external viewer        | `<Plug>NeomentInfoRoomOpenAvatar`          | `<localleader>o` |
+| Open avatar with attachment handler   | `<Plug>NeomentInfoRoomOpenAvatar`          | `<localleader>o` |
 | Quit info (close the buffer)          | `<Plug>NeomentInfoRoomQuit`                | `<localleader>q` |
 | Toggle zoom avatar                    | `<Plug>NeomentInfoRoomToggleZoomAvatar`    | `<localleader>z` |
 
