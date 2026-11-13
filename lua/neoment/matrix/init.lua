@@ -369,11 +369,7 @@ local function find_removal_event(events, user_id)
 	for i = #events, 1, -1 do
 		local e = events[i]
 		local membership = e.content and e.content.membership
-		if
-			e.type == "m.room.member"
-			and e.state_key == user_id
-			and (membership == "leave" or membership == "ban")
-		then
+		if e.type == "m.room.member" and e.state_key == user_id and (membership == "leave" or membership == "ban") then
 			return e
 		end
 	end
