@@ -8,7 +8,7 @@
 
 - [x] 2.1 Create `tests/room_open_attachment_spec.lua`, using the module reset pattern from `tests/matrix_room_avatar_spec.lua`. Stub `neoment.storage.fetch_to_temp` to call its callback synchronously, stub `neoment.config.get` to return a spy `room.on_open_attachment`, spy on `vim.ui.open`, and flush `vim.schedule` with `vim.wait`. Add failing cases for an emoticon and a reaction under the cursor (seed the extmark and buffer data the way `room.lua` reads it). Each case asserts that the handler gets `type = "image"`, the matching `origin`, a `url` with no `access_token`, and the `mxc_url`, and that `vim.ui.open` is not called. Verify with `devbox run test` that the cases fail.
 - [x] 2.2 In `M.open_attachment` in `lua/neoment/room.lua`, replace `vim.ui.open(path)` in the emoticon/reaction branch with a call to `config.get().room.on_open_attachment(path, attachment)`. `attachment` is a synthetic image built per design decisions 1–3, with `origin` set to `"emoticon"` when `emoticon_url` is set and `"reaction"` otherwise. Verify that the 2.1 cases pass.
-- [x] 2.3 In the message branch, pass `vim.tbl_extend("force", message.attachment, { origin = "message" })` to the handler. Add a test that an audio message attachment reaches the handler with `origin = "message"` and that `message.attachment` itself is not modified. Verify with `devbox run test`.
+- [x] 2.3 In the message branch, pass a deep copy of `message.attachment` to the handler, with `origin = "message"` and `access_token` removed from `url` and `thumbnail.url`. Add a test that an audio message attachment reaches the handler with `origin = "message"` and that `message.attachment` itself is not modified. Verify with `devbox run test`.
 
 ## 3. Room info avatar
 

@@ -616,15 +616,19 @@ local function apply_highlights(buffer_id, room_id, lines)
 			local emoticon_start, emoticon_end, emoticon_title, emoticon_url =
 				line:find("%[img:%s*([^%]]+)%]%(([^%)]+)%)")
 			while emoticon_start and emoticon_end do
-				local extmark_id =
-					vim.api.nvim_buf_set_extmark(buffer_id, EXTMARK_NAMESPACE, index - 1, emoticon_start - 1, {
-						end_col = emoticon_end,
-						hl_group = "NeomentEmoticon",
-					})
-				new_extmarks_data[extmark_id] = {
-					emoticon_url = emoticon_url,
-					emoticon_title = emoticon_title,
-				}
+				-- Only mxc:// URLs are emoticons, any other URL could be typed by anyone and fetching it
+				-- would send the access token to an arbitrary server
+				if emoticon_url:match("^mxc://") then
+					local extmark_id =
+						vim.api.nvim_buf_set_extmark(buffer_id, EXTMARK_NAMESPACE, index - 1, emoticon_start - 1, {
+							end_col = emoticon_end,
+							hl_group = "NeomentEmoticon",
+						})
+					new_extmarks_data[extmark_id] = {
+						emoticon_url = emoticon_url,
+						emoticon_title = emoticon_title,
+					}
+				end
 				emoticon_start, emoticon_end, emoticon_title, emoticon_url =
 					line:find("%[img:%s*([^%]]+)%]%(([^%)]+)%)", emoticon_end)
 			end
@@ -1686,7 +1690,6 @@ local function get_mxc_image_under_cursor(buffer_id)
 	return nil
 end
 
---- Open the attachment of the message under the cursor
 --- Remove the `access_token` query parameter from a media URL
 --- @param url string The media URL
 --- @return string The URL without the access token
@@ -1711,6 +1714,7 @@ local function to_handler_attachment(message_attachment)
 	return attachment
 end
 
+--- Open the attachment of the message under the cursor
 M.open_attachment = function()
 	local buffer_id = vim.api.nvim_get_current_buf()
 
