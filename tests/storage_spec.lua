@@ -225,4 +225,46 @@ describe("storage", function()
 			end)
 		end)
 	end)
+	describe("restore_session", function()
+		local original_stdpath
+		local temp_dir
+
+		before_each(function()
+			temp_dir = vim.fn.tempname()
+			vim.fn.mkdir(temp_dir .. "/neoment", "p")
+			original_stdpath = vim.fn.stdpath
+			vim.fn.stdpath = function()
+				return temp_dir
+			end
+		end)
+
+		after_each(function()
+			vim.fn.stdpath = original_stdpath
+			vim.fn.delete(temp_dir, "rf")
+		end)
+
+		it("replaces a client left by an unfinished login attempt", function()
+			local file = assert(io.open(temp_dir .. "/neoment/data.json", "w"))
+			file:write(vim.json.encode({
+				homeserver = "https://saved.example.org",
+				access_token = "saved-token",
+				user_id = "@alice:saved.example.org",
+				last_save = os.time(),
+			}))
+			file:close()
+
+			-- A client without a token, as left by a login attempt that was not finished
+			matrix_mock.client = { homeserver = "https://other.example.org", device_id = "DEVICE" }
+			matrix_mock.set_homeserver = function(homeserver)
+				matrix_mock.client = { homeserver = homeserver, device_id = matrix_mock.client.device_id }
+			end
+
+			local storage = require("neoment.storage")
+
+			assert.is_true(storage.restore_session())
+			assert.are.equal("https://saved.example.org", matrix_mock.client.homeserver)
+			assert.are.equal("saved-token", matrix_mock.client.access_token)
+			assert.are.equal("@alice:saved.example.org", matrix_mock.client.user_id)
+		end)
+	end)
 end)
