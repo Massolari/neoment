@@ -144,10 +144,11 @@ describe("Login flow", function()
 		auth.get_login_flows = function(_, callback)
 			callback(auth.flows_result or error_mod.ok(auth.methods))
 		end
-		auth.login_password = function(user, password, callback)
+		auth.login_password = function(user, password, callback, is_current)
 			table.insert(calls.login_password, { user = user, password = password })
 			if auth.defer_login then
 				calls.pending_login = function()
+					calls.login_was_current = is_current()
 					callback(auth.login_result)
 				end
 				return
@@ -369,6 +370,35 @@ describe("Login flow", function()
 
 		assert.are.equal(0, calls.toggled)
 		assert.is_false(notified("info", "Login successful"))
+	end)
+
+	it("should mark a login as superseded when a newer attempt is cancelled early", function()
+		auth.methods = { "password" }
+		auth.defer_login = true
+		inputs = { "@alice:example.org", "" }
+
+		run_login()
+		local stale_login = calls.pending_login
+		run_login()
+
+		stale_login()
+		vim.wait(50)
+
+		assert.is_false(calls.login_was_current)
+		assert.are.equal(0, calls.toggled)
+	end)
+
+	it("should keep a login current while no newer attempt was started", function()
+		auth.methods = { "password" }
+		auth.defer_login = true
+		inputs = { "@alice:example.org" }
+
+		run_login()
+		calls.pending_login()
+		vim.wait(50)
+
+		assert.is_true(calls.login_was_current)
+		assert.are.equal(1, calls.toggled)
 	end)
 
 	it("should ignore a paste prompt from a superseded attempt", function()

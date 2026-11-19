@@ -88,6 +88,15 @@ local pending_sso_listener = nil
 --- Incremented on every login attempt, so callbacks of an older attempt can tell they are stale
 local login_generation = 0
 
+--- Build a check for whether a login attempt is still the current one
+--- @param ctx neoment.LoginContext
+--- @return fun(): boolean
+local function login_is_current(ctx)
+	return function()
+		return ctx.generation == login_generation
+	end
+end
+
 --- Build a login result handler that ignores the result of a superseded login attempt
 --- @param ctx neoment.LoginContext
 --- @return fun(data: neoment.Error<nil, neoment.matrix.api.Error>)
@@ -131,7 +140,7 @@ local function prompt_login_token(ctx)
 			return
 		end
 
-		auth.login_token(token, login_result_handler(ctx))
+		auth.login_token(token, login_result_handler(ctx), login_is_current(ctx))
 	end)
 end
 
@@ -165,7 +174,7 @@ local function sso_login(ctx)
 				return
 			end
 			pending_sso_listener = nil
-			auth.login_token(token, login_result_handler(ctx))
+			auth.login_token(token, login_result_handler(ctx), login_is_current(ctx))
 		end,
 		on_timeout = function()
 			if pending_sso_listener ~= listener then
@@ -212,7 +221,7 @@ local function password_login(ctx)
 		return
 	end
 
-	auth.login_password(user, password, login_result_handler(ctx))
+	auth.login_password(user, password, login_result_handler(ctx), login_is_current(ctx))
 end
 
 --- Login handlers, mapped by login method

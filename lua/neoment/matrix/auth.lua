@@ -143,10 +143,12 @@ end
 
 --- Send a login request and store the credentials on success.
 --- If the response includes a `well_known` object, the client uses its homeserver from then on.
---- The credentials are dropped if the client was replaced while the request was in flight.
+--- The credentials are dropped if the client was replaced while the request was in flight,
+--- or if `is_current` reports that the login attempt was superseded.
 --- @param body table The login request body.
 --- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any
-local function login_request(body, callback)
+--- @param is_current? fun(): boolean Whether the login attempt that sent the request is still current.
+local function login_request(body, callback, is_current)
 	local requesting_client = client.client
 	body.device_id = requesting_client.device_id
 
@@ -155,7 +157,7 @@ local function login_request(body, callback)
 		body,
 		--- @param response neoment.Error<neoment.matrix.LoginResponse, neoment.matrix.api.Error>
 		function(response)
-			if client.client ~= requesting_client then
+			if client.client ~= requesting_client or (is_current and not is_current()) then
 				callback(error.err({ error = "The login was superseded by another login attempt" }))
 				return
 			end
@@ -177,7 +179,8 @@ end
 --- @param user string The Matrix ID or localpart of the user.
 --- @param password string The password.
 --- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any
-M.login_password = function(user, password, callback)
+--- @param is_current? fun(): boolean Whether the login attempt is still current when the response arrives.
+M.login_password = function(user, password, callback, is_current)
 	login_request({
 		type = "m.login.password",
 		identifier = {
@@ -185,7 +188,7 @@ M.login_password = function(user, password, callback)
 			user = user,
 		},
 		password = password,
-	}, callback)
+	}, callback, is_current)
 end
 
 --- Build the URL that starts the SSO login in the browser.
@@ -199,11 +202,12 @@ end
 --- Login with a token obtained through SSO on the current homeserver.
 --- @param token string The login token.
 --- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any
-M.login_token = function(token, callback)
+--- @param is_current? fun(): boolean Whether the login attempt is still current when the response arrives.
+M.login_token = function(token, callback, is_current)
 	login_request({
 		type = "m.login.token",
 		token = token,
-	}, callback)
+	}, callback, is_current)
 end
 
 --- Extract the login token from a pasted redirect URL or a bare token.

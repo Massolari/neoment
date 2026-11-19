@@ -458,6 +458,26 @@ describe("Matrix auth", function()
 			assert.is_nil(client.client.user_id)
 		end)
 
+		it("should not store credentials when the login attempt is no longer current", function()
+			client.new("https://matrix.example.org")
+			curl_mock.post = function(_, opts)
+				opts.callback({
+					status = 200,
+					body = vim.json.encode({ access_token = "secret", user_id = "@alice:example.org" }),
+				})
+			end
+
+			local result
+			auth.login_token("XYZ", function(r)
+				result = r
+			end, function()
+				return false
+			end)
+
+			assert.is_true(error_mod.is_error(result))
+			assert.is_nil(client.client.access_token)
+		end)
+
 		it("should switch to the homeserver from the login response well_known", function()
 			client.new("https://example.org")
 			curl_mock.post = function(_, opts)
