@@ -702,7 +702,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 						if image_data then
 							local image = {
 								line = index,
-								url = image_data.url,
+								url = util.media_url_with_token(image_data.url),
 								height = image_data.height,
 								width = image_data.width,
 							}
@@ -1539,9 +1539,7 @@ M.handle_cursor_hold = function(buffer_id)
 			vim.hl.range(float_buf, EXTMARK_NAMESPACE, "Bold", { 0, 0 }, { 0, -1 })
 
 			-- Display the image in the float window using Snacks
-			local url = util.mxc_to_url(matrix.client.homeserver, data.emoticon_url)
-				.. "?access_token="
-				.. matrix.client.access_token
+			local url = util.media_url_with_token(util.mxc_to_url(matrix.client.homeserver, data.emoticon_url))
 			require("snacks.image.terminal").detect(function()
 				--- @type snacks.image.Opts
 				local opts = {
@@ -1603,9 +1601,7 @@ M.handle_cursor_hold = function(buffer_id)
 				vim.hl.range(float_buf, EXTMARK_NAMESPACE, "Bold", { 0, 0 }, { 0, -1 })
 
 				-- Display the image in the float window using Snacks
-				local url = util.mxc_to_url(matrix.client.homeserver, data.reaction_mxc_url)
-					.. "?access_token="
-					.. matrix.client.access_token
+				local url = util.media_url_with_token(util.mxc_to_url(matrix.client.homeserver, data.reaction_mxc_url))
 				require("snacks.image.terminal").detect(function()
 					--- @type snacks.image.Opts
 					local opts = {
@@ -1690,26 +1686,18 @@ local function get_mxc_image_under_cursor(buffer_id)
 	return nil
 end
 
---- Remove the `access_token` query parameter from a media URL
---- @param url string The media URL
---- @return string The URL without the access token
-local function strip_access_token(url)
-	local stripped = url:gsub("([?&])access_token=[^&]*&?", "%1"):gsub("[?&]$", "")
-	return stripped
-end
-
 --- Build the attachment passed to `room.on_open_attachment` from a message attachment
---- The message attachment URLs carry the access token, so the handler gets a copy without it
+--- Rooms saved by an earlier version have attachment URLs with an access token, so the handler gets a copy without it
 --- @param message_attachment neoment.matrix.client.MessageAttachment The attachment of the message
 --- @return neoment.matrix.client.MessageAttachment The attachment for the handler
 local function to_handler_attachment(message_attachment)
 	local attachment = vim.deepcopy(message_attachment)
 	attachment.origin = "message"
 	if attachment.url then
-		attachment.url = strip_access_token(attachment.url)
+		attachment.url = util.strip_access_token(attachment.url)
 	end
 	if attachment.thumbnail and attachment.thumbnail.url then
-		attachment.thumbnail.url = strip_access_token(attachment.thumbnail.url)
+		attachment.thumbnail.url = util.strip_access_token(attachment.thumbnail.url)
 	end
 	return attachment
 end
@@ -1726,7 +1714,6 @@ M.open_attachment = function()
 			local title = mxc_data.emoticon_title or mxc_data.reaction_label or "image"
 			local filename = title:gsub("[^%w%.%-_]", "_") .. ".png"
 			local media_url = util.mxc_to_url(matrix.client.homeserver, mxc_url)
-			local url = media_url .. "?access_token=" .. matrix.client.access_token
 
 			-- The mimetype is a guess, the file is always saved as PNG
 			--- @type neoment.matrix.client.MessageImage
@@ -1741,7 +1728,7 @@ M.open_attachment = function()
 
 			notify.info("Fetching attachment " .. filename .. "...")
 
-			storage.fetch_to_temp(filename, url, function(error_path)
+			storage.fetch_to_temp(filename, media_url, function(error_path)
 				error.match(error_path, function(path)
 					notify.info("Opening attachment " .. filename .. "...")
 					local handler = config.get().room.on_open_attachment
@@ -1752,7 +1739,7 @@ M.open_attachment = function()
 				end, function(err)
 					notify.error("Error opening image: " .. err)
 				end)
-			end)
+			end, util.media_headers(media_url))
 			return
 		end
 	end
@@ -1773,7 +1760,9 @@ M.open_attachment = function()
 
 		notify.info("Fetching attachment " .. filename .. "...")
 
-		return storage.fetch_to_temp(filename, message.attachment.url, function(error_path)
+		local url = util.strip_access_token(message.attachment.url)
+
+		return storage.fetch_to_temp(filename, url, function(error_path)
 			error.match(error_path, function(path)
 				notify.info("Opening attachment " .. filename .. "...")
 				local handler = config.get().room.on_open_attachment
@@ -1785,7 +1774,7 @@ M.open_attachment = function()
 			end, function(err)
 				notify.error("Error fetching attachment: " .. err)
 			end)
-		end)
+		end, util.media_headers(url))
 	end)
 end
 
@@ -1806,7 +1795,8 @@ M.save_attachment = function()
 			end
 
 			local filename = message.attachment.filename or message.content
-			storage.fetch_to_temp(message.id .. filename, message.attachment.url, function(error_path)
+			local url = util.strip_access_token(message.attachment.url)
+			storage.fetch_to_temp(message.id .. filename, url, function(error_path)
 				error.match(error_path, function(path)
 					local save_path = vim.fn.expand(user_input)
 					if vim.fn.isdirectory(save_path) == 1 then
@@ -1835,7 +1825,7 @@ M.save_attachment = function()
 				end, function(err)
 					notify.error("Error saving attachment: " .. err)
 				end)
-			end)
+			end, util.media_headers(url))
 		end)
 		return nil
 	end)

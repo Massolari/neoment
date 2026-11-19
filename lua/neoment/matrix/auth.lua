@@ -164,6 +164,10 @@ local function login_request(body, callback, is_current)
 
 			local result = error.map(response, function(data)
 				requesting_client.access_token = data.access_token
+				requesting_client.refresh_token = type(data.refresh_token) == "string" and data.refresh_token or nil
+				requesting_client.expires_at = type(data.expires_in_ms) == "number"
+						and os.time() + math.floor(data.expires_in_ms / 1000)
+					or nil
 				requesting_client.user_id = data.user_id
 				requesting_client.homeserver = homeserver_from_well_known(data.well_known)
 					or requesting_client.homeserver
@@ -188,6 +192,8 @@ M.login_password = function(user, password, callback, is_current)
 			user = user,
 		},
 		password = password,
+		-- Servers that don't support refresh tokens ignore this
+		refresh_token = true,
 	}, callback, is_current)
 end
 

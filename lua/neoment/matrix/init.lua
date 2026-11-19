@@ -54,17 +54,13 @@ M.logout = function(callback)
 		callback(error.ok(nil))
 		return
 	end
-	api.post(client.client.homeserver .. "/_matrix/client/v3/logout", {}, function(response)
+	api.authed.post(client.client.homeserver .. "/_matrix/client/v3/logout", {}, function(response)
 		local result = error.map(response, function()
 			client.new(client.client.homeserver)
 			return nil
 		end)
 		callback(result)
-	end, {
-		headers = {
-			Authorization = "Bearer " .. client.client.access_token,
-		},
-	})
+	end)
 end
 
 --- @class neoment.matrix.SyncResponse
@@ -425,7 +421,7 @@ M.sync = function(options, callback)
 		query_params = "?" .. table.concat(params, "&")
 	end
 
-	api.get(
+	api.authed.get(
 		client.client.homeserver .. "/_matrix/client/v3/sync" .. query_params,
 		vim.schedule_wrap(function(response)
 			local result = error.map(response, function(data)
@@ -474,12 +470,7 @@ M.sync = function(options, callback)
 			end) --[[@as neoment.Error<{ sync: neoment.matrix.SyncResponse, updated_rooms: table<string> }, neoment.matrix.api.Error>]]
 
 			callback(result)
-		end),
-		{
-			headers = {
-				Authorization = "Bearer " .. client.client.access_token,
-			},
-		}
+		end)
 	)
 end
 
@@ -582,7 +573,7 @@ M.send_message = function(room_id, params, callback)
 		}
 	end
 
-	api.put(
+	api.authed.put(
 		client.client.homeserver .. "/_matrix/client/v3/rooms/" .. room_id .. "/send/m.room.message/" .. txn_id,
 		content,
 		function(r)
@@ -595,12 +586,7 @@ M.send_message = function(room_id, params, callback)
 			end)
 
 			callback(response)
-		end,
-		{
-			headers = {
-				Authorization = "Bearer " .. client.client.access_token,
-			},
-		}
+		end
 	)
 end
 
@@ -615,7 +601,7 @@ M.redact_event = function(room_id, event_id, reason, callback)
 		body.reason = reason
 	end
 
-	api.put(
+	api.authed.put(
 		client.client.homeserver
 			.. "/_matrix/client/v3/rooms/"
 			.. room_id
@@ -630,12 +616,7 @@ M.redact_event = function(room_id, event_id, reason, callback)
 			end) --[[@as neoment.Error<string, neoment.matrix.api.Error>]]
 
 			callback(result)
-		end,
-		{
-			headers = {
-				Authorization = "Bearer " .. client.client.access_token,
-			},
-		}
+		end
 	)
 end
 
@@ -750,7 +731,7 @@ M.load_more_messages = function(room_id, on_done)
 		prev_batch_query = client.client.sync_token
 	end
 
-	api.get(
+	api.authed.get(
 		client.client.homeserver
 			.. "/_matrix/client/v3/rooms/"
 			.. room_id
@@ -787,12 +768,7 @@ M.load_more_messages = function(room_id, on_done)
 					on_done(error.err(err))
 				end
 			end)
-		end),
-		{
-			headers = {
-				Authorization = "Bearer " .. client.client.access_token,
-			},
-		}
+		end)
 	)
 end
 
@@ -802,7 +778,7 @@ end
 --- @param event_type string The type of the event (e.g., "m.room.message").
 --- @param callback fun(data: neoment.Error<string, neoment.matrix.api.Error>): any The callback function to handle the response. The response will be the event ID of the sent message.
 M.send_event = function(room_id, content, event_type, callback)
-	api.put(
+	api.authed.put(
 		client.client.homeserver
 			.. "/_matrix/client/v3/rooms/"
 			.. room_id
@@ -817,12 +793,7 @@ M.send_event = function(room_id, content, event_type, callback)
 			end) --[[@as neoment.Error<string, neoment.matrix.api.Error>]]
 
 			callback(result)
-		end,
-		{
-			headers = {
-				Authorization = "Bearer " .. client.client.access_token,
-			},
-		}
+		end
 	)
 end
 
@@ -873,7 +844,7 @@ M.set_room_read_marker = function(room_id, markers, callback)
 
 	room.unread = false
 
-	api.post(client.client.homeserver .. "/_matrix/client/v3/rooms/" .. room_id .. "/read_markers", {
+	api.authed.post(client.client.homeserver .. "/_matrix/client/v3/rooms/" .. room_id .. "/read_markers", {
 		["m.fully_read"] = markers.fully_read,
 		["m.read"] = markers.read,
 		["m.read.private"] = markers.read_private,
@@ -887,28 +858,20 @@ M.set_room_read_marker = function(room_id, markers, callback)
 		end) --[[@as neoment.Error<nil, neoment.matrix.api.Error>]]
 
 		callback(result)
-	end, {
-		headers = {
-			Authorization = "Bearer " .. client.client.access_token,
-		},
-	})
+	end)
 end
 
 --- Create a new room.
 --- @param options table The options for creating the room.
 --- @param callback fun(data: neoment.Error<string, neoment.matrix.api.Error>): any The callback function to handle the response. The response will be the room ID of the created room.
 M.create_room = function(options, callback)
-	api.post(client.client.homeserver .. "/_matrix/client/v3/createRoom", options, function(response)
+	api.authed.post(client.client.homeserver .. "/_matrix/client/v3/createRoom", options, function(response)
 		local result = error.map(response, function(data)
 			return data.room_id
 		end) --[[@as neoment.Error<string, neoment.matrix.api.Error>]]
 
 		callback(result)
-	end, {
-		headers = {
-			Authorization = "Bearer " .. client.client.access_token,
-		},
-	})
+	end)
 end
 
 --- Join a room by ID or alias.
@@ -916,7 +879,7 @@ end
 --- @param callback fun(data: neoment.Error<string, neoment.matrix.api.Error>): any The callback function to handle the response. The response will be the room ID of the joined room.
 --- @param via? table<string> The list of servers to try and join through.
 M.join_room = function(room_id_or_alias, callback, via)
-	api.post(
+	api.authed.post(
 		client.client.homeserver
 			.. "/_matrix/client/v3/join/"
 			.. vim.uri_encode(room_id_or_alias)
@@ -932,12 +895,7 @@ M.join_room = function(room_id_or_alias, callback, via)
 			end) --[[@as neoment.Error<string, neoment.matrix.api.Error>]]
 
 			callback(result)
-		end,
-		{
-			headers = {
-				Authorization = "Bearer " .. client.client.access_token,
-			},
-		}
+		end
 	)
 end
 
@@ -945,27 +903,27 @@ end
 --- @param room_id string The ID of the room to leave.
 --- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any The callback function to handle the response. The response will be the room ID of the left room.
 M.leave_room = function(room_id, callback)
-	api.post(client.client.homeserver .. "/_matrix/client/v3/rooms/" .. room_id .. "/leave", nil, function(response)
-		local result_recovered = error.recover(response, function(err)
-			if err.errcode == "M_FORBIDDEN" then
-				-- If the user is not a member of the room, we can consider the leave successful
-				return error.ok(nil)
-			end
-			return error.err(err)
-		end)
-		local result = error.map(result_recovered, function()
-			-- Remove the room from the client's room list
-			client.get_invited_rooms()[room_id] = nil
-			client.get_rooms()[room_id] = nil
-			return nil
-		end) --[[@as neoment.Error<nil, neoment.matrix.api.Error>]]
+	api.authed.post(
+		client.client.homeserver .. "/_matrix/client/v3/rooms/" .. room_id .. "/leave",
+		nil,
+		function(response)
+			local result_recovered = error.recover(response, function(err)
+				if err.errcode == "M_FORBIDDEN" then
+					-- If the user is not a member of the room, we can consider the leave successful
+					return error.ok(nil)
+				end
+				return error.err(err)
+			end)
+			local result = error.map(result_recovered, function()
+				-- Remove the room from the client's room list
+				client.get_invited_rooms()[room_id] = nil
+				client.get_rooms()[room_id] = nil
+				return nil
+			end) --[[@as neoment.Error<nil, neoment.matrix.api.Error>]]
 
-		callback(result)
-	end, {
-		headers = {
-			Authorization = "Bearer " .. client.client.access_token,
-		},
-	})
+			callback(result)
+		end
+	)
 end
 
 --- Get the rooms that the user joined or was invited to
@@ -1119,29 +1077,28 @@ end
 --- @param room_id string The ID of the room.
 --- @param callback fun(data: neoment.Error<table<string, neoment.matrix.JoinedMember>, neoment.matrix.api.Error>): any The callback function to handle the response. The response will be a table of user IDs and their display names.
 M.fetch_joined_members = function(room_id, callback)
-	api.get(client.client.homeserver .. "/_matrix/client/v3/rooms/" .. room_id .. "/joined_members", function(response)
-		local result = error.map(response, function(d)
-			--- @type neoment.matrix.JoinedMembersResponse
-			local data = d
-			for id, member in pairs(data.joined) do
-				if member.display_name and member.display_name ~= vim.NIL then
-					client.client.display_names[id] = {
-						user_id = id,
-						display_name = member.display_name,
-						timestamp = os.time(),
-					}
+	api.authed.get(
+		client.client.homeserver .. "/_matrix/client/v3/rooms/" .. room_id .. "/joined_members",
+		function(response)
+			local result = error.map(response, function(d)
+				--- @type neoment.matrix.JoinedMembersResponse
+				local data = d
+				for id, member in pairs(data.joined) do
+					if member.display_name and member.display_name ~= vim.NIL then
+						client.client.display_names[id] = {
+							user_id = id,
+							display_name = member.display_name,
+							timestamp = os.time(),
+						}
+					end
+					client.get_room(room_id).members[id] = id
 				end
-				client.get_room(room_id).members[id] = id
-			end
-			return data.joined
-		end) --[[@as neoment.Error<table<string, neoment.matrix.JoinedMember>, neoment.matrix.api.Error>]]
+				return data.joined
+			end) --[[@as neoment.Error<table<string, neoment.matrix.JoinedMember>, neoment.matrix.api.Error>]]
 
-		callback(result)
-	end, {
-		headers = {
-			Authorization = "Bearer " .. client.client.access_token,
-		},
-	})
+			callback(result)
+		end
+	)
 end
 
 --- Get the last activity timestamp in a room.
@@ -1276,11 +1233,7 @@ end
 M.fetch_space_hierarchy = function(space_id, callback)
 	local endpoint = string.format("%s/_matrix/client/v1/rooms/%s/hierarchy", client.client.homeserver, space_id)
 
-	api.get(endpoint, callback, {
-		headers = {
-			["Authorization"] = "Bearer " .. client.client.access_token,
-		},
-	})
+	api.authed.get(endpoint, callback)
 end
 
 --- Upload a file to the Matrix server.
@@ -1308,7 +1261,7 @@ M.upload = function(filepath, callback)
 	else
 		mimetype = vim.fn.systemlist("file --mime-type -b " .. vim.fn.shellescape(filepath))[1]
 	end
-	api.post_raw(
+	api.authed.post_raw(
 		client.client.homeserver .. "/_matrix/media/v3/upload?filename=" .. vim.uri_encode(filename),
 		filepath,
 		function(response)
@@ -1320,7 +1273,6 @@ M.upload = function(filepath, callback)
 		end,
 		{
 			headers = {
-				Authorization = "Bearer " .. client.client.access_token,
 				["Content-Type"] = mimetype,
 			},
 		}
@@ -1380,18 +1332,13 @@ local function add_remove_room_tag(room_id, tag, user_id, is_add, callback)
 
 		callback(result)
 	end
-	local opts = {
-		headers = {
-			Authorization = "Bearer " .. client.client.access_token,
-		},
-	}
 
 	if is_add then
-		api.put(url, {
+		api.authed.put(url, {
 			order = 0, -- Default order, can be adjusted if needed
-		}, actual_callback, opts)
+		}, actual_callback)
 	else
-		api.delete(url, actual_callback, opts)
+		api.authed.delete(url, actual_callback)
 	end
 end
 
@@ -1497,7 +1444,7 @@ M.refresh_room_state = function(room_id, callback)
 		["m.space.child"] = true,
 	}
 
-	api.get(
+	api.authed.get(
 		client.client.homeserver .. "/_matrix/client/v3/rooms/" .. room_id .. "/state",
 		vim.schedule_wrap(function(response)
 			local result = error.map(response, function(data)
@@ -1514,12 +1461,7 @@ M.refresh_room_state = function(room_id, callback)
 				return event.handle_multiple(room_id, filtered_events)
 			end)
 			callback(result)
-		end),
-		{
-			headers = {
-				Authorization = "Bearer " .. client.client.access_token,
-			},
-		}
+		end)
 	)
 end
 

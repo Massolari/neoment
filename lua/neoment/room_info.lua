@@ -99,7 +99,7 @@ local function render_avatar(buffer_id, room_id)
 		return
 	end
 
-	local url = util.mxc_to_url(matrix.client.homeserver, avatar_url) .. "?access_token=" .. matrix.client.access_token
+	local url = util.media_url_with_token(util.mxc_to_url(matrix.client.homeserver, avatar_url))
 
 	require("snacks.image.terminal").detect(function()
 		local data = buffer_data[buffer_id]
@@ -511,7 +511,6 @@ M.open_avatar = function(buffer_id)
 	local room_name = matrix.get_room_display_name(room.id)
 	local filename = room_name:gsub("[^%w%.%-_]", "_") .. ".png"
 	local media_url = util.mxc_to_url(matrix.client.homeserver, avatar)
-	local url = media_url .. "?access_token=" .. matrix.client.access_token
 
 	-- The mimetype is a guess, the file is always saved as PNG
 	--- @type neoment.matrix.client.MessageImage
@@ -525,7 +524,7 @@ M.open_avatar = function(buffer_id)
 	}
 
 	notify.info("Fetching avatar...")
-	storage.fetch_to_temp(filename, url, function(error_path)
+	storage.fetch_to_temp(filename, media_url, function(error_path)
 		error.match(error_path, function(path)
 			local handler = config.get().room.on_open_attachment
 			vim.schedule(function()
@@ -536,7 +535,7 @@ M.open_avatar = function(buffer_id)
 		end, function(err)
 			notify.error("Failed to open avatar image: " .. err)
 		end)
-	end)
+	end, util.media_headers(media_url))
 end
 
 return M

@@ -87,7 +87,13 @@ local function setup_mocks(room, matrix_opts)
 		INFO_ROOM_FILETYPE = "neoment_info_room",
 	}
 
+	-- The media helpers read the client from the mocked matrix module
+	package.loaded["neoment.util"] = nil
+	local real_util = require("neoment.util")
+
 	package.loaded["neoment.util"] = {
+		media_url_with_token = real_util.media_url_with_token,
+		media_headers = real_util.media_headers,
 		get_existing_buffer = function()
 			return nil
 		end,
@@ -614,7 +620,9 @@ describe("room_info", function()
 			assert.equals("Test_Room.png", call_args.vals[1])
 			-- Verify URL is constructed correctly
 			assert.truthy(call_args.vals[2]:find("example.org"))
-			assert.truthy(call_args.vals[2]:find("access_token=token"))
+			-- The token is sent as a header, not in the URL
+			assert.is_nil(call_args.vals[2]:find("access_token", 1, true))
+			assert.are.same({ Authorization = "Bearer token" }, call_args.vals[4])
 			-- Verify the third arg is a callback (function)
 			assert.equals("function", type(call_args.vals[3]))
 

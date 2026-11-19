@@ -392,10 +392,49 @@ describe("Matrix auth", function()
 				type = "m.login.password",
 				identifier = { type = "m.id.user", user = "@alice:example.org" },
 				password = "hunter2",
+				refresh_token = true,
 				device_id = client.client.device_id,
 			}, sent_body)
 			assert.are.equal("secret", client.client.access_token)
 			assert.are.equal("@alice:example.org", client.client.user_id)
+		end)
+
+		it("should record the refresh token and expiry time of an expiring login", function()
+			client.new("https://matrix.example.org")
+			curl_mock.post = function(_, opts)
+				opts.callback({
+					status = 200,
+					body = vim.json.encode({
+						access_token = "secret",
+						refresh_token = "refresh-secret",
+						expires_in_ms = 300000,
+						user_id = "@alice:example.org",
+					}),
+				})
+			end
+
+			local before = os.time()
+			auth.login_password("@alice:example.org", "hunter2", function() end)
+
+			assert.are.equal("refresh-secret", client.client.refresh_token)
+			assert.is_true(client.client.expires_at >= before + 300)
+			assert.is_true(client.client.expires_at <= os.time() + 300)
+		end)
+
+		it("should leave the refresh fields unset when the server issues a non-expiring token", function()
+			client.new("https://matrix.example.org")
+			curl_mock.post = function(_, opts)
+				opts.callback({
+					status = 200,
+					body = vim.json.encode({ access_token = "secret", user_id = "@alice:example.org" }),
+				})
+			end
+
+			auth.login_password("@alice:example.org", "hunter2", function() end)
+
+			assert.are.equal("secret", client.client.access_token)
+			assert.is_nil(client.client.refresh_token)
+			assert.is_nil(client.client.expires_at)
 		end)
 
 		it("should discover the homeserver when using matrix.login", function()

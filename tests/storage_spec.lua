@@ -211,6 +211,47 @@ describe("storage", function()
 			assert.is_nil(result.data:find("weird name with spaces!.png", 1, true))
 		end)
 
+		it("sends the headers it is given", function()
+			vim.fn.filereadable = function()
+				return 0
+			end
+
+			local captured_opts
+			curl_mock.get = function(_, opts)
+				captured_opts = opts
+			end
+
+			local storage = require("neoment.storage")
+			storage.fetch_to_temp("file.png", "https://example.org/file.png", function() end, {
+				Authorization = "Bearer token",
+			})
+
+			assert.are.same({ Authorization = "Bearer token" }, captured_opts.headers)
+		end)
+
+		it("reports an error response instead of keeping its body as the file", function()
+			local reads = 0
+			vim.fn.filereadable = function()
+				reads = reads + 1
+				-- Not cached before the download, the error body is on disk afterwards
+				return reads == 1 and 0 or 1
+			end
+
+			curl_mock.get = function(_, opts)
+				opts.callback({ exit = 0, status = 401, body = "", headers = {} })
+			end
+
+			local callback_spy = spy.new(function() end)
+
+			local storage = require("neoment.storage")
+			storage.fetch_to_temp("file.png", "https://example.org/file.png", callback_spy)
+
+			assert.spy(callback_spy).was_called(1)
+			local result = callback_spy.calls[1].refs[1]
+			assert.is_true(error_mod.is_error(result))
+			assert.equals("Failed to download file: HTTP status 401", result.error)
+		end)
+
 		it("validates that name is a string", function()
 			local storage = require("neoment.storage")
 			assert.has_error(function()
@@ -265,6 +306,119 @@ describe("storage", function()
 			assert.are.equal("https://saved.example.org", matrix_mock.client.homeserver)
 			assert.are.equal("saved-token", matrix_mock.client.access_token)
 			assert.are.equal("@alice:saved.example.org", matrix_mock.client.user_id)
+		end)
+
+		--- Write a saved session file
+		--- @param data table
+		local function write_session(data)
+			local file = assert(io.open(temp_dir .. "/neoment/data.json", "w"))
+			file:write(vim.json.encode(vim.tbl_extend("keep", data, {
+				homeserver = "https://saved.example.org",
+				access_token = "saved-token",
+				user_id = "@alice:saved.example.org",
+			})))
+			file:close()
+			matrix_mock.client = { homeserver = "https://other.example.org", device_id = "DEVICE" }
+			matrix_mock.set_homeserver = function(homeserver)
+				matrix_mock.client = { homeserver = homeserver, device_id = matrix_mock.client.device_id }
+			end
+		end
+
+		local EIGHT_DAYS = 8 * 24 * 60 * 60
+
+		it("restores the refresh token, expiry and refresh method", function()
+			local expires_at = os.time() - 100
+			write_session({
+				refresh_token = "saved-refresh",
+				expires_at = expires_at,
+				refresh = { kind = "oauth", token_endpoint = "https://auth.example.org/token", client_id = "abc" },
+				last_save = os.time(),
+			})
+
+			local storage = require("neoment.storage")
+
+			assert.is_true(storage.restore_session())
+			assert.are.equal("saved-refresh", matrix_mock.client.refresh_token)
+			assert.are.equal(expires_at, matrix_mock.client.expires_at)
+			assert.are.same(
+				{ kind = "oauth", token_endpoint = "https://auth.example.org/token", client_id = "abc" },
+				matrix_mock.client.refresh
+			)
+		end)
+
+		it("restores a session saved by an earlier version as non-expiring", function()
+			write_session({ last_save = os.time() })
+
+			local storage = require("neoment.storage")
+
+			assert.is_true(storage.restore_session())
+			assert.are.equal("saved-token", matrix_mock.client.access_token)
+			assert.is_nil(matrix_mock.client.refresh_token)
+			assert.is_nil(matrix_mock.client.expires_at)
+			assert.is_nil(matrix_mock.client.refresh)
+		end)
+
+		it("restores a session older than 7 days when it holds a refresh token", function()
+			write_session({ refresh_token = "saved-refresh", last_save = os.time() - EIGHT_DAYS })
+
+			local storage = require("neoment.storage")
+
+			assert.is_true(storage.restore_session())
+		end)
+
+		it("rejects a session older than 7 days when it holds no refresh token", function()
+			write_session({ last_save = os.time() - EIGHT_DAYS })
+
+			local storage = require("neoment.storage")
+
+			assert.is_false(storage.restore_session())
+		end)
+	end)
+
+	describe("save_session", function()
+		local original_stdpath
+		local temp_dir
+
+		before_each(function()
+			temp_dir = vim.fn.tempname()
+			vim.fn.mkdir(temp_dir .. "/neoment", "p")
+			original_stdpath = vim.fn.stdpath
+			vim.fn.stdpath = function()
+				return temp_dir
+			end
+		end)
+
+		after_each(function()
+			vim.fn.stdpath = original_stdpath
+			vim.fn.delete(temp_dir, "rf")
+		end)
+
+		it("round-trips the refresh token, expiry and refresh method", function()
+			local refresh = { kind = "oauth", token_endpoint = "https://auth.example.org/token", client_id = "abc" }
+			matrix_mock.client = {
+				homeserver = "https://saved.example.org",
+				device_id = "DEVICE",
+				user_id = "@alice:saved.example.org",
+				access_token = "token",
+				refresh_token = "refresh",
+				expires_at = 1234567890,
+				refresh = refresh,
+			}
+			matrix_mock.set_homeserver = function(homeserver)
+				matrix_mock.client = { homeserver = homeserver, device_id = matrix_mock.client.device_id }
+			end
+
+			local storage = require("neoment.storage")
+			assert.is_true(storage.save_session())
+
+			-- Drop the in-memory credentials so the restore has to read them from the file
+			matrix_mock.client = { homeserver = "https://other.example.org", device_id = "DEVICE" }
+
+			assert.is_true(storage.restore_session())
+			assert.are.equal("token", matrix_mock.client.access_token)
+			assert.are.equal("refresh", matrix_mock.client.refresh_token)
+			assert.are.equal(1234567890, matrix_mock.client.expires_at)
+			assert.are.same(refresh, matrix_mock.client.refresh)
 		end)
 	end)
 end)

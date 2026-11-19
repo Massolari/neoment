@@ -141,6 +141,9 @@ function M.save_session()
 		device_id = matrix.client.device_id,
 
 		access_token = matrix.client.access_token,
+		refresh_token = matrix.client.refresh_token,
+		expires_at = matrix.client.expires_at,
+		refresh = matrix.client.refresh,
 		last_save = os.time(),
 	}
 
@@ -149,6 +152,12 @@ function M.save_session()
 	end
 
 	return write_file(cache_path, cache_to_save) and write_file(data_path, data_to_save)
+end
+
+--- Read the saved session credentials without restoring them
+--- @return table|nil The saved session data, nil when there is none
+function M.read_saved_session()
+	return read_file(data_path)
 end
 
 --- Restore the session data from the cache file
@@ -160,9 +169,10 @@ function M.restore_session()
 		return false
 	end
 
-	-- Check if the session data is too old (7 days)
+	-- Check if the session data is too old (7 days).
+	-- A session with a refresh token is bounded by the refresh token lifetime instead.
 	local max_age = 7 * 24 * 60 * 60 -- 7 days in seconds
-	if data.last_save and os.time() - data.last_save > max_age then
+	if not data.refresh_token and data.last_save and os.time() - data.last_save > max_age then
 		notify.warning("Session data is expired, please log in again")
 		return false
 	end
@@ -170,6 +180,9 @@ function M.restore_session()
 	-- Replace any client left by an unfinished login attempt
 	matrix.set_homeserver(data.homeserver)
 	matrix.client.access_token = data.access_token
+	matrix.client.refresh_token = data.refresh_token
+	matrix.client.expires_at = data.expires_at
+	matrix.client.refresh = data.refresh
 	matrix.client.user_id = data.user_id
 	if cache then
 		matrix.client.sync_token = cache.sync_token
@@ -252,7 +265,8 @@ end
 --- @param name string The name of the file
 --- @param url string The URL to fetch the file from
 --- @param callback fun(path: neoment.Error<string, string>): any The callback to call with the result, either the path to the temporary file or an error message
-M.fetch_to_temp = function(name, url, callback)
+--- @param headers? table<string, string> Headers to send with the request, like the Authorization of a media download
+M.fetch_to_temp = function(name, url, callback, headers)
 	vim.validate("name", name, "string")
 	vim.validate("url", url, "string")
 
@@ -269,12 +283,19 @@ M.fetch_to_temp = function(name, url, callback)
 
 	curl.get(url, {
 		output = temp_path,
+		headers = headers,
 		on_error = function(err)
 			callback(error.err("Failed to download file: " .. (err.message or "Unknown error")))
 		end,
 		callback = function(response)
 			if response.exit ~= 0 then
 				return callback(error.err("Failed to download file: curl exited with code " .. response.exit))
+			end
+
+			-- The body of an error response was saved as the file, and would be reused as the download
+			if response.status and response.status >= 400 then
+				os.remove(temp_path)
+				return callback(error.err("Failed to download file: HTTP status " .. response.status))
 			end
 
 			if vim.fn.filereadable(temp_path) == 0 then
