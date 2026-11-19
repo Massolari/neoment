@@ -133,10 +133,16 @@ describe("Login flow", function()
 			login_result = error_mod.ok(nil),
 		}
 		auth.discover = function(_, callback)
+			if auth.defer_discovery then
+				calls.pending_discovery = function()
+					callback("https://matrix.example.org")
+				end
+				return
+			end
 			callback("https://matrix.example.org")
 		end
 		auth.get_login_flows = function(_, callback)
-			callback(error_mod.ok(auth.methods))
+			callback(auth.flows_result or error_mod.ok(auth.methods))
 		end
 		auth.login_password = function(user, password, callback)
 			table.insert(calls.login_password, { user = user, password = password })
@@ -284,6 +290,63 @@ describe("Login flow", function()
 		assert.are.equal(2, #listeners)
 		assert.is_true(listeners[1].closed)
 		assert.is_false(listeners[2].closed)
+	end)
+
+	it("should ask for the username when a homeserver URL is entered", function()
+		auth.methods = { "password" }
+		auth.discover = function(server_name, callback)
+			callback(server_name)
+		end
+		inputs = { "https://matrix.example.org/", "alice" }
+
+		run_login()
+
+		assert.are.equal("https://matrix.example.org", calls.homeserver)
+		assert.are.same({ { user = "alice", password = "hunter2" } }, calls.login_password)
+	end)
+
+	it("should show an error when the login methods cannot be fetched", function()
+		auth.flows_result = error_mod.err({ error = "Could not fetch login methods from https://matrix.example.org" })
+		inputs = { "example.org" }
+
+		run_login()
+
+		assert.is_true(notified("error", "Could not fetch login methods"))
+		assert.are.equal(0, calls.selects)
+	end)
+
+	it("should ignore a stale login attempt when a newer one was started", function()
+		auth.methods = { "sso" }
+		auth.defer_discovery = true
+		inputs = { "example.org", "example.org" }
+
+		run_login()
+		local stale_discovery = calls.pending_discovery
+		run_login()
+		local current_discovery = calls.pending_discovery
+
+		stale_discovery()
+		vim.wait(50)
+		assert.are.equal(0, #listeners)
+
+		current_discovery()
+		vim.wait(50)
+		assert.are.equal(1, #listeners)
+		assert.are.equal(1, #calls.opened)
+	end)
+
+	it("should ignore the timeout of a listener that is no longer pending", function()
+		auth.methods = { "sso" }
+		inputs = { "example.org", "example.org" }
+
+		run_login()
+		run_login()
+
+		listeners[1].opts.on_timeout()
+		vim.wait(50)
+
+		assert.are.equal(0, calls.pastes)
+		assert.is_false(notified("warning", "Did not receive the login"))
 	end)
 
 	it("should show the server error when the token is rejected", function()

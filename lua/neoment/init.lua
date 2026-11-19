@@ -84,6 +84,9 @@ local MANUAL_SSO_REDIRECT_URL = "http://127.0.0.1/"
 --- @type neoment.sso_listener.Listener|nil
 local pending_sso_listener = nil
 
+--- Incremented on every login attempt, so callbacks of an older attempt can tell they are stale
+local login_generation = 0
+
 --- Stop the SSO callback listener of the login in progress, if any
 local function close_pending_sso_listener()
 	if pending_sso_listener then
@@ -135,12 +138,20 @@ local function sso_login(ctx)
 		return
 	end
 
+	--- @type neoment.sso_listener.Listener|nil
+	local listener
 	local listener_result = sso_listener.start({
 		on_token = function(token)
+			if pending_sso_listener ~= listener then
+				return
+			end
 			pending_sso_listener = nil
 			auth.login_token(token, handle_login_result)
 		end,
 		on_timeout = function()
+			if pending_sso_listener ~= listener then
+				return
+			end
 			pending_sso_listener = nil
 			notify.warning("Did not receive the login from the browser")
 			manual_sso_login(ctx)
@@ -153,7 +164,8 @@ local function sso_login(ctx)
 		return
 	end
 
-	pending_sso_listener = listener_result.data
+	listener = listener_result.data
+	pending_sso_listener = listener
 	local url = auth.sso_redirect_url(ctx.homeserver, pending_sso_listener.redirect_url)
 	local _, open_error = vim.ui.open(url)
 	if open_error then
@@ -210,6 +222,8 @@ local function login()
 	end
 
 	close_pending_sso_listener()
+	login_generation = login_generation + 1
+	local generation = login_generation
 
 	local input = vim.fn.input("Matrix ID or server: ")
 	local server_name, user_id = auth.parse_server_name(input)
@@ -224,10 +238,17 @@ local function login()
 
 	notify.info("Looking up the homeserver for " .. server_name .. "...")
 	auth.discover(server_name, function(homeserver)
+		-- A newer login attempt was started in the meantime
+		if generation ~= login_generation then
+			return
+		end
 		matrix.set_homeserver(homeserver)
 
 		auth.get_login_flows(homeserver, function(result)
 			vim.schedule(function()
+				if generation ~= login_generation then
+					return
+				end
 				if error.is_error(result) then
 					notify.error(result.error.error)
 					return
@@ -247,6 +268,9 @@ local function login()
 						return LOGIN_METHOD_LABELS[method]
 					end,
 				}, function(method)
+					if generation ~= login_generation then
+						return
+					end
 					if not method then
 						notify.info("Login cancelled")
 						return

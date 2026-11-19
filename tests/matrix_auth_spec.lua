@@ -191,6 +191,33 @@ describe("Matrix auth", function()
 			assert.are.equal("http://localhost:8008", homeserver)
 		end)
 
+		it("should fall back when base_url has no HTTP(S) scheme", function()
+			mock_get({
+				["https://example.org/.well-known/matrix/client"] = {
+					status = 200,
+					body = vim.json.encode({ ["m.homeserver"] = { base_url = "matrix.example.org" } }),
+				},
+			})
+
+			local homeserver
+			auth.discover("example.org", function(result)
+				homeserver = result
+			end)
+
+			assert.are.equal("https://example.org", homeserver)
+		end)
+
+		it("should treat the URL scheme case-insensitively", function()
+			local server_name = auth.parse_server_name("HTTPS://matrix.example.org")
+
+			local homeserver
+			auth.discover(server_name, function(result)
+				homeserver = result
+			end)
+
+			assert.are.equal("HTTPS://matrix.example.org", homeserver)
+		end)
+
 		it("should fall back when m.homeserver is missing", function()
 			mock_get({
 				["https://example.org/.well-known/matrix/client"] = {
@@ -268,6 +295,35 @@ describe("Matrix auth", function()
 					"m.login.sso",
 					"m.login.password",
 				}),
+			})
+
+			local result
+			auth.get_login_flows("https://matrix.example.org", function(r)
+				result = r
+			end)
+
+			assert.are.same({ "password" }, result.data)
+		end)
+
+		it("should error instead of stalling when flows is not a list", function()
+			mock_get({
+				["https://matrix.example.org/_matrix/client/v3/login"] = { status = 200, body = '{"flows":null}' },
+			})
+
+			local result
+			auth.get_login_flows("https://matrix.example.org", function(r)
+				result = r
+			end)
+
+			assert.is_true(error_mod.is_error(result))
+		end)
+
+		it("should skip malformed flow entries", function()
+			mock_get({
+				["https://matrix.example.org/_matrix/client/v3/login"] = {
+					status = 200,
+					body = '{"flows":["oops",{"type":null},{"type":"m.login.password"}]}',
+				},
 			})
 
 			local result

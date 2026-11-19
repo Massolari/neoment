@@ -76,7 +76,7 @@ For the best experience, it is recommended to install the following companion pl
 ### First Time Setup
 
 1. Open Neovim and run `:Neoment` to authenticate with your Matrix homeserver
-1. At the `Matrix ID or server:` prompt, enter your Matrix ID (e.g. `@alice:matrix.org`) or just your server name (e.g. `mozilla.org`). The homeserver is discovered automatically through `/.well-known/matrix/client`
+1. At the `Matrix ID or server:` prompt, enter your Matrix ID (e.g. `@alice:matrix.org`) or just your server name (e.g. `mozilla.org`). The homeserver is discovered automatically through `/.well-known/matrix/client`. You can also enter the homeserver URL directly (e.g. `https://matrix-client.matrix.org`)
 1. Log in with one of the methods your server supports. If it supports more than one, you will be asked to choose:
     - **Password**: enter your password (and your username, if you only entered the server name)
     - **Single Sign-On**: your browser opens the server's login page. After you log in, the browser is sent back to Neovim and the login completes

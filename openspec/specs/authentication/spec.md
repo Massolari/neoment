@@ -6,7 +6,7 @@ Defines how the client finds the user's homeserver, chooses a login method the s
 
 ## Requirements
 
-### Requirement: Login accepts a Matrix ID or a server name
+### Requirement: Login accepts a Matrix ID, a server name, or a homeserver URL
 The client SHALL start an interactive login by asking for a Matrix user ID, a bare server name, or a homeserver URL. It SHALL use the server-name part of the input to find the homeserver, and use a homeserver URL as is.
 
 #### Scenario: User enters a full Matrix ID
@@ -26,7 +26,7 @@ The client SHALL start an interactive login by asking for a Matrix user ID, a ba
 - **THEN** the login is cancelled without any network request
 
 ### Requirement: Homeserver discovery through well-known
-The client SHALL find the homeserver base URL by requesting `https://<hostname>/.well-known/matrix/client`, where `<hostname>` is the server name without its port, and following HTTP redirects. It SHALL use `m.homeserver.base_url`, with any trailing slash removed. Discovery requests SHALL time out so an unreachable host does not stall the login.
+The client SHALL find the homeserver base URL by requesting `https://<hostname>/.well-known/matrix/client`, where `<hostname>` is the server name without its port, and following HTTP redirects. It SHALL use `m.homeserver.base_url`, with any trailing slash removed, only when it is an `http://` or `https://` URL. Discovery requests SHALL time out so an unreachable host does not stall the login.
 
 #### Scenario: Server delegates to another host
 - **GIVEN** `https://mozilla.org/.well-known/matrix/client` redirects and finally returns `{"m.homeserver": {"base_url": "https://mozilla.modular.im/"}}`
@@ -34,7 +34,7 @@ The client SHALL find the homeserver base URL by requesting `https://<hostname>/
 - **THEN** all login requests are sent to `https://mozilla.modular.im`
 
 #### Scenario: Well-known is missing or invalid
-- **WHEN** the well-known request fails, returns a non-JSON body, or has no `m.homeserver.base_url`
+- **WHEN** the well-known request fails, returns a non-JSON body, or has no `m.homeserver.base_url` that is an HTTP(S) URL
 - **THEN** the client uses `https://<server_name>` as the homeserver
 
 #### Scenario: Server name has a port
@@ -57,7 +57,7 @@ The client SHALL request `GET /_matrix/client/v3/login` and offer only login met
 - **THEN** the client does not offer SSO
 
 #### Scenario: Both password and SSO are offered
-- **WHEN** the server advertises both `m.login.password` and `m.login.sso`
+- **WHEN** the server advertises `m.login.password`, `m.login.sso` and `m.login.token`
 - **THEN** the client asks the user to choose between password and SSO
 
 #### Scenario: No supported method is offered

@@ -20,13 +20,21 @@ local METHOD_ORDER = { "password", "sso" }
 --- Curl arguments that bound the time spent on discovery requests, so an unreachable host fails fast.
 local DISCOVERY_CURL_ARGS = { "--connect-timeout", "5", "--max-time", "10" }
 
+--- Check if a string is an HTTP(S) URL. The scheme is matched case-insensitively.
+--- @param value string
+--- @return boolean
+local function is_http_url(value)
+	return value:lower():match("^https?://") ~= nil
+end
+
 --- Read the homeserver base URL from a `.well-known/matrix/client` object.
+--- Base URLs that are not HTTP(S) URLs are ignored, so a missing scheme never falls back to another protocol.
 --- @param well_known any The decoded well-known object.
 --- @return string|nil The homeserver base URL without trailing slashes, if present.
 local function homeserver_from_well_known(well_known)
 	local homeserver_info = type(well_known) == "table" and well_known["m.homeserver"]
 	local base_url = type(homeserver_info) == "table" and homeserver_info.base_url
-	if type(base_url) ~= "string" or base_url == "" then
+	if type(base_url) ~= "string" or not is_http_url(base_url) then
 		return nil
 	end
 	return (base_url:gsub("/+$", ""))
@@ -52,7 +60,7 @@ M.parse_server_name = function(input)
 		return server_name, trimmed
 	end
 
-	if trimmed:match("^https?://") then
+	if is_http_url(trimmed) then
 		return (trimmed:gsub("/+$", "")), nil
 	end
 
@@ -65,7 +73,7 @@ end
 --- @param server_name string The server name (e.g. `example.org`) or homeserver URL.
 --- @param callback fun(homeserver: string): any The callback receiving the homeserver base URL.
 M.discover = function(server_name, callback)
-	if server_name:match("^https?://") then
+	if is_http_url(server_name) then
 		callback(server_name)
 		return
 	end
@@ -104,12 +112,16 @@ M.get_login_flows = function(homeserver, callback)
 		local available = {}
 		local advertised = {}
 		local supports_token = false
-		for _, flow in ipairs(response.data.flows or {}) do
-			table.insert(advertised, flow.type)
-			supports_token = supports_token or flow.type == "m.login.token"
-			local method = SUPPORTED_FLOWS[flow.type]
-			if method then
-				available[method] = true
+		local flows = type(response.data.flows) == "table" and response.data.flows or {}
+		for _, flow in ipairs(flows) do
+			local flow_type = type(flow) == "table" and flow.type
+			if type(flow_type) == "string" then
+				table.insert(advertised, flow_type)
+				supports_token = supports_token or flow_type == "m.login.token"
+				local method = SUPPORTED_FLOWS[flow_type]
+				if method then
+					available[method] = true
+				end
 			end
 		end
 
