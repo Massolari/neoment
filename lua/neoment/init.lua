@@ -101,9 +101,13 @@ end
 --- Ask the user to paste the URL they were redirected to (or the login token) and log in with it
 local function prompt_login_token()
 	vim.ui.input({ prompt = "Paste the redirected URL or login token: " }, function(input)
-		local token = auth.parse_login_token(input)
+		local token, parse_error = auth.parse_login_token(input)
 		if not token then
-			notify.info("Login cancelled")
+			if parse_error then
+				notify.error(parse_error)
+			else
+				notify.info("Login cancelled")
+			end
 			return
 		end
 
@@ -150,7 +154,7 @@ local function sso_login(ctx)
 	end
 
 	pending_sso_listener = listener_result.data
-	local url = auth.sso_redirect_url(ctx.homeserver, string.format("http://127.0.0.1:%d/", pending_sso_listener.port))
+	local url = auth.sso_redirect_url(ctx.homeserver, pending_sso_listener.redirect_url)
 	local _, open_error = vim.ui.open(url)
 	if open_error then
 		notify.warning("Could not open the browser (" .. open_error .. "). Open this URL to log in:\n" .. url)
@@ -218,6 +222,7 @@ local function login()
 		return
 	end
 
+	notify.info("Looking up the homeserver for " .. server_name .. "...")
 	auth.discover(server_name, function(homeserver)
 		matrix.set_homeserver(homeserver)
 

@@ -23,6 +23,10 @@ local function handler(response)
 		return error.err({ error = "Failed to decode JSON response: " .. response.body })
 	end
 
+	if type(data) ~= "table" then
+		return error.err({ error = "Unexpected JSON response: " .. response.body })
+	end
+
 	if data.error then
 		return error.err(data)
 	end

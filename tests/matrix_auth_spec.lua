@@ -106,10 +106,17 @@ describe("Matrix auth", function()
 		it("should return nil for a Matrix ID without a server name", function()
 			assert.is_nil(auth.parse_server_name("@alice"))
 		end)
+
+		it("should accept a homeserver URL without trailing slashes", function()
+			local server_name, user_id = auth.parse_server_name("https://matrix.example.org/")
+
+			assert.are.equal("https://matrix.example.org", server_name)
+			assert.is_nil(user_id)
+		end)
 	end)
 
 	describe("discover", function()
-		it("should follow redirects and use the delegated homeserver", function()
+		it("should use the delegated homeserver with a bounded request time", function()
 			local received_raw
 			curl_mock.get = function(url, opts)
 				assert.are.equal("https://mozilla.org/.well-known/matrix/client", url)
@@ -125,7 +132,7 @@ describe("Matrix auth", function()
 				homeserver = result
 			end)
 
-			assert.are.same({ "-L" }, received_raw)
+			assert.is_true(vim.tbl_contains(received_raw, "--max-time"))
 			assert.are.equal("https://mozilla.modular.im", homeserver)
 		end)
 
@@ -140,6 +147,48 @@ describe("Matrix auth", function()
 			end)
 
 			assert.are.equal("https://example.org", homeserver)
+		end)
+
+		it("should fall back when the well-known body is JSON null", function()
+			mock_get({
+				["https://example.org/.well-known/matrix/client"] = { status = 200, body = "null" },
+			})
+
+			local homeserver
+			auth.discover("example.org", function(result)
+				homeserver = result
+			end)
+
+			assert.are.equal("https://example.org", homeserver)
+		end)
+
+		it("should look up well-known without the port and keep it for the fallback", function()
+			local requested_url
+			curl_mock.get = function(url, opts)
+				requested_url = url
+				opts.on_error({ message = "connection failed" })
+			end
+
+			local homeserver
+			auth.discover("example.org:8448", function(result)
+				homeserver = result
+			end)
+
+			assert.are.equal("https://example.org/.well-known/matrix/client", requested_url)
+			assert.are.equal("https://example.org:8448", homeserver)
+		end)
+
+		it("should use a homeserver URL without discovery", function()
+			curl_mock.get = function()
+				error("unexpected request")
+			end
+
+			local homeserver
+			auth.discover("http://localhost:8008", function(result)
+				homeserver = result
+			end)
+
+			assert.are.equal("http://localhost:8008", homeserver)
 		end)
 
 		it("should fall back when m.homeserver is missing", function()
@@ -211,6 +260,22 @@ describe("Matrix auth", function()
 			end)
 
 			assert.are.same({ "sso" }, result.data)
+		end)
+
+		it("should not offer SSO when the server does not offer token login", function()
+			mock_get({
+				["https://matrix.example.org/_matrix/client/v3/login"] = flows_response({
+					"m.login.sso",
+					"m.login.password",
+				}),
+			})
+
+			local result
+			auth.get_login_flows("https://matrix.example.org", function(r)
+				result = r
+			end)
+
+			assert.are.same({ "password" }, result.data)
 		end)
 
 		it("should error with the advertised flows when none is supported", function()
@@ -294,6 +359,39 @@ describe("Matrix auth", function()
 
 			assert.are.equal("https://mozilla.modular.im/_matrix/client/v3/login", sent_url)
 		end)
+
+		it("should reject a bare server name in matrix.login", function()
+			curl_mock.get = function()
+				error("unexpected request")
+			end
+
+			local result
+			matrix.login("example.org", "hunter2", function(r)
+				result = r
+			end)
+
+			assert.is_true(error_mod.is_error(result))
+			assert.matches("Invalid Matrix ID", result.error.error, 1, true)
+		end)
+
+		it("should switch to the homeserver from the login response well_known", function()
+			client.new("https://example.org")
+			curl_mock.post = function(_, opts)
+				opts.callback({
+					status = 200,
+					body = vim.json.encode({
+						access_token = "secret",
+						user_id = "@alice:example.org",
+						well_known = { ["m.homeserver"] = { base_url = "https://matrix.example.org/" } },
+					}),
+				})
+			end
+
+			auth.login_password("@alice:example.org", "hunter2", function() end)
+
+			assert.are.equal("https://matrix.example.org", client.client.homeserver)
+			assert.are.equal("secret", client.client.access_token)
+		end)
 	end)
 
 	describe("sso_redirect_url", function()
@@ -368,6 +466,13 @@ describe("Matrix auth", function()
 
 		it("should accept a bare token", function()
 			assert.are.equal("XYZ", auth.parse_login_token("  XYZ \n"))
+		end)
+
+		it("should return an error for a URL without a login token", function()
+			local token, err = auth.parse_login_token("https://idp.example.org/error?code=denied")
+
+			assert.is_nil(token)
+			assert.matches("does not contain a login token", err, 1, true)
 		end)
 
 		it("should return nil for empty input", function()

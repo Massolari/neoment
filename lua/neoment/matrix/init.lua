@@ -35,8 +35,8 @@ end
 --- @param password string The password to log in with.
 --- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any The callback function to handle the response.
 M.login = function(username, password, callback)
-	local server_name = auth.parse_server_name(username)
-	if not server_name then
+	local server_name, user_id = auth.parse_server_name(username)
+	if not server_name or not user_id then
 		callback(error.err({ error = "Invalid Matrix ID: " .. username }))
 		return
 	end

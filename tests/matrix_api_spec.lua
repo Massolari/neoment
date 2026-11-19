@@ -100,6 +100,22 @@ describe("Matrix API", function()
 			assert.is_not_nil(string.match(result.error.error, "Failed to decode JSON response"))
 		end)
 
+		it("should return an error when the JSON body is not an object", function()
+			local callback_spy = spy.new(function() end)
+
+			curl_mock.get = function(_, opts)
+				opts.callback({ status = 200, body = "null" })
+			end
+
+			local api_reloaded = require("neoment.matrix.api")
+			api_reloaded.get("https://matrix.org/.well-known/matrix/client", callback_spy)
+
+			assert.spy(callback_spy).was_called()
+			local result = callback_spy.calls[1].refs[1]
+			assert.is_true(error_mod.is_error(result))
+			assert.matches("Unexpected JSON response", result.error.error, 1, true)
+		end)
+
 		it("should handle curl errors", function()
 			local test_endpoint = "https://matrix.org/_matrix/client/r0/login"
 			local callback_spy = spy.new(function() end)

@@ -17,8 +17,24 @@ local SUPPORTED_FLOWS = {
 --- @type neoment.matrix.auth.Method[]
 local METHOD_ORDER = { "password", "sso" }
 
+--- Curl arguments that bound the time spent on discovery requests, so an unreachable host fails fast.
+local DISCOVERY_CURL_ARGS = { "--connect-timeout", "5", "--max-time", "10" }
+
+--- Read the homeserver base URL from a `.well-known/matrix/client` object.
+--- @param well_known any The decoded well-known object.
+--- @return string|nil The homeserver base URL without trailing slashes, if present.
+local function homeserver_from_well_known(well_known)
+	local homeserver_info = type(well_known) == "table" and well_known["m.homeserver"]
+	local base_url = type(homeserver_info) == "table" and homeserver_info.base_url
+	if type(base_url) ~= "string" or base_url == "" then
+		return nil
+	end
+	return (base_url:gsub("/+$", ""))
+end
+
 --- Parse the user input of the login prompt.
---- Accepts a full Matrix ID (`@alice:example.org`) or a bare server name (`example.org`).
+--- Accepts a full Matrix ID (`@alice:example.org`), a bare server name (`example.org`),
+--- or a homeserver URL (`https://matrix.example.org`), which is returned without trailing slashes.
 --- @param input string The user input.
 --- @return string|nil server_name The server name, or nil if the input is empty or invalid.
 --- @return string|nil user_id The full Matrix ID, if the input was one.
@@ -36,30 +52,37 @@ M.parse_server_name = function(input)
 		return server_name, trimmed
 	end
 
+	if trimmed:match("^https?://") then
+		return (trimmed:gsub("/+$", "")), nil
+	end
+
 	return trimmed, nil
 end
 
 --- Discover the homeserver base URL for a server name using `/.well-known/matrix/client`.
 --- Falls back to `https://<server_name>` when discovery fails, so it never errors.
---- @param server_name string The server name (e.g. `example.org`).
+--- A homeserver URL (`https://...`) is used as is, without discovery.
+--- @param server_name string The server name (e.g. `example.org`) or homeserver URL.
 --- @param callback fun(homeserver: string): any The callback receiving the homeserver base URL.
 M.discover = function(server_name, callback)
-	local fallback = "https://" .. server_name
+	if server_name:match("^https?://") then
+		callback(server_name)
+		return
+	end
 
-	api.get("https://" .. server_name .. "/.well-known/matrix/client", function(response)
+	local fallback = "https://" .. server_name
+	-- The well-known lookup uses the hostname only; the port is for the fallback
+	local hostname = server_name:gsub(":%d+$", "")
+
+	api.get("https://" .. hostname .. "/.well-known/matrix/client", function(response)
 		local homeserver = error.match(response, function(data)
-			local homeserver_info = type(data) == "table" and data["m.homeserver"]
-			local base_url = type(homeserver_info) == "table" and homeserver_info.base_url
-			if type(base_url) ~= "string" or base_url == "" then
-				return fallback
-			end
-			return (base_url:gsub("/+$", ""))
+			return homeserver_from_well_known(data) or fallback
 		end, function()
 			return fallback
 		end)
 
 		callback(homeserver)
-	end, { raw = { "-L" } })
+	end, { raw = DISCOVERY_CURL_ARGS })
 end
 
 --- Get the login methods supported by both the homeserver and the client.
@@ -80,12 +103,19 @@ M.get_login_flows = function(homeserver, callback)
 
 		local available = {}
 		local advertised = {}
+		local supports_token = false
 		for _, flow in ipairs(response.data.flows or {}) do
 			table.insert(advertised, flow.type)
+			supports_token = supports_token or flow.type == "m.login.token"
 			local method = SUPPORTED_FLOWS[flow.type]
 			if method then
 				available[method] = true
 			end
+		end
+
+		-- SSO hands back a login token, which can only be exchanged with m.login.token
+		if not supports_token then
+			available.sso = nil
 		end
 
 		local methods = vim.tbl_filter(function(method)
@@ -100,10 +130,11 @@ M.get_login_flows = function(homeserver, callback)
 		end
 
 		callback(error.ok(methods))
-	end)
+	end, { raw = DISCOVERY_CURL_ARGS })
 end
 
 --- Send a login request and store the credentials on success.
+--- If the response includes a `well_known` object, the client uses its homeserver from then on.
 --- @param body table The login request body.
 --- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any
 local function login_request(body, callback)
@@ -117,6 +148,7 @@ local function login_request(body, callback)
 			local result = error.map(response, function(data)
 				client.client.access_token = data.access_token
 				client.client.user_id = data.user_id
+				client.client.homeserver = homeserver_from_well_known(data.well_known) or client.client.homeserver
 				return nil
 			end) --[[@as neoment.Error<nil, neoment.matrix.api.Error>]]
 
@@ -160,7 +192,8 @@ end
 
 --- Extract the login token from a pasted redirect URL or a bare token.
 --- @param input string|nil The user input.
---- @return string|nil The login token, or nil if the input is empty.
+--- @return string|nil token The login token, or nil if the input is empty or a URL without a token.
+--- @return string|nil err An error message when the input is a URL without a login token.
 M.parse_login_token = function(input)
 	local trimmed = vim.trim(input or "")
 	if trimmed == "" then
@@ -170,6 +203,10 @@ M.parse_login_token = function(input)
 	local token = trimmed:match("[?&]loginToken=([^&#]+)")
 	if token then
 		return vim.uri_decode(token)
+	end
+
+	if trimmed:match("^%a[%w+.-]*://") then
+		return nil, "The URL does not contain a login token"
 	end
 
 	return trimmed

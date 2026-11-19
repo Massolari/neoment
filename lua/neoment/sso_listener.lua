@@ -20,6 +20,7 @@ local FAILURE_BODY = [[<!doctype html>
 
 --- @class neoment.sso_listener.Listener
 --- @field port integer The port the listener is bound to.
+--- @field redirect_url string The URL to send the browser to. Only requests to its secret path are accepted.
 --- @field close fun() Stop listening. Safe to call more than once.
 
 --- Build an HTTP response.
@@ -37,16 +38,34 @@ local function http_response(status, body)
 	}, "\r\n")
 end
 
+--- Generate a random path segment, so other local pages or processes can't guess the callback URL.
+--- @return string|nil The hex-encoded secret, or nil if no random bytes are available.
+local function random_secret()
+	local bytes = vim.uv.random(16)
+	if type(bytes) ~= "string" then
+		return nil
+	end
+	return (bytes:gsub(".", function(c)
+		return string.format("%02x", c:byte())
+	end))
+end
+
 --- Extract the login token from the request line of an HTTP request.
 --- @param request string The raw request head.
+--- @param secret string The secret path segment the request must target.
 --- @return string|nil The login token, if present.
-local function parse_request(request)
+local function parse_request(request, secret)
 	local target = request:match("^GET (%S+) HTTP/%d")
 	if not target then
 		return nil
 	end
 
-	local token = target:match("[?&]loginToken=([^&#]+)")
+	local path, query = target:match("^([^?#]*)%?([^#]*)")
+	if path ~= "/" .. secret .. "/" and path ~= "/" .. secret then
+		return nil
+	end
+
+	local token = ("&" .. query):match("&loginToken=([^&]+)")
 	if not token then
 		return nil
 	end
@@ -58,10 +77,27 @@ end
 --- @param opts neoment.sso_listener.Options
 --- @return neoment.Error<neoment.sso_listener.Listener, string>
 M.start = function(opts)
+	local secret = random_secret()
+	if not secret then
+		return error.err("Could not generate a secret for the SSO callback listener")
+	end
+
 	local server = vim.uv.new_tcp()
 	local timer = vim.uv.new_timer()
 	if not server or not timer then
 		return error.err("Could not create the SSO callback listener")
+	end
+
+	--- Accepted connections that haven't been answered yet
+	--- @type table<uv.uv_tcp_t, true>
+	local sockets = {}
+
+	--- @param socket uv.uv_tcp_t
+	local function close_socket(socket)
+		sockets[socket] = nil
+		if not socket:is_closing() then
+			socket:close()
+		end
 	end
 
 	local closed = false
@@ -73,6 +109,9 @@ M.start = function(opts)
 		timer:stop()
 		timer:close()
 		server:close()
+		for socket in pairs(sockets) do
+			close_socket(socket)
+		end
 	end
 
 	local _, bind_err = server:bind("127.0.0.1", 0)
@@ -90,21 +129,27 @@ M.start = function(opts)
 		if not socket then
 			return
 		end
-		server:accept(socket)
+		if not server:accept(socket) then
+			socket:close()
+			return
+		end
+		sockets[socket] = true
 
 		local request = ""
 		local function respond(status, body)
+			-- The socket closes itself once the response is sent
+			sockets[socket] = nil
 			socket:read_stop()
 			socket:write(http_response(status, body), function()
 				socket:shutdown(function()
-					socket:close()
+					close_socket(socket)
 				end)
 			end)
 		end
 
 		socket:read_start(function(read_err, chunk)
 			if read_err or not chunk then
-				socket:close()
+				close_socket(socket)
 				return
 			end
 
@@ -116,7 +161,7 @@ M.start = function(opts)
 				return
 			end
 
-			local token = parse_request(request)
+			local token = parse_request(request, secret)
 			if not token or closed then
 				respond("400 Bad Request", FAILURE_BODY)
 				return
@@ -144,8 +189,10 @@ M.start = function(opts)
 		end
 	end)
 
+	local port = server:getsockname().port
 	return error.ok({
-		port = server:getsockname().port,
+		port = port,
+		redirect_url = string.format("http://127.0.0.1:%d/%s/", port, secret),
 		close = close,
 	})
 end

@@ -7,7 +7,7 @@ Defines how the client finds the user's homeserver, chooses a login method the s
 ## Requirements
 
 ### Requirement: Login accepts a Matrix ID or a server name
-The client SHALL start an interactive login by asking for a Matrix user ID or a bare server name. It SHALL use the server-name part of the input to find the homeserver.
+The client SHALL start an interactive login by asking for a Matrix user ID, a bare server name, or a homeserver URL. It SHALL use the server-name part of the input to find the homeserver, and use a homeserver URL as is.
 
 #### Scenario: User enters a full Matrix ID
 - **WHEN** the user enters `@alice:example.org`
@@ -17,12 +17,16 @@ The client SHALL start an interactive login by asking for a Matrix user ID or a 
 - **WHEN** the user enters `mozilla.org`
 - **THEN** the client uses `mozilla.org` as the server name
 
+#### Scenario: User enters a homeserver URL
+- **WHEN** the user enters `https://matrix.example.org/`
+- **THEN** the client uses `https://matrix.example.org` as the homeserver without well-known discovery
+
 #### Scenario: Input is empty
 - **WHEN** the user submits an empty value
 - **THEN** the login is cancelled without any network request
 
 ### Requirement: Homeserver discovery through well-known
-The client SHALL find the homeserver base URL by requesting `https://<server_name>/.well-known/matrix/client` and following HTTP redirects. It SHALL use `m.homeserver.base_url`, with any trailing slash removed.
+The client SHALL find the homeserver base URL by requesting `https://<hostname>/.well-known/matrix/client`, where `<hostname>` is the server name without its port, and following HTTP redirects. It SHALL use `m.homeserver.base_url`, with any trailing slash removed. Discovery requests SHALL time out so an unreachable host does not stall the login.
 
 #### Scenario: Server delegates to another host
 - **GIVEN** `https://mozilla.org/.well-known/matrix/client` redirects and finally returns `{"m.homeserver": {"base_url": "https://mozilla.modular.im/"}}`
@@ -33,8 +37,12 @@ The client SHALL find the homeserver base URL by requesting `https://<server_nam
 - **WHEN** the well-known request fails, returns a non-JSON body, or has no `m.homeserver.base_url`
 - **THEN** the client uses `https://<server_name>` as the homeserver
 
+#### Scenario: Server name has a port
+- **WHEN** the user logs in as `@alice:example.org:8448`
+- **THEN** the client requests `https://example.org/.well-known/matrix/client` and falls back to `https://example.org:8448`
+
 ### Requirement: Login method selection
-The client SHALL request `GET /_matrix/client/v3/login` and offer only login methods it supports and the server advertises. Supported methods are password (`m.login.password`) and SSO (`m.login.sso`).
+The client SHALL request `GET /_matrix/client/v3/login` and offer only login methods it supports and the server advertises. Supported methods are password (`m.login.password`) and SSO (`m.login.sso`). SSO SHALL only be offered when the server also advertises `m.login.token`, which is needed to exchange the SSO login token.
 
 #### Scenario: Only password is offered
 - **WHEN** the server advertises `m.login.password` and not `m.login.sso`
@@ -43,6 +51,10 @@ The client SHALL request `GET /_matrix/client/v3/login` and offer only login met
 #### Scenario: Only SSO is offered
 - **WHEN** the server advertises `m.login.sso` and `m.login.token` but not `m.login.password`
 - **THEN** the client uses SSO login without asking which method to use
+
+#### Scenario: SSO is offered without token login
+- **WHEN** the server advertises `m.login.sso` but not `m.login.token`
+- **THEN** the client does not offer SSO
 
 #### Scenario: Both password and SSO are offered
 - **WHEN** the server advertises both `m.login.password` and `m.login.sso`
@@ -70,7 +82,7 @@ The client SHALL log in with `m.login.password`, using the user's Matrix ID and 
 - **THEN** the client asks for the password and sends `m.login.password` with user `alice`
 
 ### Requirement: SSO login through a local callback
-The client SHALL complete SSO by listening on `127.0.0.1` on a free port, opening `<homeserver>/_matrix/client/v3/login/sso/redirect` in the user's browser with a `redirectUrl` that points to that address, and exchanging the returned `loginToken` with `m.login.token`.
+The client SHALL complete SSO by listening on `127.0.0.1` on a free port, opening `<homeserver>/_matrix/client/v3/login/sso/redirect` in the user's browser with a `redirectUrl` that points to that address and a random secret path, and exchanging the returned `loginToken` with `m.login.token`. The listener SHALL only accept the login token on that secret path, so other local web pages or processes cannot inject a token.
 
 #### Scenario: Browser returns to the local callback
 - **GIVEN** SSO login was selected and the session is not remote
@@ -82,6 +94,10 @@ The client SHALL complete SSO by listening on `127.0.0.1` on a free port, openin
 #### Scenario: Callback request without a login token
 - **WHEN** the listener receives a request that has no `loginToken` query parameter
 - **THEN** the request gets an error response and the client keeps waiting for a valid callback
+
+#### Scenario: Callback request to another path
+- **WHEN** the listener receives a request with a `loginToken` on a path other than the secret path
+- **THEN** the request gets an error response and the token is ignored
 
 #### Scenario: Listener only accepts local connections
 - **WHEN** SSO login is in progress
@@ -108,12 +124,16 @@ The client SHALL let the user paste the URL their browser was redirected to, or 
 - **WHEN** the user pastes `XYZ`, which is not a URL
 - **THEN** the client exchanges `XYZ` with `m.login.token`
 
+#### Scenario: User pastes a URL without a login token
+- **WHEN** the user pastes a URL that has no `loginToken` query parameter
+- **THEN** the client shows an error and does not send a login request
+
 #### Scenario: User cancels the paste prompt
 - **WHEN** the user submits an empty value or cancels
 - **THEN** the login is cancelled and no listener stays open
 
 ### Requirement: Login result
-After a successful login with any method, the client SHALL store the access token, user ID and homeserver from the response, then continue as it does after password login today: save the session if configured, start syncing, and open the room list. If login fails, the client SHALL show the server's error message.
+After a successful login with any method, the client SHALL store the access token and user ID from the response, and switch to the homeserver in the response's `well_known.m.homeserver.base_url` when present, then continue as it does after password login today: save the session if configured, start syncing, and open the room list. If login fails, the client SHALL show the server's error message.
 
 #### Scenario: Successful SSO login
 - **WHEN** the `m.login.token` exchange succeeds
