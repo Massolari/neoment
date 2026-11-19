@@ -99,25 +99,29 @@ local function render_avatar(buffer_id, room_id)
 		return
 	end
 
-	local url = util.media_url_with_token(util.mxc_to_url(matrix.client.homeserver, avatar_url))
+	local url = util.mxc_to_url(matrix.client.homeserver, avatar_url)
+	-- The cleanup replaces it, so an avatar fetched after the next render is not placed
+	local avatar = buffer_data[buffer_id] and buffer_data[buffer_id].avatar
 
 	require("snacks.image.terminal").detect(function()
-		local data = buffer_data[buffer_id]
-		if not data then
-			return
-		end
+		require("neoment.storage").fetch_image_source(url, function(source)
+			local data = buffer_data[buffer_id]
+			if not data or data.avatar ~= avatar or source:is_error() then
+				return
+			end
 
-		--- @type snacks.image.Opts
-		local opts = {
-			pos = { 1, 0 },
-			height = IMAGE_HEIGHT,
-			width = IMAGE_WIDTH,
-			inline = true,
-			type = "image",
-		}
+			--- @type snacks.image.Opts
+			local opts = {
+				pos = { 1, 0 },
+				height = IMAGE_HEIGHT,
+				width = IMAGE_WIDTH,
+				inline = true,
+				type = "image",
+			}
 
-		local placement = Snacks.image.placement.new(buffer_id, url, opts)
-		data.avatar.placement = placement
+			local placement = Snacks.image.placement.new(buffer_id, source.data, opts)
+			data.avatar.placement = placement
+		end)
 	end)
 end
 

@@ -92,7 +92,6 @@ local function setup_mocks(room, matrix_opts)
 	local real_util = require("neoment.util")
 
 	package.loaded["neoment.util"] = {
-		media_url_with_token = real_util.media_url_with_token,
 		media_headers = real_util.media_headers,
 		get_existing_buffer = function()
 			return nil

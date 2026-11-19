@@ -702,7 +702,7 @@ local function apply_highlights(buffer_id, room_id, lines)
 						if image_data then
 							local image = {
 								line = index,
-								url = util.media_url_with_token(image_data.url),
+								url = image_data.url,
 								height = image_data.height,
 								width = image_data.width,
 							}
@@ -881,28 +881,40 @@ local function apply_highlights(buffer_id, room_id, lines)
 	end
 
 	if Snacks and #images > 0 then
+		-- Each render replaces the list, so an image fetched after the next render is not placed
+		local image_placements = get_buffer_data(buffer_id).image_placements
 		require("snacks.image.terminal").detect(function()
 			for _, image in ipairs(images) do
-				local dimensions = get_image_dimensions(image.width, image.height, false)
+				storage.fetch_image_source(image.url, function(source)
+					if
+						not api.nvim_buf_is_valid(buffer_id)
+						or get_buffer_data(buffer_id).image_placements ~= image_placements
+						or source:is_error()
+					then
+						return
+					end
 
-				--- @type snacks.image.Opts
-				local opts = {
-					pos = { image.line, HEADER_LENGTH },
-					height = dimensions.height,
-					width = dimensions.width,
-					inline = true,
-					type = "image",
-				}
+					local dimensions = get_image_dimensions(image.width, image.height, false)
 
-				local placement = Snacks.image.placement.new(buffer_id, image.url, opts)
-				--- @type neoment.room.ImagePlacement
-				local image_placement = {
-					placement = placement,
-					height = image.height,
-					width = image.width,
-					zoom = false,
-				}
-				table.insert(get_buffer_data(buffer_id).image_placements, image_placement)
+					--- @type snacks.image.Opts
+					local opts = {
+						pos = { image.line, HEADER_LENGTH },
+						height = dimensions.height,
+						width = dimensions.width,
+						inline = true,
+						type = "image",
+					}
+
+					local placement = Snacks.image.placement.new(buffer_id, source.data, opts)
+					--- @type neoment.room.ImagePlacement
+					local image_placement = {
+						placement = placement,
+						height = image.height,
+						width = image.width,
+						zoom = false,
+					}
+					table.insert(image_placements, image_placement)
+				end)
 			end
 		end)
 	end
@@ -1495,6 +1507,31 @@ M.forward_message = function()
 	end)
 end
 
+--- Show a media image in a float window, closing it with the window
+--- @param float_buf number The buffer of the float window
+--- @param float_win number The float window
+--- @param url string The media URL of the image
+--- @param opts snacks.image.Opts The placement options
+local function place_float_image(float_buf, float_win, url, opts)
+	storage.fetch_image_source(url, function(source)
+		-- The float may have been closed while the image was downloaded
+		if source:is_error() or not api.nvim_win_is_valid(float_win) then
+			return
+		end
+
+		local placement = Snacks.image.placement.new(float_buf, source.data, opts)
+
+		-- Clean up placement when float closes
+		api.nvim_create_autocmd("WinClosed", {
+			pattern = tostring(float_win),
+			once = true,
+			callback = function()
+				placement:close()
+			end,
+		})
+	end)
+end
+
 --- Handle the cursor hold event
 --- Depending on the context, it will show a float window with information
 --- @param buffer_id number The ID of the buffer to handle the cursor hold event for
@@ -1539,7 +1576,7 @@ M.handle_cursor_hold = function(buffer_id)
 			vim.hl.range(float_buf, EXTMARK_NAMESPACE, "Bold", { 0, 0 }, { 0, -1 })
 
 			-- Display the image in the float window using Snacks
-			local url = util.media_url_with_token(util.mxc_to_url(matrix.client.homeserver, data.emoticon_url))
+			local url = util.mxc_to_url(matrix.client.homeserver, data.emoticon_url)
 			require("snacks.image.terminal").detect(function()
 				--- @type snacks.image.Opts
 				local opts = {
@@ -1549,18 +1586,7 @@ M.handle_cursor_hold = function(buffer_id)
 					inline = true,
 					type = "image",
 				}
-				local placement = Snacks.image.placement.new(float_buf, url, opts)
-
-				-- Clean up placement when float closes
-				vim.api.nvim_create_autocmd("WinClosed", {
-					pattern = tostring(float_win),
-					once = true,
-					callback = function()
-						if placement then
-							placement:close()
-						end
-					end,
-				})
+				place_float_image(float_buf, float_win, url, opts)
 			end)
 			break
 		end
@@ -1601,7 +1627,7 @@ M.handle_cursor_hold = function(buffer_id)
 				vim.hl.range(float_buf, EXTMARK_NAMESPACE, "Bold", { 0, 0 }, { 0, -1 })
 
 				-- Display the image in the float window using Snacks
-				local url = util.media_url_with_token(util.mxc_to_url(matrix.client.homeserver, data.reaction_mxc_url))
+				local url = util.mxc_to_url(matrix.client.homeserver, data.reaction_mxc_url)
 				require("snacks.image.terminal").detect(function()
 					--- @type snacks.image.Opts
 					local opts = {
@@ -1611,18 +1637,7 @@ M.handle_cursor_hold = function(buffer_id)
 						inline = true,
 						type = "image",
 					}
-					local placement = Snacks.image.placement.new(float_buf, url, opts)
-
-					-- Clean up placement when float closes
-					vim.api.nvim_create_autocmd("WinClosed", {
-						pattern = tostring(float_win),
-						once = true,
-						callback = function()
-							if placement then
-								placement:close()
-							end
-						end,
-					})
+					place_float_image(float_buf, float_win, url, opts)
 				end)
 				break
 			end

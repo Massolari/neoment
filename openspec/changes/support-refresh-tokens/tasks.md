@@ -25,7 +25,7 @@
 
 ## 5. Media URLs
 
-- [x] 5.1 Remove `?access_token=` from URLs stored by `lua/neoment/matrix/event.lua` and add `util.media_url_with_token(url)`; update `room.lua` and `room_info.lua` display sites to use it at call time, and give `storage.fetch_to_temp` an optional `headers` argument used by download callers; verify with `tests/matrix_room_avatar_spec.lua` / `room_info_spec.lua` updates that stored URLs carry no token and the displayed URL carries the current one
+- [x] 5.1 Remove `?access_token=` from URLs stored by `lua/neoment/matrix/event.lua` and give `storage.fetch_to_temp` an optional `headers` argument used by download callers; add `storage.fetch_image_source(url, cb)` so `room.lua` and `room_info.lua` hand `snacks.image` a local file downloaded with the current token; verify with `tests/media_url_spec.lua` / `room_info_spec.lua` that stored URLs carry no token and downloads carry the current one
 - [x] 5.2 Verify end to end that `grep -rn "access_token=" lua` only matches the helper, and add a test that a token change between event processing and display yields the new token in the URL
 
 ## 6. Integration and docs

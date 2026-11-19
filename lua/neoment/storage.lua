@@ -307,6 +307,44 @@ M.fetch_to_temp = function(name, url, callback, headers)
 	})
 end
 
+--- The callbacks waiting for each image download in progress, by file name
+--- @type table<string, fun(result: neoment.Error<string, string>)[]>
+local image_downloads = {}
+
+--- Get the source to give the image viewer for a media URL.
+--- Media of the user's homeserver is downloaded with the access token in a header and given as a local file:
+--- the viewer caches images by source, and a URL holding the token would change every time it is refreshed.
+--- The file is named after the URL, so each image is downloaded once. Other URLs are given as they are.
+--- @param url string The media URL
+--- @param callback fun(result: neoment.Error<string, string>) Called in the main loop with the source.
+M.fetch_image_source = function(url, callback)
+	-- Rooms saved by an earlier version have URLs with a token that is no longer valid
+	local bare_url = util.strip_access_token(url)
+	local headers = util.media_headers(bare_url)
+	if not headers then
+		callback(error.ok(url))
+		return
+	end
+
+	local name = "image-" .. vim.fn.sha256(bare_url):sub(1, 32)
+	-- A second download would write to the same file, and the viewer could read it half written
+	if image_downloads[name] then
+		table.insert(image_downloads[name], callback)
+		return
+	end
+	image_downloads[name] = { callback }
+
+	M.fetch_to_temp(name, bare_url, function(result)
+		vim.schedule(function()
+			local callbacks = image_downloads[name] or {}
+			image_downloads[name] = nil
+			for _, waiting in ipairs(callbacks) do
+				waiting(result)
+			end
+		end)
+	end, headers)
+end
+
 --- Save the image from the clipboard to a temporary file
 --- @return neoment.Error<string, string> The path to the temporary file or an error message
 M.save_clipboard_image = function()

@@ -90,7 +90,7 @@ describe("media URLs", function()
 			assert.are.equal(MEDIA .. "clip_thumb", attachment.thumbnail.url)
 		end)
 
-		it("get the token current when they are displayed, not the one from when they were received", function()
+		it("get the token current when they are fetched, not the one from when they were received", function()
 			event.handle(
 				room_id,
 				attachment_event("$image", {
@@ -103,57 +103,99 @@ describe("media URLs", function()
 			)
 			local attachment = client.get_room_message(room_id, "$image").attachment
 
-			assert.are.equal(MEDIA .. "photo?access_token=token-1", util.media_url_with_token(attachment.url))
+			assert.are.same({ Authorization = "Bearer token-1" }, util.media_headers(attachment.url))
 
 			-- The token is refreshed after the message was received
 			client.client.access_token = "token-2"
 
-			assert.are.equal(MEDIA .. "photo?access_token=token-2", util.media_url_with_token(attachment.url))
+			assert.are.same({ Authorization = "Bearer token-2" }, util.media_headers(attachment.url))
 			assert.are.equal(MEDIA .. "photo", attachment.url)
 		end)
 	end)
 
-	describe("media_url_with_token", function()
-		it("appends the token as the first query parameter", function()
-			assert.are.equal(MEDIA .. "abc?access_token=token-1", util.media_url_with_token(MEDIA .. "abc"))
+	describe("fetch_image_source", function()
+		local storage
+		local downloads
+
+		before_each(function()
+			package.loaded["neoment.storage"] = nil
+			storage = require("neoment.storage")
+			downloads = {}
+			storage.fetch_to_temp = function(name, url, callback, headers)
+				table.insert(downloads, { name = name, url = url, callback = callback, headers = headers })
+			end
 		end)
 
-		it("appends the token to an existing query", function()
-			assert.are.equal(
-				MEDIA .. "abc?width=10&access_token=token-1",
-				util.media_url_with_token(MEDIA .. "abc?width=10")
-			)
+		after_each(function()
+			package.loaded["neoment.storage"] = nil
 		end)
 
-		it("replaces a token saved by an earlier version", function()
-			assert.are.equal(
-				MEDIA .. "abc?access_token=token-1",
-				util.media_url_with_token(MEDIA .. "abc?access_token=old-token")
-			)
-			assert.are.equal(
-				MEDIA .. "abc?width=10&access_token=token-1",
-				util.media_url_with_token(MEDIA .. "abc?access_token=old-token&width=10")
-			)
+		--- Fetch an image source and wait for the result
+		--- @param url string
+		--- @param complete? fun() Completes the download, if one was started
+		--- @return neoment.Error<string, string>|nil
+		local function fetch(url, complete)
+			local result
+			storage.fetch_image_source(url, function(r)
+				result = r
+			end)
+			if complete then
+				complete()
+			end
+			vim.wait(100, function()
+				return result ~= nil
+			end)
+			return result
+		end
+
+		it("downloads homeserver media with the token in a header and gives the local file", function()
+			local result = fetch(MEDIA .. "abc", function()
+				downloads[1].callback(require("neoment.error").ok("/tmp/neoment/file"))
+			end)
+
+			assert.are.equal(1, #downloads)
+			assert.are.equal(MEDIA .. "abc", downloads[1].url)
+			assert.are.same({ Authorization = "Bearer token-1" }, downloads[1].headers)
+			assert.are.equal("/tmp/neoment/file", result.data)
 		end)
 
-		it("does not add the token to a URL of another server", function()
+		it("keeps the same file name when the token changes, so the image stays cached", function()
+			fetch(MEDIA .. "abc", function()
+				downloads[1].callback(require("neoment.error").ok("/tmp/neoment/file"))
+			end)
+			client.client.access_token = "token-2"
+			fetch(MEDIA .. "abc?access_token=old-token", function()
+				downloads[2].callback(require("neoment.error").ok("/tmp/neoment/file"))
+			end)
+
+			assert.are.equal(downloads[1].name, downloads[2].name)
+			assert.are.equal(MEDIA .. "abc", downloads[2].url)
+			assert.are.same({ Authorization = "Bearer token-2" }, downloads[2].headers)
+		end)
+
+		it("downloads an image once while it is being downloaded", function()
+			local results = {}
+			for _ = 1, 2 do
+				storage.fetch_image_source(MEDIA .. "abc", function(r)
+					table.insert(results, r)
+				end)
+			end
+			downloads[1].callback(require("neoment.error").ok("/tmp/neoment/file"))
+			vim.wait(100, function()
+				return #results == 2
+			end)
+
+			assert.are.equal(1, #downloads)
+			assert.are.equal(2, #results)
+			assert.are.equal("/tmp/neoment/file", results[2].data)
+		end)
+
+		it("gives a URL of another server as it is", function()
 			local url = "https://maps.google.com/?q=1,2"
+			local result = fetch(url)
 
-			assert.are.equal(url, util.media_url_with_token(url))
-			assert.are.equal(
-				"https://example.org.evil.test/x",
-				util.media_url_with_token("https://example.org.evil.test/x")
-			)
-		end)
-
-		it("returns a missing URL as it is", function()
-			assert.is_nil(util.media_url_with_token(nil))
-		end)
-
-		it("returns the URL as it is when there is no access token", function()
-			client.client.access_token = nil
-
-			assert.are.equal(MEDIA .. "abc", util.media_url_with_token(MEDIA .. "abc"))
+			assert.are.equal(0, #downloads)
+			assert.are.equal(url, result.data)
 		end)
 	end)
 

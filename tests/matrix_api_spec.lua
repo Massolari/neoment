@@ -736,6 +736,29 @@ describe("Matrix API", function()
 			assert.spy(callback_spy).was_called(2)
 		end)
 
+		it("retries with the new token when a request sent with a replaced token is rejected", function()
+			make_expiring(600)
+			local handler_spy = spy.new(function() end)
+			api.set_session_expired_handler(handler_spy)
+			local callback_spy = spy.new(function() end)
+
+			-- A long poll is sent with the old token, then another request refreshed the token
+			api.authed.get("https://matrix.example.org/_matrix/client/v3/sync", callback_spy)
+			client.client.access_token = "new-access"
+
+			-- The server revoked the old token, so it is unknown rather than expired
+			respond(401, { errcode = "M_UNKNOWN_TOKEN", error = "Unknown token" })
+
+			assert.are.equal(1, #sent)
+			assert.are.equal("GET", sent[1].method)
+			assert.are.equal("Bearer new-access", sent[1].opts.headers["Authorization"])
+
+			respond(200, { next_batch = "s2" })
+			assert.is_true(error_mod.is_ok(callback_spy.calls[1].refs[1]))
+			vim.wait(10)
+			assert.spy(handler_spy).was_not_called()
+		end)
+
 		it("fails with an error when not logged in", function()
 			package.loaded["neoment.matrix.client"].client = nil
 			local callback_spy = spy.new(function() end)

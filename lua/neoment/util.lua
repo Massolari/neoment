@@ -305,22 +305,6 @@ M.strip_access_token = function(url)
 	return stripped
 end
 
---- Add the current access token to a media URL, for consumers that cannot send headers (like the image viewer).
---- The URL is built when it is used, as the token changes when it is refreshed and must not be stored.
---- URLs that are not media URLs of the user's homeserver are returned as they are.
---- @param url string The media URL
---- @return string The URL with the current access token
-M.media_url_with_token = function(url)
-	local access_token = media_access_token(url)
-	if not access_token then
-		return url
-	end
-
-	-- Rooms saved by an earlier version have URLs with a token that is no longer valid
-	local bare_url = M.strip_access_token(url)
-	return bare_url .. (bare_url:find("?", 1, true) and "&" or "?") .. "access_token=" .. access_token
-end
-
 --- Get the headers that authenticate a media download with the current access token.
 --- Nothing is returned for URLs that are not media URLs of the user's homeserver.
 --- @param url string The URL to download

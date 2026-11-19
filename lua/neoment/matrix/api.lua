@@ -113,6 +113,7 @@ M.post_raw = function(endpoint, body, callback, opts)
 		end,
 		body = body,
 		headers = opts.headers or {},
+		raw = opts.raw,
 		callback = function(response)
 			callback(handler(response))
 		end,
@@ -245,13 +246,14 @@ local function authed_request(send, callback, opts)
 					return finish(response)
 				end
 
-				if not response.error.soft_logout or not c.refresh_token then
-					return finish(error.err(vim.tbl_extend("force", response.error, { session_expired = true })))
-				end
-
-				-- A request sent at the same time may have refreshed the token already
+				-- A request sent at the same time may have refreshed the token already. The rejection is of
+				-- the token that was replaced, so it says nothing about the current one.
 				if c.access_token ~= sent_token then
 					return attempt(true)
+				end
+
+				if not response.error.soft_logout or not c.refresh_token then
+					return finish(error.err(vim.tbl_extend("force", response.error, { session_expired = true })))
 				end
 
 				token.refresh(function(refreshed)

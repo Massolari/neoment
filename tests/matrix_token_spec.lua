@@ -130,6 +130,48 @@ describe("Matrix token refresh", function()
 			assert.are.equal("new-refresh", saved_refresh)
 		end)
 
+		it("stores and saves the new tokens before the callback runs when the response comes in a fast event", function()
+			login()
+			local in_fast_event = vim.in_fast_event
+			local saved_access
+			storage_mock.save_session = spy.new(function()
+				saved_access = client.client.access_token
+			end)
+			local saved_before_callback
+			local callback_spy = spy.new(function()
+				saved_before_callback = #storage_mock.save_session.calls
+			end)
+
+			token.refresh(callback_spy)
+			---@diagnostic disable-next-line: duplicate-set-field
+			vim.in_fast_event = function()
+				return true
+			end
+			local ok, err = pcall(respond, 200, { access_token = "new-access", expires_in_ms = 300000 })
+			vim.in_fast_event = in_fast_event
+			assert(ok, err)
+
+			-- Nothing is used before the main loop gets the response
+			assert.are.equal("old-access", client.client.access_token)
+			assert.spy(callback_spy).was_not_called()
+
+			vim.wait(100, function()
+				return #callback_spy.calls > 0
+			end)
+			assert.are.equal(1, saved_before_callback)
+			assert.are.equal("new-access", saved_access)
+		end)
+
+		it("gives up on a refresh request that does not end", function()
+			login()
+
+			token.refresh(function() end)
+
+			local raw = posts[1].opts.raw
+			assert.are.equal("--max-time", raw[1])
+			assert.is_true(tonumber(raw[2]) > 0)
+		end)
+
 		it("does not write a session file when saving sessions is disabled", function()
 			local config = require("neoment.config")
 			local original = config.get().save_session

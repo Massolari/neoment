@@ -7,6 +7,10 @@ local client = require("neoment.matrix.client")
 --- Refresh the access token when it expires in less than this many seconds
 local EXPIRY_SKEW = 60
 
+--- Give up on a refresh request after this many seconds.
+--- Every authenticated request waits for the refresh in progress, so one that never ends would block them all.
+local REFRESH_TIMEOUT = 30
+
 --- @alias neoment.matrix.token.Callback fun(result: neoment.Error<nil, neoment.matrix.api.Error>): any
 
 --- The callbacks waiting for the refresh in progress, nil when there is none
@@ -59,6 +63,7 @@ end
 --- @param callback fun(result: neoment.Error<neoment.matrix.token.Tokens, neoment.matrix.api.Error>): any
 local function request_tokens(c, callback)
 	local method = c.refresh or { kind = "legacy" }
+	local raw = { "--max-time", tostring(REFRESH_TIMEOUT) }
 
 	--- @param data table
 	--- @param expires_in? number
@@ -92,7 +97,7 @@ local function request_tokens(c, callback)
 					return to_tokens(data, data.expires_in)
 				end))
 			end,
-			{ headers = { ["Content-Type"] = "application/x-www-form-urlencoded" } }
+			{ headers = { ["Content-Type"] = "application/x-www-form-urlencoded" }, raw = raw }
 		)
 		return
 	end
@@ -102,7 +107,18 @@ local function request_tokens(c, callback)
 			local expires_in_ms = data.expires_in_ms
 			return to_tokens(data, type(expires_in_ms) == "number" and expires_in_ms / 1000 or nil)
 		end))
-	end)
+	end, { raw = raw })
+end
+
+--- Call a function in the main loop.
+--- Network callbacks run where vim.fn is not allowed, and the session file is written and read with it.
+--- @param fn fun()
+local function on_main_loop(fn)
+	if vim.in_fast_event() then
+		vim.schedule(fn)
+	else
+		fn()
+	end
 end
 
 --- Write the session to disk, so a rotated refresh token is not lost
@@ -110,17 +126,7 @@ local function persist()
 	if not require("neoment.config").get().save_session then
 		return
 	end
-
-	local function save()
-		require("neoment.storage").save_session()
-	end
-
-	-- Network callbacks run where vim.fn is not allowed
-	if vim.in_fast_event() then
-		vim.schedule(save)
-	else
-		save()
-	end
+	require("neoment.storage").save_session()
 end
 
 --- Take the credentials from the saved session when it holds a newer refresh token than the client.
@@ -194,36 +200,40 @@ M.refresh = function(callback)
 	--- @param may_reread_session boolean Whether a rejection may still be answered by re-reading the saved session.
 	local function run(may_reread_session)
 		request_tokens(c, function(result)
-			-- The client was replaced (logout, new login) while the request was in flight
-			if client.client ~= c then
-				finish(error.err({ error = "The session changed during the token refresh" }))
-				return
-			end
-
-			error.match(result, function(tokens)
-				c.access_token = tokens.access_token
-				-- The server may keep the refresh token instead of rotating it
-				c.refresh_token = tokens.refresh_token or c.refresh_token
-				c.expires_at = tokens.expires_in and os.time() + math.floor(tokens.expires_in) or nil
-				persist()
-				finish(error.ok(nil))
-			end, function(err)
-				if not is_permanent_failure(err) then
-					finish(error.err(err))
+			-- The tokens are stored and saved before any request can use them, so the saved session
+			-- never holds a refresh token that was already consumed
+			on_main_loop(function()
+				-- The client was replaced (logout, new login) while the request was in flight
+				if client.client ~= c then
+					finish(error.err({ error = "The session changed during the token refresh" }))
 					return
 				end
 
-				-- Another instance sharing the session file may have rotated the refresh token
-				if may_reread_session and adopt_saved_session(c) then
-					if M.is_stale() then
-						run(false)
-					else
-						finish(error.ok(nil))
+				error.match(result, function(tokens)
+					c.access_token = tokens.access_token
+					-- The server may keep the refresh token instead of rotating it
+					c.refresh_token = tokens.refresh_token or c.refresh_token
+					c.expires_at = tokens.expires_in and os.time() + math.floor(tokens.expires_in) or nil
+					persist()
+					finish(error.ok(nil))
+				end, function(err)
+					if not is_permanent_failure(err) then
+						finish(error.err(err))
+						return
 					end
-					return
-				end
 
-				finish(error.err(session_expired_error(err)))
+					-- Another instance sharing the session file may have rotated the refresh token
+					if may_reread_session and adopt_saved_session(c) then
+						if M.is_stale() then
+							run(false)
+						else
+							finish(error.ok(nil))
+						end
+						return
+					end
+
+					finish(error.err(session_expired_error(err)))
+				end)
 			end)
 		end)
 	end
