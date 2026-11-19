@@ -76,7 +76,8 @@ describe("Login flow", function()
 				table.insert(notifications, { level = level, msg = msg })
 			end
 		end
-		package.loaded["neoment.notify"] = { info = record("info"), warning = record("warning"), error = record("error") }
+		package.loaded["neoment.notify"] =
+			{ info = record("info"), warning = record("warning"), error = record("error") }
 		package.loaded["neoment.config"] = {
 			load = function() end,
 			get = function()
