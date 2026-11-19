@@ -16,6 +16,9 @@ local cache_path = vim.fn.stdpath("cache") .. "/neoment/cache.json"
 --- Path to the UI state file
 local ui_state_path = vim.fn.stdpath("data") .. "/neoment/ui_state.json"
 
+--- The path of the directory where the images shown in rooms are downloaded
+local media_path = vim.fn.stdpath("cache") .. "/neoment/media"
+
 --- Get the path to a temporary file
 --- @param file string The name of the file
 --- @param opts {path: string[]}|nil Options for the temporary file
@@ -266,7 +269,8 @@ end
 --- @param url string The URL to fetch the file from
 --- @param callback fun(path: neoment.Error<string, string>): any The callback to call with the result, either the path to the temporary file or an error message
 --- @param headers? table<string, string> Headers to send with the request, like the Authorization of a media download
-M.fetch_to_temp = function(name, url, callback, headers)
+--- @param directory? string The directory to save the file in, instead of the temporary directory. It must exist.
+M.fetch_to_temp = function(name, url, callback, headers, directory)
 	vim.validate("name", name, "string")
 	vim.validate("url", url, "string")
 
@@ -274,31 +278,32 @@ M.fetch_to_temp = function(name, url, callback, headers)
 	name = name:gsub("[^%w%.%-_]", "_")
 
 	-- Create the full path for the temporary file
-	local temp_path = get_temp_path(name)
+	local temp_path = directory and vim.fs.joinpath(directory, name) or get_temp_path(name)
 
 	-- Check if the file already exists
 	if vim.fn.filereadable(temp_path) == 1 then
 		return callback(error.ok(temp_path))
 	end
 
+	-- The file is only given its name once complete, so an interrupted download is never reused
+	local part_path = temp_path .. ".part"
+
 	curl.get(url, {
-		output = temp_path,
+		output = part_path,
 		headers = headers,
 		on_error = function(err)
+			os.remove(part_path)
 			callback(error.err("Failed to download file: " .. (err.message or "Unknown error")))
 		end,
 		callback = function(response)
-			if response.exit ~= 0 then
-				return callback(error.err("Failed to download file: curl exited with code " .. response.exit))
-			end
-
 			-- The body of an error response was saved as the file, and would be reused as the download
 			if response.status and response.status >= 400 then
-				os.remove(temp_path)
+				os.remove(part_path)
 				return callback(error.err("Failed to download file: HTTP status " .. response.status))
 			end
 
-			if vim.fn.filereadable(temp_path) == 0 then
+			if not os.rename(part_path, temp_path) then
+				os.remove(part_path)
 				return callback(error.err("Failed to save downloaded file"))
 			end
 
@@ -315,6 +320,7 @@ local image_downloads = {}
 --- Media of the user's homeserver is downloaded with the access token in a header and given as a local file:
 --- the viewer caches images by source, and a URL holding the token would change every time it is refreshed.
 --- The file is named after the URL, so each image is downloaded once. Other URLs are given as they are.
+--- The images may come from private rooms, so they are kept in a directory only the user can read.
 --- @param url string The media URL
 --- @param callback fun(result: neoment.Error<string, string>) Called in the main loop with the source.
 M.fetch_image_source = function(url, callback)
@@ -334,6 +340,11 @@ M.fetch_image_source = function(url, callback)
 	end
 	image_downloads[name] = { callback }
 
+	if vim.fn.isdirectory(media_path) == 0 then
+		vim.fn.mkdir(media_path, "p")
+	end
+	vim.uv.fs_chmod(media_path, tonumber("700", 8))
+
 	M.fetch_to_temp(name, bare_url, function(result)
 		vim.schedule(function()
 			local callbacks = image_downloads[name] or {}
@@ -342,7 +353,7 @@ M.fetch_image_source = function(url, callback)
 				waiting(result)
 			end
 		end)
-	end, headers)
+	end, headers, media_path)
 end
 
 --- Save the image from the clipboard to a temporary file

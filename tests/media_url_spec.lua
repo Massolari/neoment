@@ -121,8 +121,11 @@ describe("media URLs", function()
 			package.loaded["neoment.storage"] = nil
 			storage = require("neoment.storage")
 			downloads = {}
-			storage.fetch_to_temp = function(name, url, callback, headers)
-				table.insert(downloads, { name = name, url = url, callback = callback, headers = headers })
+			storage.fetch_to_temp = function(name, url, callback, headers, directory)
+				table.insert(
+					downloads,
+					{ name = name, url = url, callback = callback, headers = headers, directory = directory }
+				)
 			end
 		end)
 
@@ -157,6 +160,15 @@ describe("media URLs", function()
 			assert.are.equal(MEDIA .. "abc", downloads[1].url)
 			assert.are.same({ Authorization = "Bearer token-1" }, downloads[1].headers)
 			assert.are.equal("/tmp/neoment/file", result.data)
+		end)
+
+		it("keeps the images in a directory only the user can read", function()
+			fetch(MEDIA .. "abc", function()
+				downloads[1].callback(require("neoment.error").ok("/tmp/neoment/file"))
+			end)
+
+			assert.are.equal(vim.fn.stdpath("cache") .. "/neoment/media", downloads[1].directory)
+			assert.are.equal("rwx------", vim.fn.getfperm(downloads[1].directory))
 		end)
 
 		it("keeps the same file name when the token changes, so the image stays cached", function()

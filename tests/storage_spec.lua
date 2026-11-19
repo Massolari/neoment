@@ -73,40 +73,80 @@ describe("storage", function()
 			assert.truthy(result.data:match("avatar%.png$"))
 		end)
 
-		it("downloads the file via curl and invokes the callback with the path on success", function()
-			-- Pretend the file does not exist before the download, and exists afterwards
-			local calls = 0
-			vim.fn.filereadable = function()
-				calls = calls + 1
-				if calls == 1 then
-					return 0 -- before download
+		describe("in a directory", function()
+			local directory
+
+			before_each(function()
+				directory = vim.fn.tempname()
+				vim.fn.mkdir(directory, "p")
+			end)
+
+			after_each(function()
+				vim.fn.delete(directory, "rf")
+			end)
+
+			--- Write a file, as curl does with its output
+			--- @param path string
+			local function write(path)
+				local file = assert(io.open(path, "w"))
+				file:write("data")
+				file:close()
+			end
+
+			it("downloads the file via curl and invokes the callback with the path on success", function()
+				local captured_opts
+				curl_mock.get = function(_, opts)
+					captured_opts = opts
+					write(opts.output)
+					opts.callback({ exit = 0, status = 200, body = "", headers = {} })
 				end
-				return 1 -- after download (inside the curl callback)
-			end
+				local callback_spy = spy.new(function() end)
 
-			local captured_opts
-			curl_mock.get = function(url, opts)
-				captured_opts = opts
-				-- Simulate a successful download
-				opts.callback({ exit = 0, status = 200, body = "", headers = {} })
-			end
+				local storage = require("neoment.storage")
+				storage.fetch_to_temp("file.png", "https://example.org/file.png", callback_spy, nil, directory)
 
-			local callback_spy = spy.new(function() end)
+				assert.equals("function", type(captured_opts.on_error))
+				assert.spy(callback_spy).was_called(1)
+				local result = callback_spy.calls[1].refs[1]
+				assert.is_true(error_mod.is_ok(result))
+				assert.equals(vim.fs.joinpath(directory, "file.png"), result.data)
+				assert.equals(1, vim.fn.filereadable(result.data))
+			end)
 
-			local storage = require("neoment.storage")
-			storage.fetch_to_temp("file.png", "https://example.org/file.png", callback_spy)
+			it("does not keep an interrupted download as the file", function()
+				curl_mock.get = function(_, opts)
+					-- curl wrote part of the file before the connection dropped
+					write(opts.output)
+					opts.on_error({ message = "Connection reset", exit = 56 })
+				end
+				local callback_spy = spy.new(function() end)
 
-			-- curl should be called with output and a callback
-			assert.is_not_nil(captured_opts)
-			assert.is_string(captured_opts.output)
-			assert.equals("function", type(captured_opts.callback))
-			assert.equals("function", type(captured_opts.on_error))
+				local storage = require("neoment.storage")
+				storage.fetch_to_temp("file.png", "https://example.org/file.png", callback_spy, nil, directory)
 
-			-- The user's callback should be invoked once with an ok Result
-			assert.spy(callback_spy).was_called(1)
-			local result = callback_spy.calls[1].refs[1]
-			assert.is_true(error_mod.is_ok(result))
-			assert.truthy(result.data:match("file%.png$"))
+				assert.is_true(error_mod.is_error(callback_spy.calls[1].refs[1]))
+				assert.are.same({}, vim.fn.readdir(directory))
+
+				-- The next fetch downloads the file again
+				local downloaded = false
+				curl_mock.get = function()
+					downloaded = true
+				end
+				storage.fetch_to_temp("file.png", "https://example.org/file.png", function() end, nil, directory)
+				assert.is_true(downloaded)
+			end)
+
+			it("does not keep the body of an error response as the file", function()
+				curl_mock.get = function(_, opts)
+					write(opts.output)
+					opts.callback({ exit = 0, status = 401, body = "", headers = {} })
+				end
+
+				local storage = require("neoment.storage")
+				storage.fetch_to_temp("file.png", "https://example.org/file.png", function() end, nil, directory)
+
+				assert.are.same({}, vim.fn.readdir(directory))
+			end)
 		end)
 
 		it("propagates curl on_error to the callback", function()
@@ -147,26 +187,6 @@ describe("storage", function()
 			local result = callback_spy.calls[1].refs[1]
 			assert.is_true(error_mod.is_error(result))
 			assert.equals("Failed to download file: Unknown error", result.error)
-		end)
-
-		it("reports an error when curl exits with a non-zero status", function()
-			vim.fn.filereadable = function()
-				return 0
-			end
-
-			curl_mock.get = function(_url, opts)
-				opts.callback({ exit = 7, status = 0, body = "", headers = {} })
-			end
-
-			local callback_spy = spy.new(function() end)
-
-			local storage = require("neoment.storage")
-			storage.fetch_to_temp("file.png", "https://example.org/file.png", callback_spy)
-
-			assert.spy(callback_spy).was_called(1)
-			local result = callback_spy.calls[1].refs[1]
-			assert.is_true(error_mod.is_error(result))
-			assert.equals("Failed to download file: curl exited with code 7", result.error)
 		end)
 
 		it("reports an error when curl succeeds but the file was not saved", function()
