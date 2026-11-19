@@ -133,7 +133,8 @@ describe("room open_attachment", function()
 
 	it("removes the access token from message attachment URLs passed to the handler", function()
 		local url = "https://example.org/_matrix/media/v3/download/example.org/video?access_token=secret_token"
-		local thumbnail_url = "https://example.org/_matrix/media/v3/download/example.org/thumb?access_token=secret_token"
+		local thumbnail_url =
+			"https://example.org/_matrix/media/v3/download/example.org/thumb?access_token=secret_token"
 		local message_attachment = {
 			type = "video",
 			mimetype = "video/mp4",
