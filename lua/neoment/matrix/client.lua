@@ -7,11 +7,19 @@ local M = {}
 ---@field private invited_rooms table<string, neoment.matrix.client.InvitedRoom> A table to store invited rooms, mapped as room ID to room information.
 ---@field user_id? string The ID of the user.
 ---@field access_token? string The access token for authentication.
+---@field refresh_token? string The refresh token used to obtain a new access token. Nil when the homeserver issued a non-expiring access token.
+---@field expires_at? integer When the access token expires, in seconds since the epoch (os.time). Nil when the access token never expires.
+---@field refresh? neoment.matrix.client.RefreshMethod How the access token is refreshed. Nil is the same as the legacy method.
 ---@field sync_token? string The token to supply in the since param of the next /sync request. (next_batch)
 ---@field display_names table<string, neoment.matrix.client.DisplayName> A table to store display names for users.
 ---@field user_presence table<string, neoment.matrix.client.UserPresence> A table to store user presence information.
 ---@field desired_presence? "online"|"offline"|"unavailable" The desired presence state set by the user.
 M.client = nil
+
+--- @class neoment.matrix.client.RefreshMethod
+--- @field kind "legacy"|"oauth" `legacy` refreshes through `POST /_matrix/client/v3/refresh`, `oauth` through the OAuth 2.0 token endpoint.
+--- @field token_endpoint? string The OAuth 2.0 token endpoint, required for `oauth`.
+--- @field client_id? string The OAuth 2.0 client ID, required for `oauth`.
 
 --- @class neoment.matrix.client.Room
 --- @field id string The ID of the room.

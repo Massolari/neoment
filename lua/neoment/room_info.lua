@@ -99,25 +99,29 @@ local function render_avatar(buffer_id, room_id)
 		return
 	end
 
-	local url = util.mxc_to_url(matrix.client.homeserver, avatar_url) .. "?access_token=" .. matrix.client.access_token
+	local url = util.mxc_to_url(matrix.client.homeserver, avatar_url)
+	-- The cleanup replaces it, so an avatar fetched after the next render is not placed
+	local avatar = buffer_data[buffer_id] and buffer_data[buffer_id].avatar
 
 	require("snacks.image.terminal").detect(function()
-		local data = buffer_data[buffer_id]
-		if not data then
-			return
-		end
+		require("neoment.storage").fetch_image_source(url, function(source)
+			local data = buffer_data[buffer_id]
+			if not vim.api.nvim_buf_is_valid(buffer_id) or not data or data.avatar ~= avatar or source:is_error() then
+				return
+			end
 
-		--- @type snacks.image.Opts
-		local opts = {
-			pos = { 1, 0 },
-			height = IMAGE_HEIGHT,
-			width = IMAGE_WIDTH,
-			inline = true,
-			type = "image",
-		}
+			--- @type snacks.image.Opts
+			local opts = {
+				pos = { 1, 0 },
+				height = IMAGE_HEIGHT,
+				width = IMAGE_WIDTH,
+				inline = true,
+				type = "image",
+			}
 
-		local placement = Snacks.image.placement.new(buffer_id, url, opts)
-		data.avatar.placement = placement
+			local placement = Snacks.image.placement.new(buffer_id, source.data, opts)
+			data.avatar.placement = placement
+		end)
 	end)
 end
 
@@ -511,7 +515,6 @@ M.open_avatar = function(buffer_id)
 	local room_name = matrix.get_room_display_name(room.id)
 	local filename = room_name:gsub("[^%w%.%-_]", "_") .. ".png"
 	local media_url = util.mxc_to_url(matrix.client.homeserver, avatar)
-	local url = media_url .. "?access_token=" .. matrix.client.access_token
 
 	-- The mimetype is a guess, the file is always saved as PNG
 	--- @type neoment.matrix.client.MessageImage
@@ -525,7 +528,7 @@ M.open_avatar = function(buffer_id)
 	}
 
 	notify.info("Fetching avatar...")
-	storage.fetch_to_temp(filename, url, function(error_path)
+	storage.fetch_to_temp(filename, media_url, function(error_path)
 		error.match(error_path, function(path)
 			local handler = config.get().room.on_open_attachment
 			vim.schedule(function()
@@ -536,7 +539,7 @@ M.open_avatar = function(buffer_id)
 		end, function(err)
 			notify.error("Failed to open avatar image: " .. err)
 		end)
-	end)
+	end, util.media_headers(media_url))
 end
 
 return M

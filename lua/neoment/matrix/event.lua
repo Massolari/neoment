@@ -23,9 +23,7 @@ local function get_thumbnail(event)
 		return {
 			type = "image",
 			filename = "thumbnail",
-			url = util.mxc_to_url(client.client.homeserver, event.content.info.thumbnail_url)
-				.. "?access_token="
-				.. client.client.access_token,
+			url = util.mxc_to_url(client.client.homeserver, event.content.info.thumbnail_url),
 			height = event.content.info.thumbnail_info.h,
 			width = event.content.info.thumbnail_info.w,
 			mimetype = event.content.info.thumbnail_info.mimetype,
@@ -66,9 +64,7 @@ local function get_attachment(event, attachment_type)
 		type = attachment_type,
 		mimetype = event.content.info and event.content.info.mimetype,
 		mxc_url = event.content.url,
-		url = util.mxc_to_url(client.client.homeserver, event.content.url)
-			.. "?access_token="
-			.. client.client.access_token,
+		url = util.mxc_to_url(client.client.homeserver, event.content.url),
 		filename = event.content.filename,
 	}
 
@@ -114,11 +110,9 @@ end
 --- @param event_id string The ID of the event.
 --- @return neoment.Error<neoment.matrix.ClientEventWithoutRoomID, neoment.matrix.api.Error> The event object.
 local function fetch_room_event_by_id(room_id, event_id)
-	return api.get_sync(client.client.homeserver .. "/_matrix/client/v3/rooms/" .. room_id .. "/event/" .. event_id, {
-		headers = {
-			Authorization = "Bearer " .. client.client.access_token,
-		},
-	})
+	return api.authed.get_sync(
+		client.client.homeserver .. "/_matrix/client/v3/rooms/" .. room_id .. "/event/" .. event_id
+	)
 end
 
 --- Convert a Matrix event to a message.

@@ -282,4 +282,39 @@ M.set_common_mappings = function(buffer_id)
 	vim.keymap.set("n", "<localleader>l", "<Plug>NeomentToggleRoomsList", set_opts_desc("Toggle room [l]ist"))
 end
 
+--- Get the current access token if a URL is a media URL of the user's homeserver.
+--- The token must not be sent anywhere else, so any other URL gets none.
+--- @param url string|nil The URL the token would be sent to
+--- @return string|nil The access token
+local function media_access_token(url)
+	local client = require("neoment.matrix").client
+	if not url or not client or not client.access_token or not client.homeserver then
+		return nil
+	end
+	if not vim.startswith(url, client.homeserver .. "/") then
+		return nil
+	end
+	return client.access_token
+end
+
+--- Remove the `access_token` query parameter from a media URL
+--- @param url string The media URL
+--- @return string The URL without the access token
+M.strip_access_token = function(url)
+	local stripped = url:gsub("([?&])access_token=[^&]*&?", "%1"):gsub("[?&]$", "")
+	return stripped
+end
+
+--- Get the headers that authenticate a media download with the current access token.
+--- Nothing is returned for URLs that are not media URLs of the user's homeserver.
+--- @param url string The URL to download
+--- @return table<string, string>|nil The headers
+M.media_headers = function(url)
+	local access_token = media_access_token(url)
+	if not access_token then
+		return nil
+	end
+	return { Authorization = "Bearer " .. access_token }
+end
+
 return M

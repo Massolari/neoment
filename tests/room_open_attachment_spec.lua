@@ -4,6 +4,8 @@ describe("room open_attachment", function()
 	local handler_spy
 	local ui_open_spy
 	local original_ui_open
+	--- The downloads started, as the arguments given to `storage.fetch_to_temp`
+	local fetches
 	local namespace = vim.api.nvim_create_namespace("neoment_room_extmarks")
 
 	--- Flush callbacks queued with vim.schedule
@@ -25,6 +27,7 @@ describe("room open_attachment", function()
 
 		handler_spy = spy.new(function() end)
 		ui_open_spy = spy.new(function() end)
+		fetches = {}
 		original_ui_open = vim.ui.open
 		vim.ui.open = ui_open_spy
 
@@ -36,7 +39,8 @@ describe("room open_attachment", function()
 		}
 		package.loaded["neoment.storage"] = {
 			-- Simulate a completed download by calling the callback synchronously
-			fetch_to_temp = function(filename, _url, callback)
+			fetch_to_temp = function(filename, url, callback, headers)
+				table.insert(fetches, { url = url, headers = headers })
 				callback(require("neoment.error").ok("/tmp/" .. filename))
 			end,
 		}
@@ -163,5 +167,72 @@ describe("room open_attachment", function()
 		assert.equals("https://example.org/_matrix/media/v3/download/example.org/thumb", attachment.thumbnail.url)
 		assert.equals(url, message_attachment.url)
 		assert.equals(thumbnail_url, message_attachment.thumbnail.url)
+	end)
+
+	it("downloads a message attachment with the current token in a header, not in the URL", function()
+		room._get_buffer_data(buf).line_to_message[1] = {
+			id = "$event",
+			content = "voice.ogg",
+			attachment = {
+				type = "audio",
+				mimetype = "audio/ogg",
+				url = "https://example.org/_matrix/client/v1/media/download/example.org/voice",
+				mxc_url = "mxc://example.org/voice",
+				filename = "voice.ogg",
+			},
+		}
+
+		room.open_attachment()
+		flush()
+
+		assert.equals(1, #fetches)
+		assert.equals("https://example.org/_matrix/client/v1/media/download/example.org/voice", fetches[1].url)
+		assert.are.same({ Authorization = "Bearer secret_token" }, fetches[1].headers)
+	end)
+
+	it("does not download with a token saved by an earlier version", function()
+		room._get_buffer_data(buf).line_to_message[1] = {
+			id = "$event",
+			content = "voice.ogg",
+			attachment = {
+				type = "audio",
+				mimetype = "audio/ogg",
+				url = "https://example.org/_matrix/client/v1/media/download/example.org/voice?access_token=old_token",
+				mxc_url = "mxc://example.org/voice",
+				filename = "voice.ogg",
+			},
+		}
+
+		room.open_attachment()
+		flush()
+
+		assert.equals("https://example.org/_matrix/client/v1/media/download/example.org/voice", fetches[1].url)
+		assert.are.same({ Authorization = "Bearer secret_token" }, fetches[1].headers)
+	end)
+
+	it("sends no credentials to a URL that is not on the homeserver", function()
+		room._get_buffer_data(buf).line_to_message[1] = {
+			id = "$event",
+			content = "somewhere",
+			attachment = { type = "location", url = "https://maps.google.com/?q=1,2" },
+		}
+
+		room.open_attachment()
+		flush()
+
+		assert.equals(1, #fetches)
+		assert.equals("https://maps.google.com/?q=1,2", fetches[1].url)
+		assert.is_nil(fetches[1].headers)
+	end)
+
+	it("downloads a custom emoticon with the current token in a header, not in the URL", function()
+		seed_extmark({ emoticon_url = "mxc://example.org/emote", emoticon_title = "party" })
+
+		room.open_attachment()
+		flush()
+
+		assert.equals(1, #fetches)
+		assert.equals("https://example.org/_matrix/client/v1/media/download/example.org/emote", fetches[1].url)
+		assert.are.same({ Authorization = "Bearer secret_token" }, fetches[1].headers)
 	end)
 end)

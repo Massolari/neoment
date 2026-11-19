@@ -16,6 +16,9 @@ local cache_path = vim.fn.stdpath("cache") .. "/neoment/cache.json"
 --- Path to the UI state file
 local ui_state_path = vim.fn.stdpath("data") .. "/neoment/ui_state.json"
 
+--- The path of the directory where the images shown in rooms are downloaded
+local media_path = vim.fn.stdpath("cache") .. "/neoment/media"
+
 --- Get the path to a temporary file
 --- @param file string The name of the file
 --- @param opts {path: string[]}|nil Options for the temporary file
@@ -141,6 +144,9 @@ function M.save_session()
 		device_id = matrix.client.device_id,
 
 		access_token = matrix.client.access_token,
+		refresh_token = matrix.client.refresh_token,
+		expires_at = matrix.client.expires_at,
+		refresh = matrix.client.refresh,
 		last_save = os.time(),
 	}
 
@@ -149,6 +155,12 @@ function M.save_session()
 	end
 
 	return write_file(cache_path, cache_to_save) and write_file(data_path, data_to_save)
+end
+
+--- Read the saved session credentials without restoring them
+--- @return table|nil The saved session data, nil when there is none
+function M.read_saved_session()
+	return read_file(data_path)
 end
 
 --- Restore the session data from the cache file
@@ -160,9 +172,10 @@ function M.restore_session()
 		return false
 	end
 
-	-- Check if the session data is too old (7 days)
+	-- Check if the session data is too old (7 days).
+	-- A session with a refresh token is bounded by the refresh token lifetime instead.
 	local max_age = 7 * 24 * 60 * 60 -- 7 days in seconds
-	if data.last_save and os.time() - data.last_save > max_age then
+	if not data.refresh_token and data.last_save and os.time() - data.last_save > max_age then
 		notify.warning("Session data is expired, please log in again")
 		return false
 	end
@@ -170,6 +183,9 @@ function M.restore_session()
 	-- Replace any client left by an unfinished login attempt
 	matrix.set_homeserver(data.homeserver)
 	matrix.client.access_token = data.access_token
+	matrix.client.refresh_token = data.refresh_token
+	matrix.client.expires_at = data.expires_at
+	matrix.client.refresh = data.refresh
 	matrix.client.user_id = data.user_id
 	if cache then
 		matrix.client.sync_token = cache.sync_token
@@ -252,7 +268,9 @@ end
 --- @param name string The name of the file
 --- @param url string The URL to fetch the file from
 --- @param callback fun(path: neoment.Error<string, string>): any The callback to call with the result, either the path to the temporary file or an error message
-M.fetch_to_temp = function(name, url, callback)
+--- @param headers? table<string, string> Headers to send with the request, like the Authorization of a media download
+--- @param directory? string The directory to save the file in, instead of the temporary directory. It must exist.
+M.fetch_to_temp = function(name, url, callback, headers, directory)
 	vim.validate("name", name, "string")
 	vim.validate("url", url, "string")
 
@@ -260,30 +278,82 @@ M.fetch_to_temp = function(name, url, callback)
 	name = name:gsub("[^%w%.%-_]", "_")
 
 	-- Create the full path for the temporary file
-	local temp_path = get_temp_path(name)
+	local temp_path = directory and vim.fs.joinpath(directory, name) or get_temp_path(name)
 
 	-- Check if the file already exists
 	if vim.fn.filereadable(temp_path) == 1 then
 		return callback(error.ok(temp_path))
 	end
 
+	-- The file is only given its name once complete, so an interrupted download is never reused
+	local part_path = temp_path .. ".part"
+
 	curl.get(url, {
-		output = temp_path,
+		output = part_path,
+		headers = headers,
 		on_error = function(err)
+			os.remove(part_path)
 			callback(error.err("Failed to download file: " .. (err.message or "Unknown error")))
 		end,
 		callback = function(response)
-			if response.exit ~= 0 then
-				return callback(error.err("Failed to download file: curl exited with code " .. response.exit))
+			-- The body of an error response was saved as the file, and would be reused as the download
+			if response.status and response.status >= 400 then
+				os.remove(part_path)
+				return callback(error.err("Failed to download file: HTTP status " .. response.status))
 			end
 
-			if vim.fn.filereadable(temp_path) == 0 then
+			if not os.rename(part_path, temp_path) then
+				os.remove(part_path)
 				return callback(error.err("Failed to save downloaded file"))
 			end
 
 			callback(error.ok(temp_path))
 		end,
 	})
+end
+
+--- The callbacks waiting for each image download in progress, by file name
+--- @type table<string, fun(result: neoment.Error<string, string>)[]>
+local image_downloads = {}
+
+--- Get the source to give the image viewer for a media URL.
+--- Media of the user's homeserver is downloaded with the access token in a header and given as a local file:
+--- the viewer caches images by source, and a URL holding the token would change every time it is refreshed.
+--- The file is named after the URL, so each image is downloaded once. Other URLs are given as they are.
+--- The images may come from private rooms, so they are kept in a directory only the user can read.
+--- @param url string The media URL
+--- @param callback fun(result: neoment.Error<string, string>) Called in the main loop with the source.
+M.fetch_image_source = function(url, callback)
+	-- Rooms saved by an earlier version have URLs with a token that is no longer valid
+	local bare_url = util.strip_access_token(url)
+	local headers = util.media_headers(bare_url)
+	if not headers then
+		callback(error.ok(url))
+		return
+	end
+
+	local name = "image-" .. vim.fn.sha256(bare_url):sub(1, 32)
+	-- A second download would write to the same file, and the viewer could read it half written
+	if image_downloads[name] then
+		table.insert(image_downloads[name], callback)
+		return
+	end
+	image_downloads[name] = { callback }
+
+	if vim.fn.isdirectory(media_path) == 0 then
+		vim.fn.mkdir(media_path, "p")
+	end
+	vim.uv.fs_chmod(media_path, tonumber("700", 8))
+
+	M.fetch_to_temp(name, bare_url, function(result)
+		vim.schedule(function()
+			local callbacks = image_downloads[name] or {}
+			image_downloads[name] = nil
+			for _, waiting in ipairs(callbacks) do
+				waiting(result)
+			end
+		end)
+	end, headers, media_path)
 end
 
 --- Save the image from the clipboard to a temporary file

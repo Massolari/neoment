@@ -9,6 +9,7 @@ local room = require("neoment.room")
 local storage = require("neoment.storage")
 local matrix = require("neoment.matrix")
 local auth = require("neoment.matrix.auth")
+local api = require("neoment.matrix.api")
 local sso_listener = require("neoment.sso_listener")
 local error = require("neoment.error")
 
@@ -311,6 +312,20 @@ local function login()
 	end)
 end
 
+--- End the session after the server stopped accepting its credentials:
+--- stop syncing, forget the saved session and ask the user to log in again.
+--- Concurrent requests fail together, so it can be called more than once for the same session.
+M.on_session_expired = function()
+	if not matrix.is_logged_in() then
+		return
+	end
+
+	sync.stop()
+	storage.clear_session()
+	matrix.set_homeserver(matrix.client.homeserver)
+	notify.error("Session expired, please log in again")
+end
+
 --- Entry point for the plugin
 --- If already logged in, open the room list
 --- If not logged in, call the login function
@@ -318,6 +333,7 @@ M.init = function()
 	local highlight = require("neoment.highlight")
 	highlight.define_highlights()
 	config.load()
+	api.set_session_expired_handler(M.on_session_expired)
 	require("neoment.focus").setup()
 
 	vim.api.nvim_create_autocmd({ "ColorScheme" }, {

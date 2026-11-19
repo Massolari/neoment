@@ -84,6 +84,37 @@ For the best experience, it is recommended to install the following companion pl
 
 When Neovim runs over SSH (or the browser can't reach Neovim within 2 minutes), Single Sign-On falls back to a manual step: Neoment shows the login URL, you open it in any browser, and after logging in you paste the URL of the page you were sent to (it will fail to load, which is expected) at the `Paste the redirected URL or login token:` prompt.
 
+### Session Expiry and Token Refresh
+
+Some homeservers (such as `matrix.org` and `mozilla.org`) issue access tokens that expire after a few minutes, together with a refresh token. When you log in with a password, Neoment asks for a refresh token and keeps your session alive on its own:
+
+- The access token is refreshed shortly before it expires, and again if the server reports it expired anyway. The request that failed is sent once more with the new token, so a `/sync` that was in flight when the token expired just continues.
+- Several requests that need a new token at the same time share a single refresh.
+- The refresh token, the expiry time and the refresh method are saved with the session (when `save_session` is enabled). A saved session that holds a refresh token is restored no matter how old it is, instead of being dropped after 7 days. Sessions saved by earlier versions keep working and are treated as non-expiring.
+- Refresh tokens are rotated by the server, so only one Neovim instance should use a saved session at a time. If an instance finds its refresh token rejected, it checks once whether another instance saved a newer one before giving up.
+- If the server rejects the refresh, syncing stops, the saved session is removed and you are asked to log in again with `:Neoment`. A refresh that fails because the server is unreachable (or answers with a server error) does not end the session: it is tried again by the next request.
+
+Servers that issue non-expiring access tokens keep working as before. Logging in with Single Sign-On does not ask for a refresh token.
+
+Media (images, avatars, attachments) is not stored with an access token in its URL. The current token is added when the media is downloaded or displayed.
+
+#### The `client.refresh` contract
+
+The way the token is refreshed is stored in `client.refresh` and saved with the session. When it is not set, the legacy method is used, which posts the refresh token to `POST /_matrix/client/v3/refresh` on the homeserver. A login that gets its tokens from an OAuth 2.0 server (Matrix Authentication Service) has to store the following on the client after logging in:
+
+```lua
+client.access_token = "..."
+client.refresh_token = "..."
+client.expires_at = os.time() + expires_in -- seconds since the epoch, leave unset if the token never expires
+client.refresh = {
+	kind = "oauth",
+	token_endpoint = "https://auth.example.org/oauth2/token",
+	client_id = "...",
+}
+```
+
+Neoment then refreshes with a form-encoded `grant_type=refresh_token` request (`refresh_token` and `client_id` included) to `token_endpoint`, and reads `access_token`, `refresh_token` and `expires_in` (seconds) from the response.
+
 ### Commands
 
 - `:Neoment` - Login to your Matrix account (password or Single Sign-On). If already logged in, opens the rooms list

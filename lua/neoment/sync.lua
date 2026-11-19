@@ -97,7 +97,10 @@ M.start = function(client, on_done, options)
 
 			return new_status
 		end, function(err)
-			if error_count < 3 then
+			if err.session_expired then
+				-- The session is over, retrying cannot help. The user is told to log in again elsewhere.
+				keep_syncing = false
+			elseif error_count < 3 then
 				error_count = error_count + 1
 				notify.error("Error syncing: " .. err.error .. "\nRetrying...")
 				vim.defer_fn(function()
