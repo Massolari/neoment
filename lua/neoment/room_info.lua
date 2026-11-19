@@ -106,12 +106,7 @@ local function render_avatar(buffer_id, room_id)
 	require("snacks.image.terminal").detect(function()
 		require("neoment.storage").fetch_image_source(url, function(source)
 			local data = buffer_data[buffer_id]
-			if
-				not vim.api.nvim_buf_is_valid(buffer_id)
-				or not data
-				or data.avatar ~= avatar
-				or source:is_error()
-			then
+			if not vim.api.nvim_buf_is_valid(buffer_id) or not data or data.avatar ~= avatar or source:is_error() then
 				return
 			end
 
