@@ -401,6 +401,24 @@ describe("Login flow", function()
 		assert.are.equal(1, calls.toggled)
 	end)
 
+	it("should supersede a pending SSO login when a saved session is restored", function()
+		auth.methods = { "sso" }
+		inputs = { "example.org" }
+
+		run_login()
+		package.loaded["neoment.storage"].restore_session = function()
+			return true
+		end
+		run_login()
+
+		assert.is_true(listeners[1].closed)
+		listeners[1].opts.on_token("XYZ")
+		vim.wait(50)
+
+		assert.are.same({}, calls.login_token)
+		assert.are.equal(1, calls.toggled)
+	end)
+
 	it("should ignore a paste prompt from a superseded attempt", function()
 		vim.env.SSH_TTY = "/dev/pts/1"
 		auth.methods = { "sso" }

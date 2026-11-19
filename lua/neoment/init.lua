@@ -240,6 +240,11 @@ local LOGIN_METHOD_LABELS = {
 
 --- Login to the Matrix server
 local function login()
+	-- Every call supersedes earlier login attempts, including when a saved session is restored
+	close_pending_sso_listener()
+	login_generation = login_generation + 1
+	local generation = login_generation
+
 	local restored = storage.restore_session()
 	if restored then
 		M.sync_start()
@@ -248,10 +253,6 @@ local function login()
 		end)
 		return
 	end
-
-	close_pending_sso_listener()
-	login_generation = login_generation + 1
-	local generation = login_generation
 
 	local input = vim.fn.input("Matrix ID or server: ")
 	local server_name, user_id = auth.parse_server_name(input)
