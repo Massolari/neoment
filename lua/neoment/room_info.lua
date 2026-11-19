@@ -76,7 +76,7 @@ end
 --- @param buffer_id number
 local function render_image_placeholder(buffer_id)
 	local localleader = vim.g.maplocalleader or "\\"
-	local text = string.format("Room avatar [%so] open in external viewer", localleader)
+	local text = string.format("Room avatar [%so] open with attachment handler", localleader)
 	render_image_text(buffer_id, text)
 end
 
@@ -88,7 +88,8 @@ local function render_avatar(buffer_id, room_id)
 
 	local avatar_url = matrix.get_room_avatar(room_id)
 
-	if not avatar_url then
+	-- Only mxc:// avatars are fetched, any other URL would receive the access token
+	if not avatar_url or not avatar_url:match("^mxc://") then
 		render_no_image(buffer_id)
 		return
 	end
@@ -492,7 +493,7 @@ M.toggle_avatar_zoom = function(buffer_id)
 	placement:update()
 end
 
---- Open the avatar image in an external viewer
+--- Open the avatar image with the `room.on_open_attachment` handler
 --- @param buffer_id number The buffer ID
 M.open_avatar = function(buffer_id)
 	local room = get_current_room(buffer_id)
@@ -500,7 +501,8 @@ M.open_avatar = function(buffer_id)
 		return
 	end
 	local avatar = room.avatar_url
-	if not avatar then
+	-- Only mxc:// avatars are fetched, any other URL would receive the access token
+	if not avatar or not avatar:match("^mxc://") then
 		notify.info("No avatar image to open")
 		return
 	end

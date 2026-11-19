@@ -563,6 +563,24 @@ describe("room_info", function()
 			assert.spy(notify_mock.info).was_called_with("No avatar image to open")
 		end)
 
+		it("does not fetch an avatar whose URL is not mxc://", function()
+			local room = make_room({ avatar_url = "https://attacker.example/avatar.png" })
+			local notify_mock = { info = spy.new(function() end), error = function() end }
+			local fetch_spy = spy.new(function() end)
+			setup_mocks(room)
+			package.loaded["neoment.notify"] = notify_mock
+			package.loaded["neoment.storage"] = {
+				fetch_to_temp = fetch_spy,
+			}
+			room_info = require("neoment.room_info")
+
+			vim.b[buf].room_id = room.id
+			room_info.open_avatar(buf)
+
+			assert.spy(fetch_spy).was_not_called()
+			assert.spy(notify_mock.info).was_called_with("No avatar image to open")
+		end)
+
 		it("fetches avatar and passes it to the attachment handler when avatar_url is present", function()
 			local room = make_room({ avatar_url = "mxc://example.org/abc123" })
 			-- Async fetch_to_temp: invoke the callback synchronously to simulate
