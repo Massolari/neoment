@@ -10,7 +10,8 @@ local error = require("neoment.error")
 --- @field errcode neoment.matrix.api.ErrCode The error code.
 
 --- @class neoment.matrix.api.RequestOptions
---- @field headers table<string, string> A table of headers to include in the request.
+--- @field headers? table<string, string> A table of headers to include in the request.
+--- @field raw? string[] Additional curl arguments (e.g. `{ "-L" }` to follow redirects).
 
 --- Handle the response from a Matrix API request.
 --- @generic A : table
@@ -20,6 +21,10 @@ local function handler(response)
 	local ok, data = pcall(json.decode, response.body)
 	if not ok then
 		return error.err({ error = "Failed to decode JSON response: " .. response.body })
+	end
+
+	if type(data) ~= "table" then
+		return error.err({ error = "Unexpected JSON response: " .. response.body })
 	end
 
 	if data.error then
@@ -43,6 +48,7 @@ M.get = function(endpoint, callback, opts)
 		headers = vim.tbl_extend("force", {
 			["Content-Type"] = "application/json",
 		}, opts.headers or {}),
+		raw = opts.raw,
 		callback = function(response)
 			callback(handler(response))
 		end,

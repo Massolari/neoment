@@ -8,6 +8,8 @@ local rooms = require("neoment.rooms")
 local room = require("neoment.room")
 local storage = require("neoment.storage")
 local matrix = require("neoment.matrix")
+local auth = require("neoment.matrix.auth")
+local sso_listener = require("neoment.sso_listener")
 local error = require("neoment.error")
 
 --- Handle synchronization data
@@ -42,8 +44,207 @@ M.sync_start = function()
 	notify.info("Synchronization started")
 end
 
+--- Handle the result of a login attempt
+--- @param data neoment.Error<nil, neoment.matrix.api.Error> The login result
+local function handle_login_result(data)
+	if error.is_error(data) then
+		vim.schedule(function()
+			notify.error("Error logging in: " .. data.error.error)
+		end)
+		return
+	end
+
+	vim.schedule(function()
+		notify.info("Login successful as " .. matrix.client.user_id)
+	end)
+
+	-- Save the session if configured
+	if config.get().save_session then
+		vim.schedule(function()
+			storage.save_session()
+		end)
+	end
+
+	-- Start synchronization
+	M.sync_start()
+	vim.schedule(function()
+		rooms.toggle_room_list()
+	end)
+end
+
+--- @class neoment.LoginContext
+--- @field homeserver string The homeserver base URL
+--- @field user_id? string The full Matrix ID, if the user entered one
+--- @field generation integer The login attempt this context belongs to
+
+--- Redirect URL used for SSO when the browser can't reach a local listener.
+--- The page fails to load, and the user copies the URL from the address bar.
+local MANUAL_SSO_REDIRECT_URL = "http://127.0.0.1/"
+
+--- The SSO callback listener of the login in progress, if any
+--- @type neoment.sso_listener.Listener|nil
+local pending_sso_listener = nil
+
+--- Incremented on every login attempt, so callbacks of an older attempt can tell they are stale
+local login_generation = 0
+
+--- Build a check for whether a login attempt is still the current one
+--- @param ctx neoment.LoginContext
+--- @return fun(): boolean
+local function login_is_current(ctx)
+	return function()
+		return ctx.generation == login_generation
+	end
+end
+
+--- Build a login result handler that ignores the result of a superseded login attempt
+--- @param ctx neoment.LoginContext
+--- @return fun(data: neoment.Error<nil, neoment.matrix.api.Error>)
+local function login_result_handler(ctx)
+	return function(data)
+		if ctx.generation ~= login_generation then
+			return
+		end
+		handle_login_result(data)
+	end
+end
+
+--- Stop the SSO callback listener of the login in progress, if any
+local function close_pending_sso_listener()
+	if pending_sso_listener then
+		pending_sso_listener.close()
+		pending_sso_listener = nil
+	end
+end
+
+--- Check if Neovim is running in a remote (SSH) session
+--- @return boolean
+local function is_remote_session()
+	return vim.env.SSH_CONNECTION ~= nil or vim.env.SSH_TTY ~= nil
+end
+
+--- Ask the user to paste the URL they were redirected to (or the login token) and log in with it
+--- @param ctx neoment.LoginContext
+local function prompt_login_token(ctx)
+	vim.ui.input({ prompt = "Paste the redirected URL or login token: " }, function(input)
+		if ctx.generation ~= login_generation then
+			return
+		end
+		local token, parse_error = auth.parse_login_token(input)
+		if not token then
+			if parse_error then
+				notify.error(parse_error)
+			else
+				notify.info("Login cancelled")
+			end
+			return
+		end
+
+		auth.login_token(token, login_result_handler(ctx), login_is_current(ctx))
+	end)
+end
+
+--- Log in with SSO by pasting the redirected URL
+--- @param ctx neoment.LoginContext
+local function manual_sso_login(ctx)
+	local url = auth.sso_redirect_url(ctx.homeserver, MANUAL_SSO_REDIRECT_URL)
+	notify.info(
+		"Open this URL in your browser and log in. The page you are sent to will fail to load; copy its URL from the address bar:\n"
+			.. url
+	)
+	-- Notifications are scheduled, so schedule the prompt to show it after the URL
+	vim.schedule(function()
+		prompt_login_token(ctx)
+	end)
+end
+
+--- Log in with SSO through the browser
+--- @param ctx neoment.LoginContext
+local function sso_login(ctx)
+	if is_remote_session() then
+		manual_sso_login(ctx)
+		return
+	end
+
+	--- @type neoment.sso_listener.Listener|nil
+	local listener
+	local listener_result = sso_listener.start({
+		on_token = function(token)
+			if pending_sso_listener ~= listener then
+				return
+			end
+			pending_sso_listener = nil
+			auth.login_token(token, login_result_handler(ctx), login_is_current(ctx))
+		end,
+		on_timeout = function()
+			if pending_sso_listener ~= listener then
+				return
+			end
+			pending_sso_listener = nil
+			notify.warning("Did not receive the login from the browser")
+			manual_sso_login(ctx)
+		end,
+	})
+
+	if error.is_error(listener_result) then
+		notify.warning(listener_result.error)
+		manual_sso_login(ctx)
+		return
+	end
+
+	listener = listener_result.data
+	pending_sso_listener = listener
+	local url = auth.sso_redirect_url(ctx.homeserver, pending_sso_listener.redirect_url)
+	local _, open_error = vim.ui.open(url)
+	if open_error then
+		notify.warning("Could not open the browser (" .. open_error .. "). Open this URL to log in:\n" .. url)
+	else
+		notify.info("Waiting for the login in the browser...")
+	end
+end
+
+--- Log in with a username and password
+--- @param ctx neoment.LoginContext
+local function password_login(ctx)
+	local user = ctx.user_id
+	if not user then
+		user = vim.trim(vim.fn.input("Username: "))
+		if user == "" then
+			notify.info("Login cancelled")
+			return
+		end
+	end
+
+	local password = vim.fn.inputsecret("Password: ")
+	if password == "" then
+		notify.info("Login cancelled")
+		return
+	end
+
+	auth.login_password(user, password, login_result_handler(ctx), login_is_current(ctx))
+end
+
+--- Login handlers, mapped by login method
+--- @type table<neoment.matrix.auth.Method, fun(ctx: neoment.LoginContext)>
+local LOGIN_HANDLERS = {
+	password = password_login,
+	sso = sso_login,
+}
+
+--- Labels shown when the user chooses a login method
+--- @type table<neoment.matrix.auth.Method, string>
+local LOGIN_METHOD_LABELS = {
+	password = "Password",
+	sso = "Single Sign-On (browser)",
+}
+
 --- Login to the Matrix server
 local function login()
+	-- Every call supersedes earlier login attempts, including when a saved session is restored
+	close_pending_sso_listener()
+	login_generation = login_generation + 1
+	local generation = login_generation
+
 	local restored = storage.restore_session()
 	if restored then
 		M.sync_start()
@@ -52,32 +253,60 @@ local function login()
 		end)
 		return
 	end
-	local username = vim.fn.input("Username: ")
-	local password = vim.fn.inputsecret("Password: ")
 
-	matrix.login(username, password, function(data)
-		if error.is_error(data) then
-			vim.schedule(function()
-				notify.error("Error logging in: " .. data.error.error)
-			end)
+	local input = vim.fn.input("Matrix ID or server: ")
+	local server_name, user_id = auth.parse_server_name(input)
+	if not server_name then
+		if vim.trim(input) == "" then
+			notify.info("Login cancelled")
+		else
+			notify.error("Invalid Matrix ID or server: " .. input)
+		end
+		return
+	end
+
+	notify.info("Looking up the homeserver for " .. server_name .. "...")
+	auth.discover(server_name, function(homeserver)
+		-- A newer login attempt was started in the meantime
+		if generation ~= login_generation then
 			return
 		end
+		matrix.set_homeserver(homeserver)
 
-		vim.schedule(function()
-			notify.info("Login successful as " .. matrix.client.user_id)
-		end)
-
-		-- Save the session if configured
-		if config.get().save_session then
+		auth.get_login_flows(homeserver, function(result)
 			vim.schedule(function()
-				storage.save_session()
-			end)
-		end
+				if generation ~= login_generation then
+					return
+				end
+				if error.is_error(result) then
+					notify.error(result.error.error)
+					return
+				end
 
-		-- Start synchronization
-		M.sync_start()
-		vim.schedule(function()
-			rooms.toggle_room_list()
+				--- @type neoment.LoginContext
+				local ctx = { homeserver = homeserver, user_id = user_id, generation = generation }
+				local methods = result.data
+				if #methods == 1 then
+					LOGIN_HANDLERS[methods[1]](ctx)
+					return
+				end
+
+				vim.ui.select(methods, {
+					prompt = "Login method:",
+					format_item = function(method)
+						return LOGIN_METHOD_LABELS[method]
+					end,
+				}, function(method)
+					if generation ~= login_generation then
+						return
+					end
+					if not method then
+						notify.info("Login cancelled")
+						return
+					end
+					LOGIN_HANDLERS[method](ctx)
+				end)
+			end)
 		end)
 	end)
 end

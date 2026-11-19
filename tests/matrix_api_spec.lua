@@ -44,6 +44,20 @@ describe("Matrix API", function()
 			assert.are.same(test_response, result.data)
 		end)
 
+		it("should pass raw curl arguments through", function()
+			local received_raw
+
+			curl_mock.get = function(_, opts)
+				received_raw = opts.raw
+				opts.callback({ status = 200, body = "{}" })
+			end
+
+			local api_reloaded = require("neoment.matrix.api")
+			api_reloaded.get("https://example.org/.well-known/matrix/client", function() end, { raw = { "-L" } })
+
+			assert.are.same({ "-L" }, received_raw)
+		end)
+
 		it("should handle Matrix API error responses", function()
 			local test_endpoint = "https://matrix.org/_matrix/client/r0/login"
 			local error_response = { error = "Invalid token", errcode = "M_UNKNOWN_TOKEN" }
@@ -84,6 +98,37 @@ describe("Matrix API", function()
 			local result = callback_spy.calls[1].refs[1]
 			assert.is_true(error_mod.is_error(result))
 			assert.is_not_nil(string.match(result.error.error, "Failed to decode JSON response"))
+		end)
+
+		it("should accept a top-level JSON array", function()
+			local callback_spy = spy.new(function() end)
+
+			curl_mock.get = function(_, opts)
+				opts.callback({ status = 200, body = '[{"type":"m.room.name"}]' })
+			end
+
+			local api_reloaded = require("neoment.matrix.api")
+			api_reloaded.get("https://matrix.org/_matrix/client/v3/rooms/!r/state", callback_spy)
+
+			local result = callback_spy.calls[1].refs[1]
+			assert.is_true(error_mod.is_ok(result))
+			assert.are.equal("m.room.name", result.data[1].type)
+		end)
+
+		it("should return an error when the JSON body is not an object", function()
+			local callback_spy = spy.new(function() end)
+
+			curl_mock.get = function(_, opts)
+				opts.callback({ status = 200, body = "null" })
+			end
+
+			local api_reloaded = require("neoment.matrix.api")
+			api_reloaded.get("https://matrix.org/.well-known/matrix/client", callback_spy)
+
+			assert.spy(callback_spy).was_called()
+			local result = callback_spy.calls[1].refs[1]
+			assert.is_true(error_mod.is_error(result))
+			assert.matches("Unexpected JSON response", result.error.error, 1, true)
 		end)
 
 		it("should handle curl errors", function()

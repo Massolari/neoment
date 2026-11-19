@@ -167,7 +167,9 @@ function M.restore_session()
 		return false
 	end
 
-	matrix.new(data.homeserver, data.access_token)
+	-- Replace any client left by an unfinished login attempt
+	matrix.set_homeserver(data.homeserver)
+	matrix.client.access_token = data.access_token
 	matrix.client.user_id = data.user_id
 	if cache then
 		matrix.client.sync_token = cache.sync_token

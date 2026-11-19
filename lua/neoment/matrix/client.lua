@@ -153,6 +153,19 @@ M.new = function(homeserver, access_token)
 	}
 end
 
+--- Point the client at a homeserver, starting a fresh session.
+--- Any previous session state (access token, user, sync token, rooms) is discarded
+--- so it cannot leak into the new login. Only the device ID is kept.
+--- @param homeserver string The URL of the Matrix server.
+M.set_homeserver = function(homeserver)
+	local device_id = M.client and M.client.device_id
+	M.client = nil
+	M.new(homeserver)
+	if device_id then
+		M.client.device_id = device_id
+	end
+end
+
 --- Create a new room
 --- @param room_id string The ID of the room
 --- @return neoment.matrix.client.Room The created room object
