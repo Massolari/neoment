@@ -60,11 +60,7 @@ M.parse_server_name = function(input)
 		return server_name, trimmed
 	end
 
-	if is_http_url(trimmed) then
-		return (trimmed:gsub("/+$", "")), nil
-	end
-
-	return trimmed, nil
+	return (trimmed:gsub("/+$", "")), nil
 end
 
 --- Discover the homeserver base URL for a server name using `/.well-known/matrix/client`.
@@ -147,20 +143,28 @@ end
 
 --- Send a login request and store the credentials on success.
 --- If the response includes a `well_known` object, the client uses its homeserver from then on.
+--- The credentials are dropped if the client was replaced while the request was in flight.
 --- @param body table The login request body.
 --- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any
 local function login_request(body, callback)
-	body.device_id = client.client.device_id
+	local requesting_client = client.client
+	body.device_id = requesting_client.device_id
 
 	api.post(
-		client.client.homeserver .. "/_matrix/client/v3/login",
+		requesting_client.homeserver .. "/_matrix/client/v3/login",
 		body,
 		--- @param response neoment.Error<neoment.matrix.LoginResponse, neoment.matrix.api.Error>
 		function(response)
+			if client.client ~= requesting_client then
+				callback(error.err({ error = "The login was superseded by another login attempt" }))
+				return
+			end
+
 			local result = error.map(response, function(data)
-				client.client.access_token = data.access_token
-				client.client.user_id = data.user_id
-				client.client.homeserver = homeserver_from_well_known(data.well_known) or client.client.homeserver
+				requesting_client.access_token = data.access_token
+				requesting_client.user_id = data.user_id
+				requesting_client.homeserver = homeserver_from_well_known(data.well_known)
+					or requesting_client.homeserver
 				return nil
 			end) --[[@as neoment.Error<nil, neoment.matrix.api.Error>]]
 

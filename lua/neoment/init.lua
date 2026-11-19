@@ -75,6 +75,7 @@ end
 --- @class neoment.LoginContext
 --- @field homeserver string The homeserver base URL
 --- @field user_id? string The full Matrix ID, if the user entered one
+--- @field generation integer The login attempt this context belongs to
 
 --- Redirect URL used for SSO when the browser can't reach a local listener.
 --- The page fails to load, and the user copies the URL from the address bar.
@@ -86,6 +87,18 @@ local pending_sso_listener = nil
 
 --- Incremented on every login attempt, so callbacks of an older attempt can tell they are stale
 local login_generation = 0
+
+--- Build a login result handler that ignores the result of a superseded login attempt
+--- @param ctx neoment.LoginContext
+--- @return fun(data: neoment.Error<nil, neoment.matrix.api.Error>)
+local function login_result_handler(ctx)
+	return function(data)
+		if ctx.generation ~= login_generation then
+			return
+		end
+		handle_login_result(data)
+	end
+end
 
 --- Stop the SSO callback listener of the login in progress, if any
 local function close_pending_sso_listener()
@@ -102,8 +115,12 @@ local function is_remote_session()
 end
 
 --- Ask the user to paste the URL they were redirected to (or the login token) and log in with it
-local function prompt_login_token()
+--- @param ctx neoment.LoginContext
+local function prompt_login_token(ctx)
 	vim.ui.input({ prompt = "Paste the redirected URL or login token: " }, function(input)
+		if ctx.generation ~= login_generation then
+			return
+		end
 		local token, parse_error = auth.parse_login_token(input)
 		if not token then
 			if parse_error then
@@ -114,7 +131,7 @@ local function prompt_login_token()
 			return
 		end
 
-		auth.login_token(token, handle_login_result)
+		auth.login_token(token, login_result_handler(ctx))
 	end)
 end
 
@@ -127,7 +144,9 @@ local function manual_sso_login(ctx)
 			.. url
 	)
 	-- Notifications are scheduled, so schedule the prompt to show it after the URL
-	vim.schedule(prompt_login_token)
+	vim.schedule(function()
+		prompt_login_token(ctx)
+	end)
 end
 
 --- Log in with SSO through the browser
@@ -146,7 +165,7 @@ local function sso_login(ctx)
 				return
 			end
 			pending_sso_listener = nil
-			auth.login_token(token, handle_login_result)
+			auth.login_token(token, login_result_handler(ctx))
 		end,
 		on_timeout = function()
 			if pending_sso_listener ~= listener then
@@ -193,7 +212,7 @@ local function password_login(ctx)
 		return
 	end
 
-	auth.login_password(user, password, handle_login_result)
+	auth.login_password(user, password, login_result_handler(ctx))
 end
 
 --- Login handlers, mapped by login method
@@ -255,7 +274,7 @@ local function login()
 				end
 
 				--- @type neoment.LoginContext
-				local ctx = { homeserver = homeserver, user_id = user_id }
+				local ctx = { homeserver = homeserver, user_id = user_id, generation = generation }
 				local methods = result.data
 				if #methods == 1 then
 					LOGIN_HANDLERS[methods[1]](ctx)

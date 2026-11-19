@@ -146,6 +146,12 @@ describe("Login flow", function()
 		end
 		auth.login_password = function(user, password, callback)
 			table.insert(calls.login_password, { user = user, password = password })
+			if auth.defer_login then
+				calls.pending_login = function()
+					callback(auth.login_result)
+				end
+				return
+			end
 			callback(auth.login_result)
 		end
 		auth.login_token = function(token, callback)
@@ -347,6 +353,38 @@ describe("Login flow", function()
 
 		assert.are.equal(0, calls.pastes)
 		assert.is_false(notified("warning", "Did not receive the login"))
+	end)
+
+	it("should ignore the login result of a superseded attempt", function()
+		auth.methods = { "password" }
+		auth.defer_login = true
+		inputs = { "@alice:example.org", "@alice:example.org" }
+
+		run_login()
+		local stale_login = calls.pending_login
+		run_login()
+
+		stale_login()
+		vim.wait(50)
+
+		assert.are.equal(0, calls.toggled)
+		assert.is_false(notified("info", "Login successful"))
+	end)
+
+	it("should ignore a paste prompt from a superseded attempt", function()
+		vim.env.SSH_TTY = "/dev/pts/1"
+		auth.methods = { "sso" }
+		inputs = { "example.org", "example.org" }
+		local pending_prompts = {}
+		vim.ui.input = function(_, on_confirm)
+			table.insert(pending_prompts, on_confirm)
+		end
+
+		run_login()
+		run_login()
+		pending_prompts[1]("XYZ")
+
+		assert.are.same({}, calls.login_token)
 	end)
 
 	it("should show the server error when the token is rejected", function()

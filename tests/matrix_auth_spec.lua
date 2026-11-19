@@ -107,6 +107,10 @@ describe("Matrix auth", function()
 			assert.is_nil(auth.parse_server_name("@alice"))
 		end)
 
+		it("should remove trailing slashes from a bare server name", function()
+			assert.are.equal("example.org", auth.parse_server_name("example.org/"))
+		end)
+
 		it("should accept a homeserver URL without trailing slashes", function()
 			local server_name, user_id = auth.parse_server_name("https://matrix.example.org/")
 
@@ -428,6 +432,30 @@ describe("Matrix auth", function()
 
 			assert.is_true(error_mod.is_error(result))
 			assert.matches("Invalid Matrix ID", result.error.error, 1, true)
+		end)
+
+		it("should not store credentials on a client replaced during the request", function()
+			client.new("https://old.example.org")
+			local respond
+			curl_mock.post = function(_, opts)
+				respond = function()
+					opts.callback({
+						status = 200,
+						body = vim.json.encode({ access_token = "secret", user_id = "@alice:old.example.org" }),
+					})
+				end
+			end
+
+			local result
+			auth.login_password("@alice:old.example.org", "hunter2", function(r)
+				result = r
+			end)
+			client.set_homeserver("https://new.example.org")
+			respond()
+
+			assert.is_true(error_mod.is_error(result))
+			assert.is_nil(client.client.access_token)
+			assert.is_nil(client.client.user_id)
 		end)
 
 		it("should switch to the homeserver from the login response well_known", function()
