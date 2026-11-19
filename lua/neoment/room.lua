@@ -616,15 +616,19 @@ local function apply_highlights(buffer_id, room_id, lines)
 			local emoticon_start, emoticon_end, emoticon_title, emoticon_url =
 				line:find("%[img:%s*([^%]]+)%]%(([^%)]+)%)")
 			while emoticon_start and emoticon_end do
-				local extmark_id =
-					vim.api.nvim_buf_set_extmark(buffer_id, EXTMARK_NAMESPACE, index - 1, emoticon_start - 1, {
-						end_col = emoticon_end,
-						hl_group = "NeomentEmoticon",
-					})
-				new_extmarks_data[extmark_id] = {
-					emoticon_url = emoticon_url,
-					emoticon_title = emoticon_title,
-				}
+				-- Only mxc:// URLs are emoticons, any other URL could be typed by anyone and fetching it
+				-- would send the access token to an arbitrary server
+				if emoticon_url:match("^mxc://") then
+					local extmark_id =
+						vim.api.nvim_buf_set_extmark(buffer_id, EXTMARK_NAMESPACE, index - 1, emoticon_start - 1, {
+							end_col = emoticon_end,
+							hl_group = "NeomentEmoticon",
+						})
+					new_extmarks_data[extmark_id] = {
+						emoticon_url = emoticon_url,
+						emoticon_title = emoticon_title,
+					}
+				end
 				emoticon_start, emoticon_end, emoticon_title, emoticon_url =
 					line:find("%[img:%s*([^%]]+)%]%(([^%)]+)%)", emoticon_end)
 			end
@@ -1686,6 +1690,30 @@ local function get_mxc_image_under_cursor(buffer_id)
 	return nil
 end
 
+--- Remove the `access_token` query parameter from a media URL
+--- @param url string The media URL
+--- @return string The URL without the access token
+local function strip_access_token(url)
+	local stripped = url:gsub("([?&])access_token=[^&]*&?", "%1"):gsub("[?&]$", "")
+	return stripped
+end
+
+--- Build the attachment passed to `room.on_open_attachment` from a message attachment
+--- The message attachment URLs carry the access token, so the handler gets a copy without it
+--- @param message_attachment neoment.matrix.client.MessageAttachment The attachment of the message
+--- @return neoment.matrix.client.MessageAttachment The attachment for the handler
+local function to_handler_attachment(message_attachment)
+	local attachment = vim.deepcopy(message_attachment)
+	attachment.origin = "message"
+	if attachment.url then
+		attachment.url = strip_access_token(attachment.url)
+	end
+	if attachment.thumbnail and attachment.thumbnail.url then
+		attachment.thumbnail.url = strip_access_token(attachment.thumbnail.url)
+	end
+	return attachment
+end
+
 --- Open the attachment of the message under the cursor
 M.open_attachment = function()
 	local buffer_id = vim.api.nvim_get_current_buf()
@@ -1697,17 +1725,28 @@ M.open_attachment = function()
 		if mxc_url then
 			local title = mxc_data.emoticon_title or mxc_data.reaction_label or "image"
 			local filename = title:gsub("[^%w%.%-_]", "_") .. ".png"
-			local url = util.mxc_to_url(matrix.client.homeserver, mxc_url)
-				.. "?access_token="
-				.. matrix.client.access_token
+			local media_url = util.mxc_to_url(matrix.client.homeserver, mxc_url)
+			local url = media_url .. "?access_token=" .. matrix.client.access_token
+
+			-- The mimetype is a guess, the file is always saved as PNG
+			--- @type neoment.matrix.client.MessageImage
+			local attachment = {
+				type = "image",
+				mimetype = "image/png",
+				url = media_url,
+				mxc_url = mxc_url,
+				filename = filename,
+				origin = mxc_data.emoticon_url and "emoticon" or "reaction",
+			}
 
 			notify.info("Fetching attachment " .. filename .. "...")
 
 			storage.fetch_to_temp(filename, url, function(error_path)
 				error.match(error_path, function(path)
 					notify.info("Opening attachment " .. filename .. "...")
+					local handler = config.get().room.on_open_attachment
 					vim.schedule(function()
-						vim.ui.open(path)
+						handler(path, attachment)
 					end)
 					return nil
 				end, function(err)
@@ -1738,8 +1777,9 @@ M.open_attachment = function()
 			error.match(error_path, function(path)
 				notify.info("Opening attachment " .. filename .. "...")
 				local handler = config.get().room.on_open_attachment
+				local attachment = to_handler_attachment(message.attachment)
 				vim.schedule(function()
-					handler(path, message.attachment)
+					handler(path, attachment)
 				end)
 				return nil
 			end, function(err)
@@ -2225,5 +2265,6 @@ end
 
 -- Expose for testing
 M._update_buffer_lines_diff = update_buffer_lines_diff
+M._get_buffer_data = get_buffer_data
 
 return M
