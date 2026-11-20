@@ -73,6 +73,12 @@ M.start = function(client, on_done, options)
 	sync_options.set_presence = matrix.get_desired_presence() or "online"
 
 	matrix.sync(sync_options, function(data)
+		-- The response belongs to a session that already ended. A sync started for the new session
+		-- owns the loop state now, so leave it (keep_syncing, status, error_count) alone.
+		if data:is_error() and data.error.stale then
+			return
+		end
+
 		status = error.match(data, function(actual_data)
 			error_count = 0
 			local sync_data = actual_data.sync
