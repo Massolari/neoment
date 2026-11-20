@@ -1818,23 +1818,32 @@ M.save_attachment = function()
 						save_path = save_path .. "/" .. filename
 					end
 
+					local function write_attachment()
+						vim.fn.writefile(vim.fn.readblob(path), save_path)
+						notify.info("Attachment saved to " .. save_path)
+					end
+
 					if vim.fn.filereadable(save_path) == 1 then
 						vim.ui.select({ "Yes", "No" }, { prompt = "File exists. Overwrite?" }, function(choice)
 							if not choice then
 								return
 							end
 							if choice == "No" then
-								local base, ext = save_path:match("^(.*)%.(.*)$")
+								local base, ext = save_path:match("^(.*)(%.[^./]*)$")
+								if not base then
+									base, ext = save_path, ""
+								end
 								local counter = 1
 								while vim.fn.filereadable(save_path) == 1 do
-									save_path = string.format("%s(%d).%s", base, counter, ext)
+									save_path = string.format("%s(%d)%s", base, counter, ext)
 									counter = counter + 1
 								end
 							end
 
-							vim.fn.writefile(vim.fn.readblob(path), save_path)
-							notify.info("Attachment saved to " .. save_path)
+							write_attachment()
 						end)
+					else
+						write_attachment()
 					end
 					return nil
 				end, function(err)
