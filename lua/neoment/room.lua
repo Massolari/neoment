@@ -1829,10 +1829,13 @@ M.save_attachment = function()
 								return
 							end
 							if choice == "No" then
-								local base, ext = save_path:match("^(.*)%.(.*)$")
+								local base, ext = save_path:match("^(.*)(%.[^./]*)$")
+								if not base then
+									base, ext = save_path, ""
+								end
 								local counter = 1
 								while vim.fn.filereadable(save_path) == 1 do
-									save_path = string.format("%s(%d).%s", base, counter, ext)
+									save_path = string.format("%s(%d)%s", base, counter, ext)
 									counter = counter + 1
 								end
 							end
