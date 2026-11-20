@@ -50,7 +50,11 @@ describe("room save_attachment", function()
 				callback(require("neoment.error").ok(source))
 			end,
 		}
-		package.loaded["neoment.config"] = { get = function() return { room = {} } end }
+		package.loaded["neoment.config"] = {
+			get = function()
+				return { room = {} }
+			end,
+		}
 		package.loaded["neoment.notify"] = {
 			info = function(message)
 				table.insert(notifications, message)
