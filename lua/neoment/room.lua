@@ -1818,6 +1818,11 @@ M.save_attachment = function()
 						save_path = save_path .. "/" .. filename
 					end
 
+					local function write_attachment()
+						vim.fn.writefile(vim.fn.readblob(path), save_path)
+						notify.info("Attachment saved to " .. save_path)
+					end
+
 					if vim.fn.filereadable(save_path) == 1 then
 						vim.ui.select({ "Yes", "No" }, { prompt = "File exists. Overwrite?" }, function(choice)
 							if not choice then
@@ -1832,9 +1837,10 @@ M.save_attachment = function()
 								end
 							end
 
-							vim.fn.writefile(vim.fn.readblob(path), save_path)
-							notify.info("Attachment saved to " .. save_path)
+							write_attachment()
 						end)
+					else
+						write_attachment()
 					end
 					return nil
 				end, function(err)
