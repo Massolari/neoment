@@ -441,9 +441,17 @@ M.sync = function(options, callback)
 		query_params = "?" .. table.concat(params, "&")
 	end
 
+	local requesting_client = client.client
 	api.authed.get(
 		client.client.homeserver .. "/_matrix/client/v3/sync" .. query_params,
 		vim.schedule_wrap(function(response)
+			-- The session ended (logout or expiry) while the request was in flight: the response belongs
+			-- to a client that is gone, so it must not touch the new one.
+			if client.client ~= requesting_client then
+				callback(error.err({ error = "Session ended", session_expired = true }))
+				return
+			end
+
 			local result = error.map(response, function(data)
 				--- @type neoment.matrix.SyncResponse
 				local sync_data = data
