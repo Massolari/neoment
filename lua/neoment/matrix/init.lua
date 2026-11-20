@@ -314,6 +314,11 @@ local function handle_sync_joined_rooms(joined_rooms)
 			room_updated = true
 		end
 
+		-- The server decides one-to-one push rules by this count, so keep it to show which global level applies
+		if room_data.summary and room_data.summary["m.joined_member_count"] then
+			client.get_room(room_id).joined_member_count = room_data.summary["m.joined_member_count"]
+		end
+
 		if
 			room_data.summary
 			and not vim.tbl_isempty(room_data.summary)
@@ -354,8 +359,14 @@ local function handle_sync_joined_rooms(joined_rooms)
 		end
 
 		if room_data.unread_notifications then
-			client.get_room(room_id).unread_notifications = room_data.unread_notifications.notification_count
-			client.get_room(room_id).unread_highlights = room_data.unread_notifications.highlight_count
+			local room = client.get_room(room_id)
+			local old_counts = {
+				notification_count = room.unread_notifications,
+				highlight_count = room.unread_highlights,
+			}
+			room.unread_notifications = room_data.unread_notifications.notification_count
+			room.unread_highlights = room_data.unread_notifications.highlight_count
+			require("neoment.notify").room_counts_changed(room, old_counts, room_data.unread_notifications)
 		end
 
 		if room_updated then
@@ -494,6 +505,9 @@ M.sync = function(options, callback)
 						end
 					end
 				end
+
+				-- The messages kept for this sync's notifications must not be shown by a later one
+				require("neoment.notify").clear_candidates()
 
 				return { sync = data, updated_rooms = updated_rooms }
 			end) --[[@as neoment.Error<{ sync: neoment.matrix.SyncResponse, updated_rooms: table<string> }, neoment.matrix.api.Error>]]

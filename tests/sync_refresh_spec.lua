@@ -55,6 +55,8 @@ describe("sync with an expiring access token", function()
 			end,
 			info = function() end,
 			desktop_message = function() end,
+			room_counts_changed = function() end,
+			clear_candidates = function() end,
 		}
 		package.loaded["neoment.rooms"] = { update_room_list = function() end }
 		package.loaded["neoment.storage"] = {

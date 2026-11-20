@@ -156,11 +156,15 @@ vim.g.neoment = {
 		vim.notify(msg, level, opts)
 	end,
 	
-	-- Desktop notifications can be configured per room type.
-	-- The buffer setting applies to currently open rooms (excluding the focused room),
-	-- while favorites, people, and rooms settings apply to all rooms of those types.
+	-- Desktop notifications. See "Desktop notifications" below for how the source works.
 	desktop_notifications = {
 		enabled = true,  -- Enable or disable desktop notifications (default: true)
+
+		-- What decides which messages notify (default: "server"):
+		-- "server" - your Matrix account's notification settings (push rules), shared with
+		--            Element and other clients. The levels below are ignored.
+		-- "custom" - the levels below (buffer, favorites, people, rooms, per_room).
+		source = "server",
 		
 		-- Custom desktop notifier handler (optional)
 		-- By default, uses vim.fn.system to call:
@@ -177,7 +181,9 @@ vim.g.neoment = {
 			end
 		end,
 		
-		-- Notification levels for different room types
+		-- Notification levels for different room types, used only when source = "custom".
+		-- The buffer setting applies to currently open rooms (excluding the focused room),
+		-- while favorites, people, and rooms settings apply to all rooms of those types.
 		-- Options: "all", "mentions", "none"
 		-- "all" - notify for all new messages
 		-- "mentions" - notify only for mentions/highlights
@@ -185,7 +191,7 @@ vim.g.neoment = {
 		buffer = "all", -- When buffer is set to "none", it'll inherit the room setting from its type
 		favorites = "all",
 		people = "all",
-		rooms = "mentions"
+		rooms = "mentions",
 		
 		-- You can also set notification levels per room ID or alias by using a table:
 		per_room = {
@@ -286,6 +292,18 @@ vim.g.neoment = {
 	},
 }
 ```
+
+### Desktop notifications
+
+`desktop_notifications.source` chooses what decides which new messages show a desktop notification:
+
+- `"server"` (default): Neoment follows the notification settings stored on your Matrix account (push rules), the same ones Element and other clients use. The homeserver counts the messages that should notify in each room, and Neoment shows one notification when that count goes up in a sync, with the newest message from someone else in the room. A room muted in Element stays silent in Neoment. Only `enabled` and `handler` apply; the levels are ignored. If you read a room in another client while a new message arrives, the count may not go up and that message will not notify.
+- `"custom"`: Neoment decides from the levels in the config (`buffer`, `favorites`, `people`, `rooms`, `per_room`), ignoring the account's settings. This was the only behavior before `source` existed.
+
+With either source, Neoment never notifies during the first sync, for your own messages, or for the room in the current buffer while Neovim has focus.
+
+> [!WARNING]
+> **BREAKING**: the default source is now `"server"`. If you set any of `buffer`, `favorites`, `people`, `rooms` or `per_room`, add `source = "custom"` to keep using them. Neoment warns once per session when it finds these levels without a `source`.
 
 ### Using neoment on a TTY
 

@@ -127,6 +127,8 @@ local function get_stripped_room(room)
 		-- Store unread counts to display in the room list
 		unread_notifications = room.unread_notifications,
 		unread_highlights = room.unread_highlights,
+		-- Store the member count to know which global notification level applies to the room
+		joined_member_count = room.joined_member_count,
 		unread = room.unread,
 		read_receipt = room.read_receipt,
 	}

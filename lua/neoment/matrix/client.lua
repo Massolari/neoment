@@ -43,6 +43,7 @@ M.client = nil
 --- @field fully_read? string The event ID of the last fully read message in the room.
 --- @field unread_notifications integer The number of unread notifications for this room.
 --- @field unread_highlights integer The number of unread highlights for this room.
+--- @field joined_member_count? integer The number of joined members from the room summary, nil until a sync delivers it.
 --- @field unread boolean Indicates if the room was marked as unread.
 --- @field read_receipt? neoment.matrix.client.ReadReceipt The read receipt of the user in the room, containing the event ID and timestamp of the last read event.
 --- @field avatar_url? string The URL for the room's avatar (mxc:// format).
