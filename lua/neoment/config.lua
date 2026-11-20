@@ -249,7 +249,7 @@ M.load = function()
 		if has_custom_levels then
 			warned_about_custom_levels = true
 			require("neoment.notify").warning(
-				"The desktop_notifications levels (buffer, favorites, people, rooms, per_room) are ignored because notifications now follow your Matrix push rules. Set desktop_notifications.source = \"custom\" to use them."
+				'The desktop_notifications levels (buffer, favorites, people, rooms, per_room) are ignored because notifications now follow your Matrix push rules. Set desktop_notifications.source = "custom" to use them.'
 			)
 		end
 	end

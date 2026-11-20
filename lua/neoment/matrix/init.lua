@@ -243,6 +243,8 @@ local function handle_sync_account_data(account_data)
 					end
 				end
 			end
+		elseif event_.type == "m.push_rules" then
+			client.client.push_rules = event_.content
 		end
 	end
 
@@ -1401,6 +1403,87 @@ end
 --- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any The callback function to handle the response.
 M.remove_room_tag = function(room_id, tag, user_id, callback)
 	add_remove_room_tag(room_id, tag, user_id, false, callback)
+end
+
+--- Get the account's push rules, nil until they are received from the homeserver
+--- @return neoment.matrix.client.PushRuleset|nil
+M.get_push_rules = function()
+	return client.client.push_rules
+end
+
+--- Build the URL of a global push rule.
+--- The rule ID is percent-encoded, as room IDs contain `!` and `:`.
+--- @param kind neoment.matrix.client.PushRuleKind The kind of the rule.
+--- @param rule_id string The ID of the rule.
+--- @param suffix? string An attribute of the rule, such as "actions" or "enabled".
+--- @return string The URL
+local function push_rule_url(kind, rule_id, suffix)
+	local encoded_id = rule_id:gsub("[^%w%-%._~]", function(char)
+		return string.format("%%%02X", string.byte(char))
+	end)
+	local url = client.client.homeserver .. "/_matrix/client/v3/pushrules/global/" .. kind .. "/" .. encoded_id
+	return suffix and (url .. "/" .. suffix) or url
+end
+
+--- Map a response with no useful body to nil
+--- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any
+--- @return fun(response: neoment.Error<any, neoment.matrix.api.Error>)
+local function ignore_body(callback)
+	return function(response)
+		callback(error.map(response, function()
+			return nil
+		end))
+	end
+end
+
+--- Fetch the account's push rules and store them on the client
+--- @param callback fun(data: neoment.Error<neoment.matrix.client.PushRuleset, neoment.matrix.api.Error>): any
+M.fetch_push_rules = function(callback)
+	local requesting_client = client.client
+	api.authed.get(client.client.homeserver .. "/_matrix/client/v3/pushrules/", function(response)
+		callback(error.map(response, function(data)
+			-- Don't store the rules on a client that replaced the one that asked for them
+			if client.client == requesting_client then
+				client.client.push_rules = data
+			end
+			return data
+		end))
+	end)
+end
+
+--- Create or replace a user-defined push rule
+--- @param kind neoment.matrix.client.PushRuleKind The kind of the rule.
+--- @param rule_id string The ID of the rule.
+--- @param body table The rule body, with `actions` and, depending on the kind, `conditions` or `pattern`.
+--- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any
+M.set_push_rule = function(kind, rule_id, body, callback)
+	api.authed.put(push_rule_url(kind, rule_id), body, ignore_body(callback))
+end
+
+--- Delete a user-defined push rule
+--- @param kind neoment.matrix.client.PushRuleKind The kind of the rule.
+--- @param rule_id string The ID of the rule.
+--- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any
+M.delete_push_rule = function(kind, rule_id, callback)
+	api.authed.delete(push_rule_url(kind, rule_id), ignore_body(callback))
+end
+
+--- Set the actions of a push rule, including server-default rules
+--- @param kind neoment.matrix.client.PushRuleKind The kind of the rule.
+--- @param rule_id string The ID of the rule.
+--- @param actions table The new actions.
+--- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any
+M.set_push_rule_actions = function(kind, rule_id, actions, callback)
+	api.authed.put(push_rule_url(kind, rule_id, "actions"), { actions = actions }, ignore_body(callback))
+end
+
+--- Enable or disable a push rule, including server-default rules
+--- @param kind neoment.matrix.client.PushRuleKind The kind of the rule.
+--- @param rule_id string The ID of the rule.
+--- @param enabled boolean Whether the rule is enabled.
+--- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any
+M.set_push_rule_enabled = function(kind, rule_id, enabled, callback)
+	api.authed.put(push_rule_url(kind, rule_id, "enabled"), { enabled = enabled }, ignore_body(callback))
 end
 
 --- Check if the room is a space

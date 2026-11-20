@@ -197,7 +197,10 @@ describe("notify desktop notifications", function()
 		it("notifies once for several messages, showing the newest", function()
 			local room = make_room()
 			notify.desktop_message(room, make_message({ id = "$1", content = "first", timestamp = 1 }))
-			notify.desktop_message(room, make_message({ id = "$2", sender = "@bob:server", content = "second", timestamp = 2 }))
+			notify.desktop_message(
+				room,
+				make_message({ id = "$2", sender = "@bob:server", content = "second", timestamp = 2 })
+			)
 
 			notify.room_counts_changed(room, counts(0), counts(4))
 
