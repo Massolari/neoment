@@ -446,9 +446,10 @@ M.sync = function(options, callback)
 		client.client.homeserver .. "/_matrix/client/v3/sync" .. query_params,
 		vim.schedule_wrap(function(response)
 			-- The session ended (logout or expiry) while the request was in flight: the response belongs
-			-- to a client that is gone, so it must not touch the new one.
+			-- to a client that is gone, so it must not touch the new one. The error is flagged `stale`
+			-- (not `session_expired`) so the caller drops it without reacting to a session it no longer owns.
 			if client.client ~= requesting_client then
-				callback(error.err({ error = "Session ended", session_expired = true }))
+				callback(error.err({ error = "Session ended", stale = true }))
 				return
 			end
 

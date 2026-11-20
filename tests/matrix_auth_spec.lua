@@ -951,7 +951,7 @@ describe("Matrix auth", function()
 			end)
 
 			assert.is_true(sync_result:is_error())
-			assert.is_true(sync_result.error.session_expired)
+			assert.is_true(sync_result.error.stale)
 			assert.is_nil(client.client.sync_token)
 			assert.are.same({}, client.client.rooms)
 		end)

@@ -20,3 +20,13 @@ After the server accepts a logout, the client SHALL discard all session state he
 #### Scenario: Logout fails
 - **WHEN** the server rejects the logout request
 - **THEN** the access token, rooms and other session state remain in memory
+
+#### Scenario: Logout fails keeps syncing
+- **WHEN** the server rejects the logout request
+- **THEN** synchronization keeps running for the unchanged session
+
+#### Scenario: Sync response after the session ended
+- **GIVEN** a sync request was in flight when the session ended
+- **WHEN** its response arrives
+- **THEN** it is discarded and does not touch the client
+- **AND** it does not stop or restart a sync started for a new session
