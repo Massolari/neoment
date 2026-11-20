@@ -63,7 +63,7 @@ M.logout = function(callback)
 	--- @param response neoment.Error<any, neoment.matrix.api.Error>
 	local function finish(response)
 		callback(error.map(response, function()
-			client.new(c.homeserver)
+			client.set_homeserver(c.homeserver)
 			return nil
 		end))
 	end
