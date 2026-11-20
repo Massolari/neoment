@@ -248,6 +248,32 @@ describe("Matrix OAuth", function()
 			assert.are.equal("client-1", saved_clients[METADATA.issuer])
 		end)
 
+		it("rejects a verification URL that is not HTTP(S)", function()
+			local result
+			request(function(r)
+				result = r
+			end)
+			respond(200, { device_code = "DEV", user_code = "ABCD", verification_uri = "file:///etc/passwd" })
+
+			assert.is_true(error_mod.is_error(result))
+		end)
+
+		it("ignores a complete verification URL that is not HTTP(S)", function()
+			local result
+			request(function(r)
+				result = r
+			end)
+			respond(200, {
+				device_code = "DEV",
+				user_code = "ABCD",
+				verification_uri = "https://auth.example.org/link",
+				verification_uri_complete = "javascript:alert(1)",
+			})
+
+			assert.are.equal("https://auth.example.org/link", result.data.verification_url)
+			assert.is_false(result.data.code_in_url)
+		end)
+
 		it("reports an incomplete response", function()
 			local result
 			request(function(r)

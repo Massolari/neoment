@@ -32,12 +32,7 @@ local METHOD_ORDER = { "oauth_device", "password", "sso" }
 --- Curl arguments that bound the time spent on discovery requests, so an unreachable host fails fast.
 local DISCOVERY_CURL_ARGS = { "--connect-timeout", "5", "--max-time", "10" }
 
---- Check if a string is an HTTP(S) URL. The scheme is matched case-insensitively.
---- @param value string
---- @return boolean
-local function is_http_url(value)
-	return value:lower():match("^https?://") ~= nil
-end
+local is_http_url = require("neoment.util").is_http_url
 
 --- Read the homeserver base URL from a `.well-known/matrix/client` object.
 --- Base URLs that are not HTTP(S) URLs are ignored, so a missing scheme never falls back to another protocol.

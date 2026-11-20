@@ -317,6 +317,13 @@ M.media_headers = function(url)
 	return { Authorization = "Bearer " .. access_token }
 end
 
+--- Check if a string is an HTTP(S) URL. The scheme is matched case-insensitively.
+--- @param value string
+--- @return boolean
+M.is_http_url = function(value)
+	return value:lower():match("^https?://") ~= nil
+end
+
 --- Encode a list of key/value pairs as an `application/x-www-form-urlencoded` body
 --- @param fields string[][] The `{ key, value }` pairs, in the order they are sent.
 --- @return string

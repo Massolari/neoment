@@ -117,12 +117,17 @@ M.request_device_code = function(metadata, client_id, device_id, callback)
 				type(data.device_code) ~= "string"
 				or type(data.user_code) ~= "string"
 				or type(data.verification_uri) ~= "string"
+				or not util.is_http_url(data.verification_uri)
 			then
 				callback(error.err({ error = "The server returned an incomplete device authorization response" }))
 				return
 			end
 
-			local complete = type(data.verification_uri_complete) == "string" and data.verification_uri_complete or nil
+			-- The URL is opened in a browser, so anything that is not HTTP(S) is ignored
+			local complete = type(data.verification_uri_complete) == "string"
+					and util.is_http_url(data.verification_uri_complete)
+					and data.verification_uri_complete
+				or nil
 			callback(error.ok({
 				device_code = data.device_code,
 				user_code = data.user_code,
