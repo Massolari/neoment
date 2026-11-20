@@ -11,6 +11,7 @@ local client = require("neoment.matrix.client")
 --- @field errcode neoment.matrix.api.ErrCode The error code.
 --- @field status? integer The HTTP status of the response, when the server answered.
 --- @field soft_logout? boolean Set on `M_UNKNOWN_TOKEN` when the access token expired but the device is still valid, so it can be refreshed.
+--- @field stale? boolean Set when the response belongs to a session that ended while the request was in flight and must be discarded.
 --- @field session_expired? boolean Set when the session can no longer be used and the user has to log in again.
 
 --- @class neoment.matrix.api.RequestOptions

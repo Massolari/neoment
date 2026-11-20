@@ -85,4 +85,27 @@ describe("sync", function()
 		-- The loop goes on with the next request
 		assert.are.equal(2, sync_calls)
 	end)
+
+	it("drops a stale response without stopping a sync started after it", function()
+		local callbacks = {}
+		matrix_mock.sync = function(_, callback)
+			sync_calls = sync_calls + 1
+			table.insert(callbacks, callback)
+		end
+
+		sync.start({}, function() end, { save_session = false })
+		sync.stop()
+		sync.start({}, function() end, { save_session = false })
+		assert.are.equal(2, sync_calls)
+
+		-- The request of the old session answers after the new loop started
+		callbacks[1](error_mod.err({ error = "Session ended", stale = true }))
+		assert.are.equal(2, sync_calls)
+		assert.are.same({}, notifications.error)
+		assert.are.equal("syncing", sync.get_status().kind)
+
+		-- The new loop keeps going once its own request answers
+		callbacks[2](error_mod.ok({ sync = { next_batch = "n" }, updated_rooms = {} }))
+		assert.are.equal(3, sync_calls)
+	end)
 end)

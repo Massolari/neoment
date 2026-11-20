@@ -798,6 +798,7 @@ describe("Login flow", function()
 
 			neoment.logout()
 
+			assert.are.equal(0, stopped)
 			assert.are.equal(0, cleared)
 			assert.is_true(notified("error", "Logout failed: Revocation failed"))
 		end)

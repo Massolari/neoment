@@ -63,7 +63,7 @@ M.logout = function(callback)
 	--- @param response neoment.Error<any, neoment.matrix.api.Error>
 	local function finish(response)
 		callback(error.map(response, function()
-			client.new(c.homeserver)
+			client.set_homeserver(c.homeserver)
 			return nil
 		end))
 	end
@@ -441,9 +441,18 @@ M.sync = function(options, callback)
 		query_params = "?" .. table.concat(params, "&")
 	end
 
+	local requesting_client = client.client
 	api.authed.get(
 		client.client.homeserver .. "/_matrix/client/v3/sync" .. query_params,
 		vim.schedule_wrap(function(response)
+			-- The session ended (logout or expiry) while the request was in flight: the response belongs
+			-- to a client that is gone, so it must not touch the new one. The error is flagged `stale`
+			-- (not `session_expired`) so the caller drops it without reacting to a session it no longer owns.
+			if client.client ~= requesting_client then
+				callback(error.err({ error = "Session ended", stale = true }))
+				return
+			end
+
 			local result = error.map(response, function(data)
 				--- @type neoment.matrix.SyncResponse
 				local sync_data = data

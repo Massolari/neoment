@@ -876,6 +876,135 @@ describe("Matrix auth", function()
 		end)
 	end)
 
+	describe("logout", function()
+		local LOGOUT_URL = "https://matrix.example.org/_matrix/client/v3/logout"
+
+		--- Fill the client with a logged-in session
+		local function login_session()
+			client.new("https://matrix.example.org")
+			client.client.device_id = "DEVICE1"
+			client.client.access_token = "secret"
+			client.client.refresh_token = "RT"
+			client.client.expires_at = os.time() + 3600
+			client.client.user_id = "@alice:example.org"
+			client.client.sync_token = "s1"
+			client.client.rooms["!room:example.org"] = { id = "!room:example.org" }
+			client.client.spaces["!space:example.org"] = { id = "!space:example.org" }
+			client.client.invited_rooms["!invite:example.org"] = { id = "!invite:example.org" }
+			client.client.display_names["@bob:example.org"] = "Bob"
+			client.client.user_presence["@bob:example.org"] = { presence = "online" }
+		end
+
+		it("clears the session after the server accepts the logout", function()
+			login_session()
+			curl_mock.post = function(url, opts)
+				assert.are.equal(LOGOUT_URL, url)
+				opts.callback({ status = 200, body = "{}" })
+			end
+
+			local result
+			matrix.logout(function(r)
+				result = r
+			end)
+
+			assert.is_true(error_mod.is_ok(result))
+			assert.is_false(matrix.is_logged_in())
+			assert.are.same({}, client.client.rooms)
+			assert.are.same({}, client.client.spaces)
+			assert.are.same({}, client.client.invited_rooms)
+			assert.are.same({}, client.client.display_names)
+			assert.are.same({}, client.client.user_presence)
+			assert.is_nil(client.client.access_token)
+			assert.is_nil(client.client.refresh_token)
+			assert.is_nil(client.client.expires_at)
+			assert.is_nil(client.client.refresh)
+			assert.is_nil(client.client.user_id)
+			assert.is_nil(client.client.sync_token)
+			assert.are.equal("https://matrix.example.org", client.client.homeserver)
+			assert.are.equal("DEVICE1", client.client.device_id)
+		end)
+
+		it("ignores a sync response that arrives after the logout", function()
+			login_session()
+			local sync_opts
+			curl_mock.get = function(_, opts)
+				sync_opts = opts
+			end
+			local sync_result
+			matrix.sync({}, function(r)
+				sync_result = r
+			end)
+			curl_mock.post = function(_, opts)
+				opts.callback({ status = 200, body = "{}" })
+			end
+			matrix.logout(function() end)
+
+			sync_opts.callback({
+				status = 200,
+				body = vim.json.encode({
+					next_batch = "s2",
+					rooms = { join = { ["!late:example.org"] = {} } },
+				}),
+			})
+			vim.wait(50, function()
+				return sync_result ~= nil
+			end)
+
+			assert.is_true(sync_result:is_error())
+			assert.is_true(sync_result.error.stale)
+			assert.is_nil(client.client.sync_token)
+			assert.are.same({}, client.client.rooms)
+		end)
+
+		it("keeps the session when the server rejects the logout", function()
+			login_session()
+			curl_mock.post = function(_, opts)
+				opts.callback({
+					status = 500,
+					body = vim.json.encode({ errcode = "M_UNKNOWN", error = "boom" }),
+				})
+			end
+
+			local result
+			matrix.logout(function(r)
+				result = r
+			end)
+
+			assert.is_false(error_mod.is_ok(result))
+			assert.is_true(matrix.is_logged_in())
+			assert.are.equal("secret", client.client.access_token)
+			assert.is_not_nil(client.client.rooms["!room:example.org"])
+		end)
+
+		it("clears the session after revoking an OAuth refresh token", function()
+			login_session()
+			client.client.refresh_token = "RT"
+			client.client.refresh = {
+				kind = "oauth",
+				token_endpoint = "https://auth.example.org/oauth2/token",
+				client_id = "client-1",
+				revocation_endpoint = "https://auth.example.org/oauth2/revoke",
+			}
+			local revoked_url
+			curl_mock.post = function(url, opts)
+				revoked_url = url
+				opts.callback({ status = 200, body = "", exit = 0 })
+			end
+
+			local result
+			matrix.logout(function(r)
+				result = r
+			end)
+
+			assert.is_true(error_mod.is_ok(result))
+			assert.are.equal("https://auth.example.org/oauth2/revoke", revoked_url)
+			assert.is_false(matrix.is_logged_in())
+			assert.are.same({}, client.client.rooms)
+			assert.is_nil(client.client.access_token)
+			assert.is_nil(client.client.refresh_token)
+		end)
+	end)
+
 	describe("sso_redirect_url", function()
 		it("should encode the redirect URL", function()
 			local url = auth.sso_redirect_url("https://mozilla.modular.im", "http://127.0.0.1:4567/")

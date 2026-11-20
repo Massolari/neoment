@@ -587,10 +587,9 @@ end
 
 --- Logout from the Matrix server
 M.logout = function()
-	sync.stop()
-
 	matrix.logout(function(logged_out)
 		error.match(logged_out, function()
+			sync.stop()
 			storage.clear_session()
 
 			collectgarbage("collect")
