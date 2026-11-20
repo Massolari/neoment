@@ -25,12 +25,12 @@ The client SHALL keep the account's push rules as received from the homeserver, 
 - **THEN** an error naming the failure is shown and no window opens
 
 ### Requirement: Global notification levels
-The client SHALL derive a global level for **Direct messages** and one for **Group rooms**: "All messages" when that category's message rule is enabled and notifies, otherwise "Mentions and replies only". Direct messages SHALL be rooms with exactly two joined members, matching the server's one-to-one rule.
+The client SHALL derive a global level for **One-to-one rooms** and one for **Group rooms**: "All messages" when that category's message rule is enabled and notifies, otherwise "Mentions and replies only". One-to-one rooms SHALL be rooms with exactly two joined members, as the server's rule decides, regardless of whether Neoment lists the room as a direct message.
 
 #### Scenario: Default server rules
 - **GIVEN** the account has the server-default push rules
 - **WHEN** the global levels are derived
-- **THEN** both Direct messages and Group rooms are "All messages"
+- **THEN** both One-to-one rooms and Group rooms are "All messages"
 
 #### Scenario: Group message rule does not notify
 - **GIVEN** the group message rule is enabled with no notify action
@@ -40,12 +40,22 @@ The client SHALL derive a global level for **Direct messages** and one for **Gro
 #### Scenario: One-to-one rule disabled
 - **GIVEN** the one-to-one message rule is disabled
 - **WHEN** the global levels are derived
-- **THEN** Direct messages is "Mentions and replies only"
+- **THEN** One-to-one rooms is "Mentions and replies only"
 
 #### Scenario: Room with three members marked as direct
 - **GIVEN** a room is marked as direct but has three joined members
 - **WHEN** the global level that applies to the room is derived
 - **THEN** the Group rooms level applies
+
+#### Scenario: Two-member room not marked as direct
+- **GIVEN** a room is not marked as direct and has two joined members
+- **WHEN** the global level that applies to the room is derived
+- **THEN** the One-to-one rooms level applies
+
+#### Scenario: Neoment direct toggle
+- **GIVEN** a room with three joined members applies the Group rooms level
+- **WHEN** the user marks it as direct with the room list's direct toggle
+- **THEN** the Group rooms level still applies
 
 ### Requirement: Room notification levels
 The client SHALL derive a room's level from the push rules: "None" when an enabled override rule for exactly that room does not notify; else "All messages" or "Mentions and replies only" when an enabled room rule for it notifies or does not; else "Global settings".
@@ -84,9 +94,9 @@ Setting a global level SHALL update on the homeserver both the plain and the enc
 - **THEN** the group message rule and the encrypted group message rule are enabled with no notify action
 - **AND** the user mention rules are unchanged
 
-#### Scenario: Direct messages to all messages
+#### Scenario: One-to-one rooms to all messages
 - **GIVEN** the one-to-one message rule is disabled
-- **WHEN** the user sets Direct messages to "All messages"
+- **WHEN** the user sets One-to-one rooms to "All messages"
 - **THEN** the one-to-one and encrypted one-to-one rules are enabled with a notify action
 
 ### Requirement: Changing a room level
@@ -115,7 +125,7 @@ When the homeserver rejects or fails a settings change, the client SHALL show an
 - **THEN** an error is shown and the window still marks "Global settings" as current
 
 ### Requirement: Global notification settings window
-In the room list, `<localleader>n` (`<Plug>NeomentRoomsNotificationSettings`) SHALL open a floating window listing the Direct messages and Group rooms levels, each with "All messages" and "Mentions and replies only" and the current one marked. `<CR>` on an option SHALL apply it and update the marks. `q` or `<Esc>` SHALL close the window.
+In the room list, `<localleader>n` (`<Plug>NeomentRoomsNotificationSettings`) SHALL open a floating window listing the levels of "One-to-one rooms (2 members)" and "Group rooms (3+ members)", each with "All messages" and "Mentions and replies only" and the current one marked. `<CR>` on an option SHALL apply it and update the marks. `q` or `<Esc>` SHALL close the window.
 
 #### Scenario: Open from the room list
 - **WHEN** the user presses `<localleader>n` in the room list

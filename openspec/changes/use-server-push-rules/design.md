@@ -51,7 +51,7 @@ Add `desktop_notifications.source` (`"server"|"custom"`, default `"server"`) to 
 | Room: All messages | `room` rule `room_id`, actions `["notify"]` |
 | Room: Mentions and replies only | `room` rule `room_id`, actions `[]` |
 | Room: None | `override` rule `room_id`, conditions `[{kind="event_match", key="room_id", pattern=room_id}]`, actions `[]` |
-| Global DMs | `.m.rule.room_one_to_one` + `.m.rule.encrypted_room_one_to_one` (underride) |
+| Global one-to-one rooms | `.m.rule.room_one_to_one` + `.m.rule.encrypted_room_one_to_one` (underride) |
 | Global groups | `.m.rule.message` + `.m.rule.encrypted` (underride) |
 
 - Reading a room override as "None" requires it to be enabled, have that single `event_match room_id` condition, and not notify. Any other override with that ID is ignored, so other clients' rules are not misread.
@@ -61,7 +61,7 @@ Add `desktop_notifications.source` (`"server"|"custom"`, default `"server"`) to 
 - After the requests finish, successful or not, the module re-fetches the push rules and re-renders, so the window shows the real server state (spec: "Failed changes are reported").
 
 ### 6. Which global level applies to a room
-Store `room.joined_member_count` from `summary["m.joined_member_count"]` whenever a sync includes it, and persist it in `get_stripped_room`. A room is a DM for push purposes when that count is 2. When the count is unknown (old cache), fall back to `room.is_direct`. This mirrors the server's `room_member_count == 2` condition instead of Neoment's `m.direct` tag.
+Store `room.joined_member_count` from `summary["m.joined_member_count"]` whenever a sync includes it, and persist it in `get_stripped_room`. A room is one-to-one for push purposes when that count is 2. When the count is unknown (old cache), fall back to `room.is_direct` until a sync delivers the summary. This mirrors the server's `room_member_count == 2` condition. Neoment's DM flag (`m.direct` plus the local-only `<localleader>d` toggle) does not decide it. That is why the UI says "One-to-one rooms (2 members)" and "Group rooms (3+ members)" rather than "Direct messages": the rows should not suggest they follow Neoment's DM section.
 
 ### 7. Windows
 - A centered float (`relative = "editor"`, `border = "rounded"`, title) on a scratch buffer with `bufhidden = "wipe"` and `modifiable = false`, rendered from a list of `{ text, action }` lines so `<CR>` looks up the action by cursor row. Header and notice lines have no action.
