@@ -441,4 +441,86 @@ describe("storage", function()
 			assert.are.same(refresh, matrix_mock.client.refresh)
 		end)
 	end)
+
+	describe("oauth client ids", function()
+		local original_stdpath
+		local temp_dir
+		local clients_file
+
+		before_each(function()
+			temp_dir = vim.fn.tempname()
+			vim.fn.mkdir(temp_dir .. "/neoment", "p")
+			clients_file = temp_dir .. "/neoment/oauth_clients.json"
+			original_stdpath = vim.fn.stdpath
+			vim.fn.stdpath = function()
+				return temp_dir
+			end
+		end)
+
+		after_each(function()
+			vim.fn.stdpath = original_stdpath
+			vim.fn.delete(temp_dir, "rf")
+		end)
+
+		it("round-trips a client id", function()
+			local storage = require("neoment.storage")
+
+			assert.is_true(storage.set_oauth_client_id("https://auth.example.org/", "client-1"))
+
+			assert.are.equal("client-1", storage.get_oauth_client_id("https://auth.example.org/"))
+		end)
+
+		it("keeps a separate client id for each issuer", function()
+			local storage = require("neoment.storage")
+
+			storage.set_oauth_client_id("https://auth.example.org/", "client-1")
+			storage.set_oauth_client_id("https://other.example.org/", "client-2")
+
+			assert.are.equal("client-1", storage.get_oauth_client_id("https://auth.example.org/"))
+			assert.are.equal("client-2", storage.get_oauth_client_id("https://other.example.org/"))
+		end)
+
+		it("clears the client id of one issuer only", function()
+			local storage = require("neoment.storage")
+			storage.set_oauth_client_id("https://auth.example.org/", "client-1")
+			storage.set_oauth_client_id("https://other.example.org/", "client-2")
+
+			assert.is_true(storage.clear_oauth_client_id("https://auth.example.org/"))
+
+			assert.is_nil(storage.get_oauth_client_id("https://auth.example.org/"))
+			assert.are.equal("client-2", storage.get_oauth_client_id("https://other.example.org/"))
+		end)
+
+		it("has no client id when the file does not exist", function()
+			local storage = require("neoment.storage")
+
+			assert.is_nil(storage.get_oauth_client_id("https://auth.example.org/"))
+			assert.is_true(storage.clear_oauth_client_id("https://auth.example.org/"))
+		end)
+
+		it("ignores a corrupt file and replaces it on the next save", function()
+			local file = assert(io.open(clients_file, "w"))
+			file:write("{not json")
+			file:close()
+			local storage = require("neoment.storage")
+
+			assert.is_nil(storage.get_oauth_client_id("https://auth.example.org/"))
+			assert.is_true(storage.set_oauth_client_id("https://auth.example.org/", "client-1"))
+
+			assert.are.equal("client-1", storage.get_oauth_client_id("https://auth.example.org/"))
+		end)
+
+		it("keeps the client ids when the session is cleared", function()
+			local storage = require("neoment.storage")
+			storage.set_oauth_client_id("https://auth.example.org/", "client-1")
+			local file = assert(io.open(temp_dir .. "/neoment/data.json", "w"))
+			file:write(vim.json.encode({ access_token = "token" }))
+			file:close()
+
+			assert.is_true(storage.clear_session())
+
+			assert.are.equal(0, vim.fn.filereadable(temp_dir .. "/neoment/data.json"))
+			assert.are.equal("client-1", storage.get_oauth_client_id("https://auth.example.org/"))
+		end)
+	end)
 end)

@@ -3,6 +3,7 @@ local M = {}
 local error = require("neoment.error")
 local api = require("neoment.matrix.api")
 local client = require("neoment.matrix.client")
+local util = require("neoment.util")
 
 --- Refresh the access token when it expires in less than this many seconds
 local EXPIRY_SKEW = 60
@@ -21,18 +22,6 @@ local pending = nil
 --- @field access_token string
 --- @field refresh_token? string
 --- @field expires_in? number Lifetime of the access token, in seconds.
-
---- Encode a list of key/value pairs as an `application/x-www-form-urlencoded` body
---- @param fields string[][] The `{ key, value }` pairs, in the order they are sent.
---- @return string
-local function form_encode(fields)
-	return table.concat(
-		vim.tbl_map(function(field)
-			return vim.uri_encode(field[1], "rfc3986") .. "=" .. vim.uri_encode(field[2], "rfc3986")
-		end, fields),
-		"&"
-	)
-end
 
 --- Build the error for a session that can no longer be refreshed
 --- @param cause? neoment.matrix.api.Error The error that made the session unusable.
@@ -87,7 +76,7 @@ local function request_tokens(c, callback)
 
 		api.post_raw(
 			method.token_endpoint,
-			form_encode({
+			util.form_encode({
 				{ "grant_type", "refresh_token" },
 				{ "refresh_token", c.refresh_token },
 				{ "client_id", method.client_id },
@@ -108,17 +97,6 @@ local function request_tokens(c, callback)
 			return to_tokens(data, type(expires_in_ms) == "number" and expires_in_ms / 1000 or nil)
 		end))
 	end, { raw = raw })
-end
-
---- Call a function in the main loop.
---- Network callbacks run where vim.fn is not allowed, and the session file is written and read with it.
---- @param fn fun()
-local function on_main_loop(fn)
-	if vim.in_fast_event() then
-		vim.schedule(fn)
-	else
-		fn()
-	end
 end
 
 --- Write the session to disk, so a rotated refresh token is not lost
@@ -202,7 +180,7 @@ M.refresh = function(callback)
 		request_tokens(c, function(result)
 			-- The tokens are stored and saved before any request can use them, so the saved session
 			-- never holds a refresh token that was already consumed
-			on_main_loop(function()
+			util.on_main_loop(function()
 				-- The client was replaced (logout, new login) while the request was in flight
 				if client.client ~= c then
 					finish(error.err({ error = "The session changed during the token refresh" }))

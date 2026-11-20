@@ -7,6 +7,7 @@ local markdown = require("neoment.markdown")
 local util = require("neoment.util")
 local event = require("neoment.matrix.event")
 local client = require("neoment.matrix.client")
+local oauth = require("neoment.matrix.oauth")
 local constants = require("neoment.constants")
 
 --- Create a new Matrix client.
@@ -48,19 +49,38 @@ M.login = function(username, password, callback)
 end
 
 --- Logout from the Matrix server.
+--- An OAuth session is ended by revoking its refresh token at the OAuth server, which also ends the
+--- access token. The request needs no access token and never refreshes it. Every other session
+--- (and an OAuth one that cannot be revoked) uses the `/logout` request.
 --- @param callback fun(result: neoment.Error<nil, neoment.matrix.api.Error>): any The callback function to handle the response.
 M.logout = function(callback)
-	if not client.client or not client.client.access_token then
+	local c = client.client
+	if not c or not c.access_token then
 		callback(error.ok(nil))
 		return
 	end
-	api.authed.post(client.client.homeserver .. "/_matrix/client/v3/logout", {}, function(response)
-		local result = error.map(response, function()
-			client.new(client.client.homeserver)
+
+	--- @param response neoment.Error<any, neoment.matrix.api.Error>
+	local function finish(response)
+		callback(error.map(response, function()
+			client.new(c.homeserver)
 			return nil
-		end)
-		callback(result)
-	end)
+		end))
+	end
+
+	local refresh = c.refresh
+	if
+		refresh
+		and refresh.kind == "oauth"
+		and refresh.revocation_endpoint
+		and refresh.client_id
+		and c.refresh_token
+	then
+		oauth.revoke(refresh.revocation_endpoint, refresh.client_id, c.refresh_token, finish)
+		return
+	end
+
+	api.authed.post(c.homeserver .. "/_matrix/client/v3/logout", {}, finish)
 end
 
 --- @class neoment.matrix.SyncResponse

@@ -16,6 +16,9 @@ local cache_path = vim.fn.stdpath("cache") .. "/neoment/cache.json"
 --- Path to the UI state file
 local ui_state_path = vim.fn.stdpath("data") .. "/neoment/ui_state.json"
 
+--- Path to the file with the OAuth client IDs, mapped by issuer
+local oauth_clients_path = vim.fn.stdpath("data") .. "/neoment/oauth_clients.json"
+
 --- The path of the directory where the images shown in rooms are downloaded
 local media_path = vim.fn.stdpath("cache") .. "/neoment/media"
 
@@ -155,6 +158,45 @@ function M.save_session()
 	end
 
 	return write_file(cache_path, cache_to_save) and write_file(data_path, data_to_save)
+end
+
+--- Read the saved OAuth client IDs
+--- @return table<string, string> The client IDs, mapped by issuer
+local function read_oauth_clients()
+	local clients = read_file(oauth_clients_path)
+	return type(clients) == "table" and clients or {}
+end
+
+--- Get the OAuth client ID registered for an issuer.
+--- The client IDs are not part of the session, so they are kept after logging out and even
+--- when `save_session` is off: they are not credentials, and losing them registers a new client on every login.
+--- @param issuer string The OAuth issuer
+--- @return string|nil The client ID, nil when none is saved
+function M.get_oauth_client_id(issuer)
+	local client_id = read_oauth_clients()[issuer]
+	return type(client_id) == "string" and client_id or nil
+end
+
+--- Save the OAuth client ID registered for an issuer
+--- @param issuer string The OAuth issuer
+--- @param client_id string The client ID
+--- @return boolean True if the client ID was saved successfully
+function M.set_oauth_client_id(issuer, client_id)
+	local clients = read_oauth_clients()
+	clients[issuer] = client_id
+	return write_file(oauth_clients_path, clients)
+end
+
+--- Forget the OAuth client ID of an issuer, so the next login registers again
+--- @param issuer string The OAuth issuer
+--- @return boolean True if the client ID is no longer saved
+function M.clear_oauth_client_id(issuer)
+	local clients = read_oauth_clients()
+	if clients[issuer] == nil then
+		return true
+	end
+	clients[issuer] = nil
+	return write_file(oauth_clients_path, clients)
 end
 
 --- Read the saved session credentials without restoring them

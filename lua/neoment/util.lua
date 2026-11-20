@@ -317,4 +317,34 @@ M.media_headers = function(url)
 	return { Authorization = "Bearer " .. access_token }
 end
 
+--- Check if a string is an HTTP(S) URL. The scheme is matched case-insensitively.
+--- @param value string
+--- @return boolean
+M.is_http_url = function(value)
+	return value:lower():match("^https?://") ~= nil
+end
+
+--- Encode a list of key/value pairs as an `application/x-www-form-urlencoded` body
+--- @param fields string[][] The `{ key, value }` pairs, in the order they are sent.
+--- @return string
+M.form_encode = function(fields)
+	return table.concat(
+		vim.tbl_map(function(field)
+			return vim.uri_encode(field[1], "rfc3986") .. "=" .. vim.uri_encode(field[2], "rfc3986")
+		end, fields),
+		"&"
+	)
+end
+
+--- Call a function in the main loop.
+--- Network callbacks run where vim.fn is not allowed, and the files are written and read with it.
+--- @param fn fun()
+M.on_main_loop = function(fn)
+	if vim.in_fast_event() then
+		vim.schedule(fn)
+	else
+		fn()
+	end
+end
+
 return M

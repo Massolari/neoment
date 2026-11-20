@@ -9,6 +9,7 @@ local room = require("neoment.room")
 local storage = require("neoment.storage")
 local matrix = require("neoment.matrix")
 local auth = require("neoment.matrix.auth")
+local oauth = require("neoment.matrix.oauth")
 local api = require("neoment.matrix.api")
 local sso_listener = require("neoment.sso_listener")
 local error = require("neoment.error")
@@ -77,6 +78,7 @@ end
 --- @field homeserver string The homeserver base URL
 --- @field user_id? string The full Matrix ID, if the user entered one
 --- @field generation integer The login attempt this context belongs to
+--- @field oauth_metadata? neoment.matrix.auth.OAuthMetadata The OAuth server metadata, set when `oauth_device` is offered
 
 --- Redirect URL used for SSO when the browser can't reach a local listener.
 --- The page fails to load, and the user copies the URL from the address bar.
@@ -85,6 +87,10 @@ local MANUAL_SSO_REDIRECT_URL = "http://127.0.0.1/"
 --- The SSO callback listener of the login in progress, if any
 --- @type neoment.sso_listener.Listener|nil
 local pending_sso_listener = nil
+
+--- The polling of the OAuth device login in progress, if any
+--- @type neoment.matrix.oauth.PollHandle|nil
+local pending_oauth_poll = nil
 
 --- Incremented on every login attempt, so callbacks of an older attempt can tell they are stale
 local login_generation = 0
@@ -115,6 +121,14 @@ local function close_pending_sso_listener()
 	if pending_sso_listener then
 		pending_sso_listener.close()
 		pending_sso_listener = nil
+	end
+end
+
+--- Stop the polling of the OAuth device login in progress, if any
+local function cancel_pending_oauth_poll()
+	if pending_oauth_poll then
+		pending_oauth_poll.cancel()
+		pending_oauth_poll = nil
 	end
 end
 
@@ -225,11 +239,116 @@ local function password_login(ctx)
 	auth.login_password(user, password, login_result_handler(ctx), login_is_current(ctx))
 end
 
+--- Show where the user approves an OAuth device login, and offer to open the page in a local session
+--- @param ctx neoment.LoginContext
+--- @param device neoment.matrix.oauth.DeviceCode
+local function show_device_verification(ctx, device)
+	if device.code_in_url then
+		notify.info(
+			string.format(
+				"Open this URL and approve the login (code %s):\n%s\nThe login completes on its own once you approve it.",
+				device.user_code,
+				device.verification_url
+			)
+		)
+	else
+		notify.info(
+			string.format(
+				"Open %s and enter the code %s.\nThe login completes on its own once you approve it.",
+				device.verification_url,
+				device.user_code
+			)
+		)
+	end
+
+	-- A remote session has no browser to open, the URL is for any machine
+	if is_remote_session() then
+		return
+	end
+
+	-- Notifications are scheduled, so schedule the prompt to show it after the URL
+	vim.schedule(function()
+		if ctx.generation ~= login_generation then
+			return
+		end
+		vim.ui.select({ "Open in browser", "Not now" }, { prompt = "Verification page:" }, function(choice)
+			if choice ~= "Open in browser" then
+				return
+			end
+			local _, open_error = vim.ui.open(device.verification_url)
+			if open_error then
+				notify.warning("Could not open the browser (" .. open_error .. "). Use the URL above to log in.")
+			end
+		end)
+	end)
+end
+
+--- Log in with the OAuth 2.0 device authorization grant
+--- @param ctx neoment.LoginContext
+local function oauth_device_login(ctx)
+	local metadata = ctx.oauth_metadata --[[@as neoment.matrix.auth.OAuthMetadata]]
+	local is_current = login_is_current(ctx)
+
+	--- @param err neoment.matrix.api.Error
+	local function fail(err)
+		vim.schedule(function()
+			if is_current() then
+				notify.error("Error logging in: " .. err.error)
+			end
+		end)
+	end
+
+	oauth.register_client(metadata, function(registered)
+		error.match(registered, function(client_id)
+			oauth.request_device_code(metadata, client_id, matrix.client.device_id, function(requested)
+				error.match(requested, function(device)
+					vim.schedule(function()
+						if not is_current() then
+							return
+						end
+
+						-- Polling starts before the prompt is answered, so the prompt never blocks the login
+						local poll
+						poll = oauth.poll(
+							{ metadata = metadata, client_id = client_id, device_code = device },
+							function(polled)
+								vim.schedule(function()
+									if pending_oauth_poll ~= poll or not is_current() then
+										return
+									end
+									pending_oauth_poll = nil
+									error.match(polled, function(tokens)
+										auth.login_oauth(
+											tokens,
+											metadata,
+											client_id,
+											login_result_handler(ctx),
+											is_current
+										)
+										return nil
+									end, function(err)
+										notify.error(err.error)
+									end)
+								end)
+							end
+						)
+						pending_oauth_poll = poll
+						show_device_verification(ctx, device)
+					end)
+					return nil
+				end, fail)
+			end)
+			return nil
+		end, fail)
+	end)
+end
+
 --- Login handlers, mapped by login method
 --- @type table<neoment.matrix.auth.Method, fun(ctx: neoment.LoginContext)>
 local LOGIN_HANDLERS = {
 	password = password_login,
 	sso = sso_login,
+	oauth_device = oauth_device_login,
 }
 
 --- Labels shown when the user chooses a login method
@@ -237,12 +356,14 @@ local LOGIN_HANDLERS = {
 local LOGIN_METHOD_LABELS = {
 	password = "Password",
 	sso = "Single Sign-On (browser)",
+	oauth_device = "OAuth (device code)",
 }
 
 --- Login to the Matrix server
 local function login()
 	-- Every call supersedes earlier login attempts, including when a saved session is restored
 	close_pending_sso_listener()
+	cancel_pending_oauth_poll()
 	login_generation = login_generation + 1
 	local generation = login_generation
 
@@ -274,7 +395,7 @@ local function login()
 		end
 		matrix.set_homeserver(homeserver)
 
-		auth.get_login_flows(homeserver, function(result)
+		auth.get_login_flows(homeserver, function(result, oauth_metadata)
 			vim.schedule(function()
 				if generation ~= login_generation then
 					return
@@ -285,8 +406,36 @@ local function login()
 				end
 
 				--- @type neoment.LoginContext
-				local ctx = { homeserver = homeserver, user_id = user_id, generation = generation }
+				local ctx = {
+					homeserver = homeserver,
+					user_id = user_id,
+					generation = generation,
+					oauth_metadata = oauth_metadata,
+				}
 				local methods = result.data
+
+				local forced = config.get().login_method
+				if forced then
+					if vim.tbl_contains(methods, forced) then
+						LOGIN_HANDLERS[forced](ctx)
+					else
+						notify.error(
+							string.format(
+								"Login method '%s' is not offered by the server. It offers: %s",
+								forced,
+								table.concat(methods, ", ")
+							)
+						)
+					end
+					return
+				end
+
+				-- OAuth is the preferred method when the server offers it
+				if vim.tbl_contains(methods, "oauth_device") then
+					LOGIN_HANDLERS.oauth_device(ctx)
+					return
+				end
+
 				if #methods == 1 then
 					LOGIN_HANDLERS[methods[1]](ctx)
 					return

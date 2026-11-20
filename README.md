@@ -77,10 +77,19 @@ For the best experience, it is recommended to install the following companion pl
 
 1. Open Neovim and run `:Neoment` to authenticate with your Matrix homeserver
 1. At the `Matrix ID or server:` prompt, enter your Matrix ID (e.g. `@alice:matrix.org`) or just your server name (e.g. `mozilla.org`). The homeserver is discovered automatically through `/.well-known/matrix/client`. You can also enter the homeserver URL directly (e.g. `https://matrix-client.matrix.org`)
-1. Log in with one of the methods your server supports. If it supports more than one, you will be asked to choose:
+1. Log in with one of the methods your server supports. If the server supports OAuth (see below), Neoment uses it without asking. Otherwise, if the server supports more than one method, you will be asked to choose:
+    - **OAuth (device code)**: Neoment shows a URL and a code. Open the URL in any browser, check that the code matches and approve the login. Neoment waits for the approval and finishes the login on its own
     - **Password**: enter your password (and your username, if you only entered the server name)
     - **Single Sign-On**: your browser opens the server's login page. After you log in, the browser is sent back to Neovim and the login completes
 1. The plugin will automatically sync and display your rooms
+
+#### OAuth login
+
+Servers that use OAuth 2.0 through the Matrix Authentication Service (such as `matrix.org` and `mozilla.org`) are logged in with the OAuth 2.0 device authorization grant. Neoment prints the verification URL and the code in the messages (see `:messages`), and in a local session asks whether to open the URL in your browser. Because you approve on the page, you can do it from any machine, so it works over SSH and on headless machines. Neoment stops waiting when the code expires or you deny the login, and you can start again with `:Neoment`.
+
+- Neoment registers itself with the server the first time you log in and saves the resulting `client_id` per server in `oauth_clients.json`, in the `neoment` folder of Neovim's data directory (`:echo stdpath("data")`). It is not a credential, so it is kept when you log out and even when `save_session` is `false`. Delete the file to register again.
+- OAuth is chosen automatically when the server offers it. Set `login_method` (see [Configuration](#configuration)) to `"password"` or `"sso"` to use another method.
+- `:Neoment logout` revokes the session at the server instead of calling the Matrix `/logout` endpoint.
 
 When Neovim runs over SSH (or the browser can't reach Neovim within 2 minutes), Single Sign-On falls back to a manual step: Neoment shows the login URL, you open it in any browser, and after logging in you paste the URL of the page you were sent to (it will fail to load, which is expected) at the `Paste the redirected URL or login token:` prompt.
 
@@ -110,6 +119,7 @@ client.refresh = {
 	kind = "oauth",
 	token_endpoint = "https://auth.example.org/oauth2/token",
 	client_id = "...",
+	revocation_endpoint = "https://auth.example.org/oauth2/revoke", -- optional, used by logout
 }
 ```
 
@@ -117,7 +127,7 @@ Neoment then refreshes with a form-encoded `grant_type=refresh_token` request (`
 
 ### Commands
 
-- `:Neoment` - Login to your Matrix account (password or Single Sign-On). If already logged in, opens the rooms list
+- `:Neoment` - Login to your Matrix account (OAuth, password or Single Sign-On). If already logged in, opens the rooms list
 - `:Neoment join <room_id_or_alias>` - Join a room by its ID or alias
 - `:Neoment logout` - Logout and clear session data
 - `:Neoment open_rooms` - Use `vim.ui.select` to select a already opened room/space
@@ -134,6 +144,11 @@ Neoment uses the global variable `vim.g.neoment` for configuration. You can set 
 vim.g.neoment = {
 	-- Save session data to disk (default: true)
 	save_session = true,
+
+	-- Login method to use instead of letting Neoment choose (default: nil).
+	-- Without it, OAuth is used when the server offers it, otherwise Neoment asks when
+	-- there is more than one method. One of "oauth_device", "password" or "sso".
+	-- login_method = "password",
 	
 	-- Custom notifier function (optional)
 	-- By default, uses vim.notify
