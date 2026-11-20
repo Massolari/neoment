@@ -12,6 +12,8 @@ describe("Matrix auth", function()
 		package.loaded["neoment.matrix.api"] = nil
 		package.loaded["neoment.matrix.client"] = nil
 		package.loaded["neoment.matrix.auth"] = nil
+		package.loaded["neoment.matrix.oauth"] = nil
+		package.loaded["neoment.matrix.token"] = nil
 		package.loaded["neoment.matrix"] = nil
 
 		client = require("neoment.matrix.client")
@@ -24,6 +26,8 @@ describe("Matrix auth", function()
 		package.loaded["neoment.matrix.api"] = nil
 		package.loaded["neoment.matrix.client"] = nil
 		package.loaded["neoment.matrix.auth"] = nil
+		package.loaded["neoment.matrix.oauth"] = nil
+		package.loaded["neoment.matrix.token"] = nil
 		package.loaded["neoment.matrix"] = nil
 	end)
 
@@ -366,6 +370,184 @@ describe("Matrix auth", function()
 			assert.is_true(error_mod.is_error(result))
 			assert.matches("https://matrix.example.org", result.error.error, 1, true)
 		end)
+
+		describe("with OAuth metadata", function()
+			local LOGIN_URL = "https://matrix.example.org/_matrix/client/v3/login"
+			local METADATA_URL = "https://matrix.example.org/_matrix/client/v1/auth_metadata"
+			local metadata_response = {
+				status = 200,
+				body = vim.json.encode({
+					issuer = "https://auth.example.org/",
+					device_authorization_endpoint = "https://auth.example.org/oauth2/device",
+					token_endpoint = "https://auth.example.org/oauth2/token",
+					registration_endpoint = "https://auth.example.org/oauth2/registration",
+					grant_types_supported = { "urn:ietf:params:oauth:grant-type:device_code" },
+				}),
+			}
+
+			--- @return table result
+			--- @return table|nil metadata
+			local function get_flows()
+				local result, metadata
+				auth.get_login_flows("https://matrix.example.org", function(r, m)
+					result, metadata = r, m
+				end)
+				return result, metadata
+			end
+
+			it("should offer OAuth device login first and return the metadata", function()
+				mock_get({
+					[LOGIN_URL] = flows_response({ "m.login.password", "m.login.sso", "m.login.token" }),
+					[METADATA_URL] = metadata_response,
+				})
+
+				local result, metadata = get_flows()
+
+				assert.are.same({ "oauth_device", "password", "sso" }, result.data)
+				assert.are.equal("https://auth.example.org/oauth2/token", metadata.token_endpoint)
+			end)
+
+			it("should succeed on a server that only offers OAuth", function()
+				mock_get({
+					[LOGIN_URL] = flows_response({ "m.login.token" }),
+					[METADATA_URL] = metadata_response,
+				})
+
+				local result = get_flows()
+
+				assert.is_true(error_mod.is_ok(result))
+				assert.are.same({ "oauth_device" }, result.data)
+			end)
+
+			it("should succeed when the login flows cannot be fetched", function()
+				mock_get({ [METADATA_URL] = metadata_response })
+
+				local result = get_flows()
+
+				assert.are.same({ "oauth_device" }, result.data)
+			end)
+
+			it("should only drop OAuth device login when the metadata is missing", function()
+				mock_get({
+					[LOGIN_URL] = flows_response({ "m.login.password" }),
+					[METADATA_URL] = { status = 404, body = '{"errcode":"M_UNRECOGNIZED","error":"nope"}' },
+				})
+
+				local result, metadata = get_flows()
+
+				assert.are.same({ "password" }, result.data)
+				assert.is_nil(metadata)
+			end)
+
+			it("should send both requests before either answers", function()
+				local requested = {}
+				local callbacks = {}
+				curl_mock.get = function(url, opts)
+					table.insert(requested, url)
+					callbacks[url] = opts.callback
+				end
+
+				local result
+				auth.get_login_flows("https://matrix.example.org", function(r)
+					result = r
+				end)
+
+				assert.are.equal(2, #requested)
+				callbacks[METADATA_URL](metadata_response)
+				assert.is_nil(result)
+				callbacks[LOGIN_URL](flows_response({ "m.login.password" }))
+				assert.are.same({ "oauth_device", "password" }, result.data)
+			end)
+		end)
+	end)
+
+	describe("get_oauth_metadata", function()
+		local METADATA_URL = "https://matrix.example.org/_matrix/client/v1/auth_metadata"
+
+		--- @param overrides? table
+		--- @return table
+		local function metadata_response(overrides)
+			return {
+				status = 200,
+				body = vim.json.encode(vim.tbl_extend("force", {
+					issuer = "https://auth.example.org/",
+					device_authorization_endpoint = "https://auth.example.org/oauth2/device",
+					token_endpoint = "https://auth.example.org/oauth2/token",
+					registration_endpoint = "https://auth.example.org/oauth2/registration",
+					revocation_endpoint = "https://auth.example.org/oauth2/revoke",
+					grant_types_supported = {
+						"authorization_code",
+						"refresh_token",
+						"urn:ietf:params:oauth:grant-type:device_code",
+					},
+				}, overrides or {})),
+			}
+		end
+
+		--- @param response table
+		--- @return table|nil
+		local function get_metadata(response)
+			mock_get({ [METADATA_URL] = response })
+			local metadata = "not called"
+			auth.get_oauth_metadata("https://matrix.example.org", function(m)
+				metadata = m
+			end)
+			return metadata
+		end
+
+		it("should return the endpoints when the device code grant is supported", function()
+			assert.are.same({
+				issuer = "https://auth.example.org/",
+				device_authorization_endpoint = "https://auth.example.org/oauth2/device",
+				token_endpoint = "https://auth.example.org/oauth2/token",
+				registration_endpoint = "https://auth.example.org/oauth2/registration",
+				revocation_endpoint = "https://auth.example.org/oauth2/revoke",
+			}, get_metadata(metadata_response()))
+		end)
+
+		it("should accept a server without a revocation endpoint", function()
+			local metadata = get_metadata(metadata_response({ revocation_endpoint = vim.NIL }))
+
+			assert.is_not_nil(metadata)
+			assert.is_nil(metadata.revocation_endpoint)
+		end)
+
+		it("should be unavailable when the device code grant is not listed", function()
+			assert.is_nil(get_metadata(metadata_response({ grant_types_supported = { "authorization_code" } })))
+		end)
+
+		it("should be unavailable when the server does not know the endpoint", function()
+			assert.is_nil(get_metadata({
+				status = 404,
+				body = vim.json.encode({ errcode = "M_UNRECOGNIZED", error = "Unrecognized request" }),
+			}))
+		end)
+
+		it("should be unavailable when the body is not JSON", function()
+			assert.is_nil(get_metadata({ status = 200, body = "<html>not found</html>" }))
+		end)
+
+		it("should be unavailable when the body is not an object", function()
+			assert.is_nil(get_metadata({ status = 200, body = "[]" }))
+		end)
+
+		it("should be unavailable without a registration endpoint", function()
+			assert.is_nil(get_metadata(metadata_response({ registration_endpoint = vim.NIL })))
+		end)
+
+		it("should be unavailable when an endpoint is not an HTTP URL", function()
+			assert.is_nil(get_metadata(metadata_response({ token_endpoint = "ftp://auth.example.org/token" })))
+		end)
+
+		it("should be unavailable when the request fails", function()
+			mock_get({})
+			local metadata = "not called"
+			auth.get_oauth_metadata("https://matrix.example.org", function(m)
+				metadata = m
+			end)
+
+			assert.is_nil(metadata)
+		end)
 	end)
 
 	describe("login_password", function()
@@ -534,6 +716,163 @@ describe("Matrix auth", function()
 
 			assert.are.equal("https://matrix.example.org", client.client.homeserver)
 			assert.are.equal("secret", client.client.access_token)
+		end)
+	end)
+
+	describe("login_oauth", function()
+		local METADATA = {
+			issuer = "https://auth.example.org/",
+			device_authorization_endpoint = "https://auth.example.org/oauth2/device",
+			token_endpoint = "https://auth.example.org/oauth2/token",
+			registration_endpoint = "https://auth.example.org/oauth2/registration",
+			revocation_endpoint = "https://auth.example.org/oauth2/revoke",
+		}
+		local WHOAMI_URL = "https://matrix.example.org/_matrix/client/v3/account/whoami"
+
+		--- The requests sent to the whoami endpoint and the revocation endpoint
+		local whoami_requests
+		local revocations
+		--- What whoami answers
+		local whoami_answer
+
+		before_each(function()
+			whoami_requests = {}
+			revocations = {}
+			whoami_answer = { status = 200, body = vim.json.encode({ user_id = "@alice:example.org" }) }
+			curl_mock.get = function(url, opts)
+				assert.are.equal(WHOAMI_URL, url)
+				table.insert(whoami_requests, opts.headers)
+				opts.callback(whoami_answer)
+			end
+			curl_mock.post = function(url, opts)
+				table.insert(revocations, { url = url, body = opts.body })
+				opts.callback({ status = 200, body = "", exit = 0 })
+			end
+			client.new("https://matrix.example.org")
+		end)
+
+		--- @param tokens? table
+		--- @param is_current? fun(): boolean
+		--- @return table
+		local function login(tokens, is_current)
+			local result
+			auth.login_oauth(
+				tokens or { access_token = "AT", refresh_token = "RT", expires_in = 300, token_type = "Bearer" },
+				METADATA,
+				"client-1",
+				function(r)
+					result = r
+				end,
+				is_current
+			)
+			return result
+		end
+
+		it("stores the tokens, the expiry time and the OAuth refresh method", function()
+			local before = os.time()
+			local result = login()
+
+			assert.is_true(error_mod.is_ok(result))
+			assert.are.equal("AT", client.client.access_token)
+			assert.are.equal("RT", client.client.refresh_token)
+			assert.is_true(client.client.expires_at >= before + 300)
+			assert.is_true(client.client.expires_at <= os.time() + 300)
+			assert.are.same({
+				kind = "oauth",
+				token_endpoint = METADATA.token_endpoint,
+				client_id = "client-1",
+				revocation_endpoint = METADATA.revocation_endpoint,
+			}, client.client.refresh)
+		end)
+
+		it("reads the user ID with whoami using the new access token", function()
+			login()
+
+			assert.are.equal(1, #whoami_requests)
+			assert.are.equal("Bearer AT", whoami_requests[1]["Authorization"])
+			assert.are.equal("@alice:example.org", client.client.user_id)
+		end)
+
+		it("logs in without refresh when the response has no refresh token", function()
+			local result = login({ access_token = "AT", expires_in = 300 })
+
+			assert.is_true(error_mod.is_ok(result))
+			assert.are.equal("AT", client.client.access_token)
+			assert.is_nil(client.client.refresh_token)
+			assert.is_nil(client.client.expires_at)
+			assert.is_false(require("neoment.matrix.token").is_stale())
+		end)
+
+		it("errors without touching the client when the response has no access token", function()
+			local result = login({ refresh_token = "RT", expires_in = 300 })
+
+			assert.is_true(error_mod.is_error(result))
+			assert.is_nil(client.client.access_token)
+			assert.is_nil(client.client.refresh)
+			assert.are.equal(0, #whoami_requests)
+		end)
+
+		it("drops the tokens when the client was replaced during the request", function()
+			local requesting_client = client.client
+			curl_mock.get = function(_, opts)
+				client.client = nil
+				client.new("https://other.example.org")
+				opts.callback(whoami_answer)
+			end
+
+			local result = login()
+
+			assert.is_true(error_mod.is_error(result))
+			assert.is_nil(client.client.access_token)
+			assert.is_nil(client.client.user_id)
+			assert.is_nil(requesting_client.user_id)
+			-- The new token is not left valid on the server
+			assert.are.equal(1, #revocations)
+		end)
+
+		it("drops the tokens when the login attempt was superseded", function()
+			local result = login(nil, function()
+				return false
+			end)
+
+			assert.is_true(error_mod.is_error(result))
+			assert.is_nil(client.client.access_token)
+		end)
+
+		it("leaves no access token and revokes the new one when whoami fails", function()
+			whoami_answer = {
+				status = 500,
+				body = vim.json.encode({ errcode = "M_UNKNOWN", error = "Internal server error" }),
+			}
+
+			local result = login()
+
+			assert.is_true(error_mod.is_error(result))
+			assert.matches("Internal server error", result.error.error, 1, true)
+			assert.is_nil(client.client.access_token)
+			assert.is_nil(client.client.refresh_token)
+			assert.is_nil(client.client.refresh)
+			assert.is_nil(client.client.user_id)
+			assert.are.equal(1, #revocations)
+			assert.are.equal(METADATA.revocation_endpoint, revocations[1].url)
+			assert.matches("token=RT", revocations[1].body, 1, true)
+		end)
+
+		it("does not revoke when the server has no revocation endpoint", function()
+			whoami_answer = { status = 500, body = vim.json.encode({ errcode = "M_UNKNOWN", error = "Oops" }) }
+
+			local without_revocation = vim.deepcopy(METADATA)
+			without_revocation.revocation_endpoint = nil
+
+			auth.login_oauth(
+				{ access_token = "AT", refresh_token = "RT" },
+				without_revocation,
+				"client-1",
+				function() end
+			)
+
+			assert.are.equal(0, #revocations)
+			assert.is_nil(client.client.access_token)
 		end)
 	end)
 

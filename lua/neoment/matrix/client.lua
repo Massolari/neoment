@@ -20,6 +20,7 @@ M.client = nil
 --- @field kind "legacy"|"oauth" `legacy` refreshes through `POST /_matrix/client/v3/refresh`, `oauth` through the OAuth 2.0 token endpoint.
 --- @field token_endpoint? string The OAuth 2.0 token endpoint, required for `oauth`.
 --- @field client_id? string The OAuth 2.0 client ID, required for `oauth`.
+--- @field revocation_endpoint? string The OAuth 2.0 token revocation endpoint, used to log out of an `oauth` session.
 
 --- @class neoment.matrix.client.Room
 --- @field id string The ID of the room.

@@ -3,8 +3,20 @@ local M = {}
 local error = require("neoment.error")
 local api = require("neoment.matrix.api")
 local client = require("neoment.matrix.client")
+local oauth = require("neoment.matrix.oauth")
 
---- @alias neoment.matrix.auth.Method "password"|"sso"
+--- @alias neoment.matrix.auth.Method "oauth_device"|"password"|"sso"
+
+--- The OAuth 2.0 server metadata needed for the device authorization grant.
+--- @class neoment.matrix.auth.OAuthMetadata
+--- @field issuer string
+--- @field device_authorization_endpoint string
+--- @field token_endpoint string
+--- @field registration_endpoint string
+--- @field revocation_endpoint? string
+
+--- Grant type of the OAuth 2.0 device authorization grant (RFC 8628).
+local DEVICE_CODE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
 
 --- Login methods supported by the client, mapped from the Matrix login flow type.
 --- @type table<string, neoment.matrix.auth.Method>
@@ -15,7 +27,7 @@ local SUPPORTED_FLOWS = {
 
 --- Order in which supported methods are presented to the user.
 --- @type neoment.matrix.auth.Method[]
-local METHOD_ORDER = { "password", "sso" }
+local METHOD_ORDER = { "oauth_device", "password", "sso" }
 
 --- Curl arguments that bound the time spent on discovery requests, so an unreachable host fails fast.
 local DISCOVERY_CURL_ARGS = { "--connect-timeout", "5", "--max-time", "10" }
@@ -89,56 +101,116 @@ M.discover = function(server_name, callback)
 	end, { raw = DISCOVERY_CURL_ARGS })
 end
 
---- Get the login methods supported by both the homeserver and the client.
+--- Get the OAuth 2.0 server metadata when the homeserver supports the device authorization grant.
+--- The callback gets nil when it does not, whatever the reason: OAuth device login is then just unavailable.
 --- @param homeserver string The homeserver base URL.
---- @param callback fun(result: neoment.Error<neoment.matrix.auth.Method[], neoment.matrix.api.Error>): any
-M.get_login_flows = function(homeserver, callback)
-	api.get(homeserver .. "/_matrix/client/v3/login", function(response)
+--- @param callback fun(metadata: neoment.matrix.auth.OAuthMetadata|nil): any
+M.get_oauth_metadata = function(homeserver, callback)
+	api.get(homeserver .. "/_matrix/client/v1/auth_metadata", function(response)
 		if error.is_error(response) then
-			callback(error.err({
-				error = string.format(
-					"Could not fetch login methods from %s: %s",
-					homeserver,
-					response.error.error or "unknown error"
-				),
-			}))
+			callback(nil)
+			return
+		end
+
+		local data = response.data
+		local grants = type(data.grant_types_supported) == "table" and data.grant_types_supported or {}
+		if not vim.tbl_contains(grants, DEVICE_CODE_GRANT) then
+			callback(nil)
+			return
+		end
+
+		for _, field in ipairs({ "issuer", "device_authorization_endpoint", "token_endpoint", "registration_endpoint" }) do
+			if type(data[field]) ~= "string" or not is_http_url(data[field]) then
+				callback(nil)
+				return
+			end
+		end
+
+		local revocation_endpoint = data.revocation_endpoint
+		callback({
+			issuer = data.issuer,
+			device_authorization_endpoint = data.device_authorization_endpoint,
+			token_endpoint = data.token_endpoint,
+			registration_endpoint = data.registration_endpoint,
+			revocation_endpoint = type(revocation_endpoint) == "string"
+					and is_http_url(revocation_endpoint)
+					and revocation_endpoint
+				or nil,
+		})
+	end, { raw = DISCOVERY_CURL_ARGS })
+end
+
+--- Get the login methods supported by both the homeserver and the client.
+--- The login flows and the OAuth metadata are requested at the same time. A server without OAuth
+--- metadata only loses `oauth_device`, and an error is returned only when no method remains.
+--- @param homeserver string The homeserver base URL.
+--- @param callback fun(result: neoment.Error<neoment.matrix.auth.Method[], neoment.matrix.api.Error>, metadata?: neoment.matrix.auth.OAuthMetadata): any The metadata is given when `oauth_device` is one of the methods.
+M.get_login_flows = function(homeserver, callback)
+	--- @type neoment.Error<table, neoment.matrix.api.Error>|nil
+	local flows_response
+	local metadata
+	local metadata_done = false
+
+	local function finish()
+		if not flows_response or not metadata_done then
 			return
 		end
 
 		local available = {}
 		local advertised = {}
-		local supports_token = false
-		local flows = type(response.data.flows) == "table" and response.data.flows or {}
-		for _, flow in ipairs(flows) do
-			local flow_type = type(flow) == "table" and flow.type
-			if type(flow_type) == "string" then
-				table.insert(advertised, flow_type)
-				supports_token = supports_token or flow_type == "m.login.token"
-				local method = SUPPORTED_FLOWS[flow_type]
-				if method then
-					available[method] = true
+		if flows_response:is_ok() then
+			local supports_token = false
+			local flows = type(flows_response.data.flows) == "table" and flows_response.data.flows or {}
+			for _, flow in ipairs(flows) do
+				local flow_type = type(flow) == "table" and flow.type
+				if type(flow_type) == "string" then
+					table.insert(advertised, flow_type)
+					supports_token = supports_token or flow_type == "m.login.token"
+					local method = SUPPORTED_FLOWS[flow_type]
+					if method then
+						available[method] = true
+					end
 				end
 			end
-		end
 
-		-- SSO hands back a login token, which can only be exchanged with m.login.token
-		if not supports_token then
-			available.sso = nil
+			-- SSO hands back a login token, which can only be exchanged with m.login.token
+			if not supports_token then
+				available.sso = nil
+			end
 		end
+		available.oauth_device = metadata ~= nil or nil
 
 		local methods = vim.tbl_filter(function(method)
 			return available[method] == true
 		end, METHOD_ORDER)
 
-		if #methods == 0 then
+		if #methods > 0 then
+			callback(error.ok(methods), metadata)
+		elseif flows_response:is_error() then
+			callback(error.err({
+				error = string.format(
+					"Could not fetch login methods from %s: %s",
+					homeserver,
+					flows_response.error.error or "unknown error"
+				),
+			}))
+		else
 			callback(error.err({
 				error = "No supported login method. The server offers: " .. table.concat(advertised, ", "),
 			}))
-			return
 		end
+	end
 
-		callback(error.ok(methods))
+	api.get(homeserver .. "/_matrix/client/v3/login", function(response)
+		flows_response = response
+		finish()
 	end, { raw = DISCOVERY_CURL_ARGS })
+
+	M.get_oauth_metadata(homeserver, function(result)
+		metadata = result
+		metadata_done = true
+		finish()
+	end)
 end
 
 --- Send a login request and store the credentials on success.
@@ -195,6 +267,80 @@ M.login_password = function(user, password, callback, is_current)
 		-- Servers that don't support refresh tokens ignore this
 		refresh_token = true,
 	}, callback, is_current)
+end
+
+--- Revoke the refresh token of a login that could not be completed.
+--- Failing to do it is not reported: the login already failed, and the token is useless to the user.
+--- @param refresh neoment.matrix.client.RefreshMethod
+--- @param refresh_token? string
+local function revoke_unused_token(refresh, refresh_token)
+	if refresh_token and refresh.revocation_endpoint and refresh.client_id then
+		oauth.revoke(refresh.revocation_endpoint, refresh.client_id, refresh_token, function() end)
+	end
+end
+
+--- Finish a login with the OAuth 2.0 device authorization grant.
+--- The tokens are stored on the client and the user ID is read with `whoami`, as the token response has none.
+--- When that fails the new token is revoked and the client is reset, so no half logged-in session is left.
+--- The tokens are dropped if the client was replaced while the request was in flight,
+--- or if `is_current` reports that the login attempt was superseded.
+--- @param tokens table The token response.
+--- @param metadata neoment.matrix.auth.OAuthMetadata The OAuth server metadata.
+--- @param client_id string The client ID the tokens were issued to.
+--- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any
+--- @param is_current? fun(): boolean Whether the login attempt is still current.
+M.login_oauth = function(tokens, metadata, client_id, callback, is_current)
+	local requesting_client = client.client
+	local superseded = error.err({ error = "The login was superseded by another login attempt" })
+
+	if type(tokens.access_token) ~= "string" then
+		callback(error.err({ error = "The server returned no access token" }))
+		return
+	end
+	if client.client ~= requesting_client or (is_current and not is_current()) then
+		callback(superseded)
+		return
+	end
+
+	--- @type neoment.matrix.client.RefreshMethod
+	local refresh = {
+		kind = "oauth",
+		token_endpoint = metadata.token_endpoint,
+		client_id = client_id,
+		revocation_endpoint = metadata.revocation_endpoint,
+	}
+	local refresh_token = type(tokens.refresh_token) == "string" and tokens.refresh_token or nil
+
+	requesting_client.access_token = tokens.access_token
+	requesting_client.refresh_token = refresh_token
+	requesting_client.expires_at = refresh_token
+			and type(tokens.expires_in) == "number"
+			and os.time() + math.floor(tokens.expires_in)
+		or nil
+	requesting_client.refresh = refresh
+
+	api.authed.get(requesting_client.homeserver .. "/_matrix/client/v3/account/whoami", function(response)
+		local replaced = client.client ~= requesting_client
+		if replaced or (is_current and not is_current()) then
+			revoke_unused_token(refresh, refresh_token)
+			callback(superseded)
+			return
+		end
+
+		local user_id = response:is_ok() and response.data.user_id or nil
+		if type(user_id) ~= "string" then
+			revoke_unused_token(refresh, refresh_token)
+			client.set_homeserver(requesting_client.homeserver)
+			callback(
+				response:is_error() and response
+					or error.err({ error = "The server did not say which user the token belongs to" })
+			)
+			return
+		end
+
+		requesting_client.user_id = user_id
+		callback(error.ok(nil))
+	end)
 end
 
 --- Build the URL that starts the SSO login in the browser.

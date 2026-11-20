@@ -3,12 +3,15 @@
 
 --- @class neoment.config.Config
 --- @field save_session? boolean Whether to save and restore sessions
+--- @field login_method? neoment.config.LoginMethod Force a login method instead of preferring OAuth and asking when several are offered
 --- @field icon? neoment.config.Icon Icon configuration
 --- @field notifier fun(msg: string, level: vim.log.levels, opts?: table): nil Function to show notifications
 --- @field desktop_notifications? neoment.config.DesktopNotifications Configuration for desktop notifications
 --- @field picker? neoment.config.Picker Picker configuration
 --- @field room? neoment.config.Room
 --- @field rooms? neoment.config.Rooms
+
+--- @alias neoment.config.LoginMethod "password"|"sso"|"oauth_device"
 
 --- @alias neoment.config.PickerFunction fun(items: neoment.config.PickerRoom[], callback: fun(room: neoment.matrix.client.Room), options: neoment.config.PickerOptions): nil
 
@@ -68,6 +71,7 @@
 
 --- @class neoment.config.InternalConfig
 --- @field save_session boolean Whether to save and restore sessions
+--- @field login_method? neoment.config.LoginMethod Force a login method instead of preferring OAuth and asking when several are offered
 --- @field icon neoment.config.InternalIcon Icon configuration
 --- @field notifier fun(msg: string, level: vim.log.levels, opts?: table): nil Function to show notifications
 --- @field desktop_notifications neoment.config.InternalDesktopNotifications Configuration for desktop notifications
@@ -125,6 +129,9 @@
 --- @field per_room table<string, neoment.config.DesktopNotificationLevel> Notification levels per room ID or alias
 
 local M = {}
+
+--- The values accepted by the `login_method` option
+local LOGIN_METHODS = { "password", "sso", "oauth_device" }
 
 --- Default picker for rooms using vim.ui.select
 --- @param items neoment.config.PickerRoom[]
@@ -211,6 +218,10 @@ M.load = function()
 	local user_config = vim.g.neoment or {}
 
 	config = vim.tbl_deep_extend("force", default, user_config)
+
+	vim.validate("login_method", config.login_method, function(value)
+		return value == nil or vim.tbl_contains(LOGIN_METHODS, value)
+	end, "one of " .. table.concat(LOGIN_METHODS, ", "))
 end
 
 --- @return neoment.config.InternalConfig
