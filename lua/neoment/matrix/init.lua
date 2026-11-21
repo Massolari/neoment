@@ -243,6 +243,8 @@ local function handle_sync_account_data(account_data)
 					end
 				end
 			end
+		elseif event_.type == "m.push_rules" then
+			client.client.push_rules = event_.content
 		end
 	end
 
@@ -314,6 +316,11 @@ local function handle_sync_joined_rooms(joined_rooms)
 			room_updated = true
 		end
 
+		-- The server decides one-to-one push rules by this count, so keep it to show which global level applies
+		if room_data.summary and room_data.summary["m.joined_member_count"] then
+			client.get_room(room_id).joined_member_count = room_data.summary["m.joined_member_count"]
+		end
+
 		if
 			room_data.summary
 			and not vim.tbl_isempty(room_data.summary)
@@ -354,8 +361,14 @@ local function handle_sync_joined_rooms(joined_rooms)
 		end
 
 		if room_data.unread_notifications then
-			client.get_room(room_id).unread_notifications = room_data.unread_notifications.notification_count
-			client.get_room(room_id).unread_highlights = room_data.unread_notifications.highlight_count
+			local room = client.get_room(room_id)
+			local old_counts = {
+				notification_count = room.unread_notifications,
+				highlight_count = room.unread_highlights,
+			}
+			room.unread_notifications = room_data.unread_notifications.notification_count
+			room.unread_highlights = room_data.unread_notifications.highlight_count
+			require("neoment.notify").room_counts_changed(room, old_counts, room_data.unread_notifications)
 		end
 
 		if room_updated then
@@ -461,6 +474,9 @@ M.sync = function(options, callback)
 
 				local updated_rooms = {}
 
+				-- Only the messages of this sync can be notified, not the ones loaded by pagination since the last one
+				require("neoment.notify").clear_candidates()
+
 				if sync_data.rooms and sync_data.rooms.invite then
 					local new_updated_rooms = handle_sync_invited_rooms(sync_data.rooms.invite)
 					updated_rooms = vim.iter({ updated_rooms, new_updated_rooms }):flatten():totable()
@@ -494,6 +510,9 @@ M.sync = function(options, callback)
 						end
 					end
 				end
+
+				-- The messages kept for this sync's notifications must not be shown by a later one
+				require("neoment.notify").clear_candidates()
 
 				return { sync = data, updated_rooms = updated_rooms }
 			end) --[[@as neoment.Error<{ sync: neoment.matrix.SyncResponse, updated_rooms: table<string> }, neoment.matrix.api.Error>]]
@@ -865,9 +884,12 @@ M.set_room_read_marker = function(room_id, markers, callback)
 
 	local read_receipt = markers.read or markers.read_private
 	if read_receipt then
+		-- Prefer the server timestamp of the read event, as the receipt is compared with message timestamps
+		local read_message = room.messages[read_receipt]
 		room.read_receipt = {
 			event_id = read_receipt,
-			ts = os.time() * 1000, -- Convert to milliseconds
+			ts = read_message and read_message.timestamp or os.time() * 1000, -- Convert to milliseconds
+			is_local = true,
 		}
 	end
 
@@ -1387,6 +1409,87 @@ end
 --- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any The callback function to handle the response.
 M.remove_room_tag = function(room_id, tag, user_id, callback)
 	add_remove_room_tag(room_id, tag, user_id, false, callback)
+end
+
+--- Get the account's push rules, nil until they are received from the homeserver
+--- @return neoment.matrix.client.PushRuleset|nil
+M.get_push_rules = function()
+	return client.client.push_rules
+end
+
+--- Build the URL of a global push rule.
+--- The rule ID is percent-encoded, as room IDs contain `!` and `:`.
+--- @param kind neoment.matrix.client.PushRuleKind The kind of the rule.
+--- @param rule_id string The ID of the rule.
+--- @param suffix? string An attribute of the rule, such as "actions" or "enabled".
+--- @return string The URL
+local function push_rule_url(kind, rule_id, suffix)
+	local encoded_id = rule_id:gsub("[^%w%-%._~]", function(char)
+		return string.format("%%%02X", string.byte(char))
+	end)
+	local url = client.client.homeserver .. "/_matrix/client/v3/pushrules/global/" .. kind .. "/" .. encoded_id
+	return suffix and (url .. "/" .. suffix) or url
+end
+
+--- Map a response with no useful body to nil
+--- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any
+--- @return fun(response: neoment.Error<any, neoment.matrix.api.Error>)
+local function ignore_body(callback)
+	return function(response)
+		callback(error.map(response, function()
+			return nil
+		end))
+	end
+end
+
+--- Fetch the account's push rules and store them on the client
+--- @param callback fun(data: neoment.Error<neoment.matrix.client.PushRuleset, neoment.matrix.api.Error>): any
+M.fetch_push_rules = function(callback)
+	local requesting_client = client.client
+	api.authed.get(client.client.homeserver .. "/_matrix/client/v3/pushrules/", function(response)
+		callback(error.map(response, function(data)
+			-- Don't store the rules on a client that replaced the one that asked for them
+			if client.client == requesting_client then
+				client.client.push_rules = data
+			end
+			return data
+		end))
+	end)
+end
+
+--- Create or replace a user-defined push rule
+--- @param kind neoment.matrix.client.PushRuleKind The kind of the rule.
+--- @param rule_id string The ID of the rule.
+--- @param body table The rule body, with `actions` and, depending on the kind, `conditions` or `pattern`.
+--- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any
+M.set_push_rule = function(kind, rule_id, body, callback)
+	api.authed.put(push_rule_url(kind, rule_id), body, ignore_body(callback))
+end
+
+--- Delete a user-defined push rule
+--- @param kind neoment.matrix.client.PushRuleKind The kind of the rule.
+--- @param rule_id string The ID of the rule.
+--- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any
+M.delete_push_rule = function(kind, rule_id, callback)
+	api.authed.delete(push_rule_url(kind, rule_id), ignore_body(callback))
+end
+
+--- Set the actions of a push rule, including server-default rules
+--- @param kind neoment.matrix.client.PushRuleKind The kind of the rule.
+--- @param rule_id string The ID of the rule.
+--- @param actions table The new actions.
+--- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any
+M.set_push_rule_actions = function(kind, rule_id, actions, callback)
+	api.authed.put(push_rule_url(kind, rule_id, "actions"), { actions = actions }, ignore_body(callback))
+end
+
+--- Enable or disable a push rule, including server-default rules
+--- @param kind neoment.matrix.client.PushRuleKind The kind of the rule.
+--- @param rule_id string The ID of the rule.
+--- @param enabled boolean Whether the rule is enabled.
+--- @param callback fun(data: neoment.Error<nil, neoment.matrix.api.Error>): any
+M.set_push_rule_enabled = function(kind, rule_id, enabled, callback)
+	api.authed.put(push_rule_url(kind, rule_id, "enabled"), { enabled = enabled }, ignore_body(callback))
 end
 
 --- Check if the room is a space

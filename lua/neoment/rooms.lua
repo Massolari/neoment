@@ -1184,6 +1184,22 @@ M.toggle_direct = function()
 	M.toggle_direct_on(mark.room_id)
 end
 
+--- Open the notification settings of the room under the cursor
+M.open_room_notification_settings = function()
+	local mark = get_room_mark_under_cursor()
+
+	if not mark then
+		return
+	end
+
+	if matrix.has_invited_room(mark.room_id) then
+		notify.info("Notification settings are available after joining the room.")
+		return
+	end
+
+	require("neoment.notification_settings").open_room(mark.room_id)
+end
+
 --- Toggle the direct status of a room by ID (local only)
 --- @param room_id string The ID of the room to toggle direct status on
 M.toggle_direct_on = function(room_id)

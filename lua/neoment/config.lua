@@ -59,6 +59,7 @@
 
 --- @class neoment.config.DesktopNotifications
 --- @field enabled? boolean Whether desktop notifications are enabled
+--- @field source? neoment.config.DesktopNotificationSource What decides which messages notify: the account's push rules ("server") or the levels below ("custom")
 --- @field handler? neoment.config.DesktopNotificationHandler Function to handle desktop notifications
 --- @field buffer? neoment.config.DesktopNotificationLevel Notification level for buffer messages. When "none", it'll inherit from the other levels
 --- @field favorites? neoment.config.DesktopNotificationLevel Notification level for favorite rooms
@@ -68,6 +69,7 @@
 
 --- @alias neoment.config.DesktopNotificationHandler fun(title: string, content: string): nil
 --- @alias neoment.config.DesktopNotificationLevel "all"|"mentions"|"none"
+--- @alias neoment.config.DesktopNotificationSource "server"|"custom"
 
 --- @class neoment.config.InternalConfig
 --- @field save_session boolean Whether to save and restore sessions
@@ -121,6 +123,7 @@
 
 --- @class neoment.config.InternalDesktopNotifications
 --- @field enabled boolean Whether desktop notifications are enabled
+--- @field source neoment.config.DesktopNotificationSource What decides which messages notify: the account's push rules ("server") or the levels below ("custom")
 --- @field handler neoment.config.DesktopNotificationHandler Function to handle desktop notifications
 --- @field buffer neoment.config.DesktopNotificationLevel Notification level for buffer messages. When "none", it'll inherit from the other levels
 --- @field favorites neoment.config.DesktopNotificationLevel Notification level for favorite rooms
@@ -132,6 +135,15 @@ local M = {}
 
 --- The values accepted by the `login_method` option
 local LOGIN_METHODS = { "password", "sso", "oauth_device" }
+
+--- The values accepted by the `desktop_notifications.source` option
+local NOTIFICATION_SOURCES = { "server", "custom" }
+
+--- The `desktop_notifications` keys that only apply to the "custom" source
+local CUSTOM_NOTIFICATION_KEYS = { "buffer", "favorites", "people", "rooms", "per_room" }
+
+--- Whether the warning about custom levels under the default source was already shown
+local warned_about_custom_levels = false
 
 --- Default picker for rooms using vim.ui.select
 --- @param items neoment.config.PickerRoom[]
@@ -180,6 +192,7 @@ local default = {
 	notifier = vim.notify,
 	desktop_notifications = {
 		enabled = true,
+		source = "server",
 		handler = function(title, content)
 			require("neoment.notify").desktop(title, content)
 		end,
@@ -222,6 +235,24 @@ M.load = function()
 	vim.validate("login_method", config.login_method, function(value)
 		return value == nil or vim.tbl_contains(LOGIN_METHODS, value)
 	end, "one of " .. table.concat(LOGIN_METHODS, ", "))
+
+	vim.validate("desktop_notifications.source", config.desktop_notifications.source, function(value)
+		return vim.tbl_contains(NOTIFICATION_SOURCES, value)
+	end, "one of " .. table.concat(NOTIFICATION_SOURCES, ", "))
+
+	-- The custom levels used to apply on their own; tell users who set them that the default changed
+	local user_notifications = user_config.desktop_notifications or {}
+	if not warned_about_custom_levels and user_notifications.source == nil then
+		local has_custom_levels = vim.iter(CUSTOM_NOTIFICATION_KEYS):any(function(key)
+			return user_notifications[key] ~= nil
+		end)
+		if has_custom_levels then
+			warned_about_custom_levels = true
+			require("neoment.notify").warning(
+				'The desktop_notifications levels (buffer, favorites, people, rooms, per_room) are ignored because notifications now follow your Matrix push rules. Set desktop_notifications.source = "custom" to use them.'
+			)
+		end
+	end
 end
 
 --- @return neoment.config.InternalConfig

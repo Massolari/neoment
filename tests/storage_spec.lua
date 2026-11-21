@@ -440,6 +440,43 @@ describe("storage", function()
 			assert.are.equal(1234567890, matrix_mock.client.expires_at)
 			assert.are.same(refresh, matrix_mock.client.refresh)
 		end)
+
+		it("round-trips the joined member count of a room", function()
+			local rooms = {
+				["!room:example.org"] = {
+					id = "!room:example.org",
+					name = "Room",
+					aliases = {},
+					members = {},
+					space_rooms = {},
+					unread_notifications = 0,
+					unread_highlights = 0,
+					joined_member_count = 2,
+				},
+			}
+			local restored = {}
+			matrix_mock.client = {
+				homeserver = "https://saved.example.org",
+				device_id = "DEVICE",
+				user_id = "@alice:saved.example.org",
+				access_token = "token",
+			}
+			matrix_mock.get_rooms = function()
+				return rooms
+			end
+			matrix_mock.set_room = function(room_id, data)
+				restored[room_id] = data
+			end
+			matrix_mock.set_homeserver = function(homeserver)
+				matrix_mock.client = { homeserver = homeserver, device_id = matrix_mock.client.device_id }
+			end
+
+			local storage = require("neoment.storage")
+			assert.is_true(storage.save_session())
+			assert.is_true(storage.restore_session())
+
+			assert.are.equal(2, restored["!room:example.org"].joined_member_count)
+		end)
 	end)
 
 	describe("oauth client ids", function()
