@@ -39,7 +39,11 @@ describe("matrix membership events", function()
 		package.loaded["neoment.matrix.api"] = nil
 		package.loaded["neoment.matrix.event"] = nil
 		package.loaded["neoment.curl"] = {}
-		package.loaded["neoment.notify"] = { desktop_message = function() end }
+		package.loaded["neoment.notify"] = {
+			desktop_message = function() end,
+			room_counts_changed = function() end,
+			clear_candidates = function() end,
+		}
 		package.loaded["neoment.rooms"] = { update_room_list = function() end }
 
 		client = require("neoment.matrix.client")

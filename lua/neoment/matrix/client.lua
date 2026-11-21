@@ -14,7 +14,21 @@ local M = {}
 ---@field display_names table<string, neoment.matrix.client.DisplayName> A table to store display names for users.
 ---@field user_presence table<string, neoment.matrix.client.UserPresence> A table to store user presence information.
 ---@field desired_presence? "online"|"offline"|"unavailable" The desired presence state set by the user.
+---@field push_rules? neoment.matrix.client.PushRuleset The account's push rules, nil until received from the homeserver.
 M.client = nil
+
+--- @alias neoment.matrix.client.PushRuleKind "override"|"content"|"room"|"sender"|"underride"
+
+--- @class neoment.matrix.client.PushRuleset
+--- @field global table<neoment.matrix.client.PushRuleKind, neoment.matrix.client.PushRule[]> The global push rules, by kind.
+
+--- @class neoment.matrix.client.PushRule
+--- @field rule_id string The ID of the rule. For `room` rules it is the room ID.
+--- @field enabled boolean Whether the rule is enabled.
+--- @field default boolean Whether the rule is a server-default rule.
+--- @field actions table The actions to perform when the rule matches, such as "notify".
+--- @field conditions? table The conditions of `override` and `underride` rules.
+--- @field pattern? string The glob pattern of `content` rules.
 
 --- @class neoment.matrix.client.RefreshMethod
 --- @field kind "legacy"|"oauth" `legacy` refreshes through `POST /_matrix/client/v3/refresh`, `oauth` through the OAuth 2.0 token endpoint.
@@ -43,6 +57,7 @@ M.client = nil
 --- @field fully_read? string The event ID of the last fully read message in the room.
 --- @field unread_notifications integer The number of unread notifications for this room.
 --- @field unread_highlights integer The number of unread highlights for this room.
+--- @field joined_member_count? integer The number of joined members from the room summary, nil until a sync delivers it.
 --- @field unread boolean Indicates if the room was marked as unread.
 --- @field read_receipt? neoment.matrix.client.ReadReceipt The read receipt of the user in the room, containing the event ID and timestamp of the last read event.
 --- @field avatar_url? string The URL for the room's avatar (mxc:// format).
@@ -99,6 +114,7 @@ M.client = nil
 --- @class neoment.matrix.client.ReadReceipt
 --- @field event_id string The ID of the event that was last read.
 --- @field ts integer The timestamp of the last read event.
+--- @field is_local? boolean Whether the receipt was set by this client with the local clock, until the server's one arrives.
 
 --- @alias neoment.matrix.client.MessageAttachment neoment.matrix.client.MessageImage|neoment.matrix.client.MessageFile|neoment.matrix.client.MessageAudio|neoment.matrix.client.MessageLocation|neoment.matrix.client.MessageVideo
 

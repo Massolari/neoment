@@ -172,42 +172,72 @@ local function send_notification(level, handler, message, sender)
 	return false
 end
 
---- Show a desktop notification for a message
---- @param room neoment.matrix.client.Room The room where the message was sent
---- @param message neoment.matrix.client.Message The message to display notification for
-M.desktop_message = function(room, message)
-	local notifications_config = config.get().desktop_notifications
-	if not notifications_config.enabled then
-		return
+--- @class neoment.notify.ServerState
+--- @field client? neoment.matrix.client.Client The client the state belongs to
+--- @field candidates table<string, neoment.matrix.client.Message> The newest incoming message of each room seen in the current sync
+--- @field last_notified table<string, integer> The timestamp of the message shown by the last notification of each room
+
+--- The state of the server source
+--- @type neoment.notify.ServerState
+local server_state = { candidates = {}, last_notified = {} }
+
+--- Get the state of the server source, starting a fresh one when the client was replaced (logout, new login)
+--- @return neoment.notify.ServerState
+local function get_server_state()
+	local current_client = require("neoment.matrix.client").client
+	if server_state.client ~= current_client then
+		server_state = { client = current_client, candidates = {}, last_notified = {} }
+	end
+	return server_state
+end
+
+--- Check the conditions under which no desktop notification is sent, whatever the source
+--- @param room neoment.matrix.client.Room The room to notify about
+--- @return boolean True if the notification must be skipped
+local function should_skip(room)
+	if not config.get().desktop_notifications.enabled then
+		return true
 	end
 
 	-- Check if this is the initial sync.
 	-- If so, skip notifications to avoid spamming the user.
 	local sync_status = require("neoment.sync").get_status()
 	if sync_status.kind == "syncing" and sync_status.last_sync == nil then
-		return
+		return true
 	end
 
-	-- Check if the message is sent by the user or is a state event, if so, skip notifications
+	-- The user is already looking at this room
+	local has_focus = require("neoment.focus").is_focused()
+	return has_focus and room.id == vim.b.room_id
+end
+
+--- Check if a message comes from another user and can be notified
+--- @param message neoment.matrix.client.Message The message to check
+--- @return boolean True if the message is not a state event and was not sent by the user
+local function is_incoming(message)
 	local user_id = require("neoment.matrix").get_user_id()
-	if not user_id or message.is_state or message.sender == user_id then
-		return
-	end
+	return user_id ~= nil and not message.is_state and message.sender ~= user_id
+end
 
-	local sender_name = require("neoment.matrix").get_display_name(message.sender)
+--- Format the title of a desktop notification for a message
+--- @param room neoment.matrix.client.Room The room where the message was sent
+--- @param sender string The ID of the user who sent the message
+--- @return string The title, with the room name unless it is the sender's name
+local function format_title(room, sender)
+	local sender_name = require("neoment.matrix").get_display_name(sender)
 	-- If the sender has the same name as the room, it's a DM, show the sender's name only
-	local sender_with_room = sender_name == room.name and sender_name
-		or string.format("[%s] %s", room.name, sender_name)
+	return sender_name == room.name and sender_name or string.format("[%s] %s", room.name, sender_name)
+end
+
+--- Decide a message notification with the levels in the config
+--- @param room neoment.matrix.client.Room The room where the message was sent
+--- @param message neoment.matrix.client.Message The message to display notification for
+local function desktop_message_custom(room, message)
+	local notifications_config = config.get().desktop_notifications
+	local sender_with_room = format_title(room, message.sender)
 
 	-- Buffer rooms
 	if room.is_tracked then
-		local current_buf_room_id = vim.b.room_id
-		local has_focus = require("neoment.focus").is_focused()
-		local is_current_room = room.id == current_buf_room_id
-		if has_focus and is_current_room then
-			return
-		end
-
 		local handled =
 			send_notification(notifications_config.buffer, notifications_config.handler, message, sender_with_room)
 		if handled then
@@ -237,6 +267,87 @@ M.desktop_message = function(room, message)
 		-- Other rooms
 		send_notification(notifications_config.rooms, notifications_config.handler, message, sender_with_room)
 	end
+end
+
+--- Show a desktop notification for a message.
+--- With the "server" source, the message is only kept as the room's candidate for the notification
+--- sent by `room_counts_changed`.
+--- @param room neoment.matrix.client.Room The room where the message was sent
+--- @param message neoment.matrix.client.Message The message to display notification for
+M.desktop_message = function(room, message)
+	if not is_incoming(message) then
+		return
+	end
+
+	if config.get().desktop_notifications.source == "server" then
+		local candidates = get_server_state().candidates
+		local candidate = candidates[room.id]
+		if not candidate or message.timestamp >= candidate.timestamp then
+			candidates[room.id] = message
+		end
+		return
+	end
+
+	if should_skip(room) then
+		return
+	end
+
+	desktop_message_custom(room, message)
+end
+
+--- Find the newest stored message in a room that was not sent by the user and may still be unread:
+--- newer than the user's read receipt and than the message of the room's last notification
+--- @param room neoment.matrix.client.Room The room to search
+--- @return neoment.matrix.client.Message? The newest such message, if any
+local function newest_unread_incoming_message(room)
+	local last_notified = get_server_state().last_notified[room.id]
+	local after = math.max(room.read_receipt and room.read_receipt.ts or 0, last_notified or 0)
+	local newest = nil
+	for _, message in pairs(room.messages) do
+		if
+			is_incoming(message)
+			and message.timestamp > after
+			and (not newest or message.timestamp > newest.timestamp)
+		then
+			newest = message
+		end
+	end
+	return newest
+end
+
+--- Show a desktop notification when a sync raises a room's notification or highlight count.
+--- Only used by the "server" source, where the homeserver's push rules decide what notifies.
+--- @param room neoment.matrix.client.Room The room whose counts changed
+--- @param old neoment.matrix.UnreadNotificationCounts The counts before the sync
+--- @param new neoment.matrix.UnreadNotificationCounts The counts reported by the sync
+M.room_counts_changed = function(room, old, new)
+	local state = get_server_state()
+	local candidate = state.candidates[room.id]
+	state.candidates[room.id] = nil
+
+	local notifications_config = config.get().desktop_notifications
+	if notifications_config.source ~= "server" then
+		return
+	end
+
+	local increased = (new.notification_count or 0) > (old.notification_count or 0)
+		or (new.highlight_count or 0) > (old.highlight_count or 0)
+	if not increased or should_skip(room) then
+		return
+	end
+
+	local message = candidate or newest_unread_incoming_message(room)
+	if message then
+		state.last_notified[room.id] = message.timestamp
+		notifications_config.handler(format_title(room, message.sender), message.content)
+	else
+		notifications_config.handler(room.name, "New notification")
+	end
+end
+
+--- Forget the messages kept for the notifications of the current sync
+M.clear_candidates = function()
+	get_server_state().candidates = {}
 end
 
 return M

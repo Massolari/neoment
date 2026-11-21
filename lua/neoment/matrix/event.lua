@@ -527,14 +527,25 @@ M.handle = function(room_id, event, is_history)
 			event_id = nil,
 		}
 		local user_id = require("neoment.matrix").get_user_id()
+		-- A receipt set with the local clock is replaced by the server's one, whatever their timestamps
+		local newest_ts = last_user_receipt.is_local and -1 or last_user_receipt.ts
 
 		for event_id, receipt in pairs(event.content) do
 			for _, values in pairs(receipt) do
 				for user, data in pairs(values) do
-					if user == user_id then
-						if data.ts > last_user_receipt.ts then
+					-- Thread receipts are not the room's main receipt
+					local is_main = data.thread_id == nil or data.thread_id == "main"
+					if user == user_id and is_main then
+						if data.ts and data.ts > newest_ts then
+							newest_ts = data.ts
 							last_user_receipt = {
 								ts = data.ts,
+								event_id = event_id,
+							}
+						elseif not data.ts and event_id ~= last_user_receipt.event_id then
+							-- `ts` is optional in the spec: a receipt without it moves to its event and keeps the timestamp
+							last_user_receipt = {
+								ts = last_user_receipt.ts,
 								event_id = event_id,
 							}
 						end

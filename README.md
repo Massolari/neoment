@@ -156,11 +156,15 @@ vim.g.neoment = {
 		vim.notify(msg, level, opts)
 	end,
 	
-	-- Desktop notifications can be configured per room type.
-	-- The buffer setting applies to currently open rooms (excluding the focused room),
-	-- while favorites, people, and rooms settings apply to all rooms of those types.
+	-- Desktop notifications. See "Desktop notifications" below for how the source works.
 	desktop_notifications = {
 		enabled = true,  -- Enable or disable desktop notifications (default: true)
+
+		-- What decides which messages notify (default: "server"):
+		-- "server" - your Matrix account's notification settings (push rules), shared with
+		--            Element and other clients. The levels below are ignored.
+		-- "custom" - the levels below (buffer, favorites, people, rooms, per_room).
+		source = "server",
 		
 		-- Custom desktop notifier handler (optional)
 		-- By default, uses vim.fn.system to call:
@@ -177,7 +181,9 @@ vim.g.neoment = {
 			end
 		end,
 		
-		-- Notification levels for different room types
+		-- Notification levels for different room types, used only when source = "custom".
+		-- The buffer setting applies to currently open rooms (excluding the focused room),
+		-- while favorites, people, and rooms settings apply to all rooms of those types.
 		-- Options: "all", "mentions", "none"
 		-- "all" - notify for all new messages
 		-- "mentions" - notify only for mentions/highlights
@@ -185,7 +191,7 @@ vim.g.neoment = {
 		buffer = "all", -- When buffer is set to "none", it'll inherit the room setting from its type
 		favorites = "all",
 		people = "all",
-		rooms = "mentions"
+		rooms = "mentions",
 		
 		-- You can also set notification levels per room ID or alias by using a table:
 		per_room = {
@@ -287,6 +293,25 @@ vim.g.neoment = {
 }
 ```
 
+### Desktop notifications
+
+`desktop_notifications.source` chooses what decides which new messages show a desktop notification:
+
+- `"server"` (default): Neoment follows the notification settings stored on your Matrix account (push rules), the same ones Element and other clients use. The homeserver counts the messages that should notify in each room, and Neoment shows one notification when that count goes up in a sync, with the newest message from someone else in the room. A room muted in Element stays silent in Neoment. Only `enabled` and `handler` apply; the levels are ignored. If you read a room in another client while a new message arrives, the count may not go up and that message will not notify.
+- `"custom"`: Neoment decides from the levels in the config (`buffer`, `favorites`, `people`, `rooms`, `per_room`), ignoring the account's settings. This was the only behavior before `source` existed.
+
+With either source, Neoment never notifies during the first sync, for your own messages, or for the room in the current buffer while Neovim has focus.
+
+You can view and change the account's notification settings from Neoment. They are stored on your homeserver, so a change made here also applies in Element and your other clients, and the other way around:
+
+- `<localleader>n` in the room list opens the global settings: the default level for **One-to-one rooms** (2 members) and **Group rooms** (3+ members), either "All messages" or "Mentions and replies only". The categories follow the room's member count, as the server does, not Neoment's direct message list.
+- `<localleader>N` in the room list (for the room under the cursor) or in a room buffer opens that room's settings: "Global settings" (showing the global level that applies to the room), "All messages", "Mentions and replies only" or "None". A room's own setting wins over the global one.
+
+Move to an option and press `<CR>` to apply it, and `q` or `<Esc>` to close the window. The windows always edit the server settings; with `source = "custom"` they say that Neoment's desktop notifications follow the config instead.
+
+> [!WARNING]
+> **BREAKING**: the default source is now `"server"`. If you set any of `buffer`, `favorites`, `people`, `rooms` or `per_room`, add `source = "custom"` to keep using them. Neoment warns once per session when it finds these levels without a `source`.
+
 ### Using neoment on a TTY
 
 Inline images are drawn with [Snacks](https://github.com/folke/snacks.nvim), which needs a terminal that supports an image protocol, so they are not shown on a bare Linux console. You can still view and play media by giving `room.on_open_attachment` a handler that uses terminal programs. Every open action goes through this handler: message attachments, custom emoticons, custom reactions and room avatars. The example below shows images with [chafa](https://hpjansson.org/chafa/), plays audio and video with [mpv](https://mpv.io/) in a terminal split, and falls back to `vim.ui.open` for everything else:
@@ -338,51 +363,54 @@ Below are the default keybindings for each buffer type.
 
 Filetype: `neoment_rooms`
 
-| Description                           | Mapping                               | Default          |
-| --------------------------------------| ------------------------------------- | ---------------- |
-| Open room/space under cursor          | `<Plug>NeomentRoomsEnter`             | `<CR>`           |
-| Toggle fold under cursor              | `<Plug>NeomentRoomsToggleFold`        | `<Tab>`          |
-| Close window                          | `<Plug>NeomentToggleRoomsList`        | `q`              |
-| Toggle favorite                       | `<Plug>NeomentRoomsToggleFavorite`    | `<localleader>a` |
-| Toggle direct messaging room          | `<Plug>NeomentRoomsToggleDirect`      | `<localleader>d` |
-| Find room (open `vim.ui.select`)      | `<Plug>NeomentPickRooms`              | `<localleader>f` |
-| Find open room (open `vim.ui.select`) | `<Plug>NeomentPickOpenRooms`          | `<localleader>F` |
-| Show room information                 | `<Plug>NeomentRoomsShowRoomInfo`      | `<localleader>i` |
-| Toggle low priority                   | `<Plug>NeomentRoomsToggleLowPriority` | `<localleader>l` |
-| Toggle read/unread                    | `<Plug>NeomentRoomsToggleRead`        | `<localleader>r` |
-| Change status                         | `<Plug>NeomentRoomsChangeStatus`      | `<localleader>s` |
+| Description                           | Mapping                                      | Default          |
+| ------------------------------------- | -------------------------------------------- | ---------------- |
+| Open room/space under cursor          | `<Plug>NeomentRoomsEnter`                    | `<CR>`           |
+| Toggle fold under cursor              | `<Plug>NeomentRoomsToggleFold`               | `<Tab>`          |
+| Close window                          | `<Plug>NeomentToggleRoomsList`               | `q`              |
+| Toggle favorite                       | `<Plug>NeomentRoomsToggleFavorite`           | `<localleader>a` |
+| Toggle direct messaging room          | `<Plug>NeomentRoomsToggleDirect`             | `<localleader>d` |
+| Find room (open `vim.ui.select`)      | `<Plug>NeomentPickRooms`                     | `<localleader>f` |
+| Find open room (open `vim.ui.select`) | `<Plug>NeomentPickOpenRooms`                 | `<localleader>F` |
+| Show room information                 | `<Plug>NeomentRoomsShowRoomInfo`             | `<localleader>i` |
+| Toggle low priority                   | `<Plug>NeomentRoomsToggleLowPriority`        | `<localleader>l` |
+| Global notification settings          | `<Plug>NeomentRoomsNotificationSettings`     | `<localleader>n` |
+| Room notification settings            | `<Plug>NeomentRoomsRoomNotificationSettings` | `<localleader>N` |
+| Toggle read/unread                    | `<Plug>NeomentRoomsToggleRead`               | `<localleader>r` |
+| Change status                         | `<Plug>NeomentRoomsChangeStatus`             | `<localleader>s` |
 
 #### Room Buffer
 
 Filetype: `neoment_room`
 
-| Description                            | Mapping                                 | Default          |
-| -------------------------------------- | --------------------------------------- | ---------------- |
-| Compose/send message                   | `<Plug>NeomentRoomCompose`              | `<CR>`           |
-| Jump to next message                   | `<Plug>NeomentRoomJumpNextMessage`      | `J`              |
-| Jump to previous message               | `<Plug>NeomentRoomJumpPreviousMessage`  | `K`              |
-| React to message using emoji           | `<Plug>NeomentRoomReactEmoji`           | `<localleader>a` |
-| React to message using text            | `<Plug>NeomentRoomReactText`            | `<localleader>A` |
-| Redact (delete) message                | `<Plug>NeomentRoomRedact`               | `<localleader>d` |
-| Edit message                           | `<Plug>NeomentRoomEdit`                 | `<localleader>e` |
-| Find room (open `vim.ui.select`)       | `<Plug>NeomentPickRooms`                | `<localleader>f` |
-| Find open room (open `vim.ui.select`)  | `<Plug>NeomentPickOpenRooms`            | `<localleader>F` |
-| Show current room information          | `<Plug>NeomentRoomShowRoomInfo`         | `<localleader>i` |
-| Toggle room list                       | `<Plug>NeomentToggleRoomsList`          | `<localleader>l` |
-| Leave room                             | `<Plug>NeomentRoomLeave`                | `<localleader>L` |
-| Set read marker                        | `<Plug>NeomentRoomSetReadMarker`        | `<localleader>m` |
-| Open attachment or emoticon            | `<Plug>NeomentRoomOpenAttachment`       | `<localleader>o` |
-| Load previous messages                 | `<Plug>NeomentRoomLoadPrevious`         | `<localleader>p` |
-| Quit room (close the buffer)           | `<Plug>NeomentRoomQuit`                 | `<localleader>q` |
-| Reply to message                       | `<Plug>NeomentRoomReply`                | `<localleader>r` |
-| Go to replied message                  | `<Plug>NeomentRoomGoToReplied`          | `<localleader>R` |
-| Open thread                            | `<Plug>NeomentRoomOpenThread`           | `<localleader>t` |
-| Save attachment                        | `<Plug>NeomentRoomSaveAttachment`       | `<localleader>s` |
-| Upload attachment                      | `<Plug>NeomentRoomUploadAttachment`     | `<localleader>u` |
-| Upload image from clipboard            | `<Plug>NeomentRoomUploadClipboardImage` | `<localleader>U` |
-| Forward message                        | `<Plug>NeomentRoomForwardMessage`       | `<localleader>w` |
-| Toggle zoom of image under cursor      | `<Plug>NeomentRoomToggleZoomImage`      | `<localleader>z` |
-| Show event data                        | `<Plug>NeomentRoomShowEvent`            | `<localleader>V` |
+| Description                           | Mapping                                     | Default          |
+| ------------------------------------- | ------------------------------------------- | ---------------- |
+| Compose/send message                  | `<Plug>NeomentRoomCompose`                  | `<CR>`           |
+| Jump to next message                  | `<Plug>NeomentRoomJumpNextMessage`          | `J`              |
+| Jump to previous message              | `<Plug>NeomentRoomJumpPreviousMessage`      | `K`              |
+| React to message using emoji          | `<Plug>NeomentRoomReactEmoji`               | `<localleader>a` |
+| React to message using text           | `<Plug>NeomentRoomReactText`                | `<localleader>A` |
+| Redact (delete) message               | `<Plug>NeomentRoomRedact`                   | `<localleader>d` |
+| Edit message                          | `<Plug>NeomentRoomEdit`                     | `<localleader>e` |
+| Find room (open `vim.ui.select`)      | `<Plug>NeomentPickRooms`                    | `<localleader>f` |
+| Find open room (open `vim.ui.select`) | `<Plug>NeomentPickOpenRooms`                | `<localleader>F` |
+| Show current room information         | `<Plug>NeomentRoomShowRoomInfo`             | `<localleader>i` |
+| Toggle room list                      | `<Plug>NeomentToggleRoomsList`              | `<localleader>l` |
+| Leave room                            | `<Plug>NeomentRoomLeave`                    | `<localleader>L` |
+| Set read marker                       | `<Plug>NeomentRoomSetReadMarker`            | `<localleader>m` |
+| Room notification settings            | `<Plug>NeomentRoomRoomNotificationSettings` | `<localleader>N` |
+| Open attachment or emoticon           | `<Plug>NeomentRoomOpenAttachment`           | `<localleader>o` |
+| Load previous messages                | `<Plug>NeomentRoomLoadPrevious`             | `<localleader>p` |
+| Quit room (close the buffer)          | `<Plug>NeomentRoomQuit`                     | `<localleader>q` |
+| Reply to message                      | `<Plug>NeomentRoomReply`                    | `<localleader>r` |
+| Go to replied message                 | `<Plug>NeomentRoomGoToReplied`              | `<localleader>R` |
+| Open thread                           | `<Plug>NeomentRoomOpenThread`               | `<localleader>t` |
+| Save attachment                       | `<Plug>NeomentRoomSaveAttachment`           | `<localleader>s` |
+| Upload attachment                     | `<Plug>NeomentRoomUploadAttachment`         | `<localleader>u` |
+| Upload image from clipboard           | `<Plug>NeomentRoomUploadClipboardImage`     | `<localleader>U` |
+| Forward message                       | `<Plug>NeomentRoomForwardMessage`           | `<localleader>w` |
+| Toggle zoom of image under cursor     | `<Plug>NeomentRoomToggleZoomImage`          | `<localleader>z` |
+| Show event data                       | `<Plug>NeomentRoomShowEvent`                | `<localleader>V` |
 
 Custom emoticons (displayed as `[img: name]` links) can be previewed by hovering over them with the cursor (`CursorHold` event) when [Snacks](https://github.com/folke/snacks.nvim) is installed. The emoticon image will be shown in a floating window. You can also open the emoticon image using `<localleader>o`, which calls the `room.on_open_attachment` handler.
 
@@ -405,29 +433,29 @@ You can type `<C-x><C-o>` in insert mode, after typing `@`, to trigger the compl
 
 Filetype: `neoment_space`
 
-| Description                           | Mapping                            | Default          |
-| ------------------------------------- | ---------------------------------- | ---------------- |
-| Open room/space under cursor          | `<Plug>NeomentSpaceEnter`          | `<CR>`           |
-| Find room (open `vim.ui.select`)      | `<Plug>NeomentPickRooms`           | `<localleader>f` |
-| Find open room (open `vim.ui.select`) | `<Plug>NeomentPickOpenRooms`       | `<localleader>F` |
-| Quit window (close the buffer)        | `<Plug>NeomentSpaceQuit`           | `<localleader>q` |
-| Toggle room list                      | `<Plug>NeomentToggleRoomsList`     | `<localleader>l` |
+| Description                           | Mapping                        | Default          |
+| ------------------------------------- | ------------------------------ | ---------------- |
+| Open room/space under cursor          | `<Plug>NeomentSpaceEnter`      | `<CR>`           |
+| Find room (open `vim.ui.select`)      | `<Plug>NeomentPickRooms`       | `<localleader>f` |
+| Find open room (open `vim.ui.select`) | `<Plug>NeomentPickOpenRooms`   | `<localleader>F` |
+| Quit window (close the buffer)        | `<Plug>NeomentSpaceQuit`       | `<localleader>q` |
+| Toggle room list                      | `<Plug>NeomentToggleRoomsList` | `<localleader>l` |
 
 #### Room Info Buffer
 
 Filetype: `neoment_info_room`
 
-| Description                           | Mapping                                    | Default          |
-| ------------------------------------- | ------------------------------------------ | ---------------- |
-| Toggle members list                   | `<Plug>NeomentInfoRoomToggleMembers`       | `<Tab>`          |
-| Toggle favorite status                | `<Plug>NeomentInfoRoomToggleFavorite`      | `<localleader>a` |
-| Toggle direct message status          | `<Plug>NeomentInfoRoomToggleDirect`        | `<localleader>d` |
-| Find room (open `vim.ui.select`)      | `<Plug>NeomentPickRooms`                   | `<localleader>f` |
-| Find open room (open `vim.ui.select`) | `<Plug>NeomentPickOpenRooms`               | `<localleader>F` |
-| Toggle low priority status            | `<Plug>NeomentInfoRoomToggleLowPriority`   | `<localleader>l` |
-| Open avatar with attachment handler   | `<Plug>NeomentInfoRoomOpenAvatar`          | `<localleader>o` |
-| Quit info (close the buffer)          | `<Plug>NeomentInfoRoomQuit`                | `<localleader>q` |
-| Toggle zoom avatar                    | `<Plug>NeomentInfoRoomToggleZoomAvatar`    | `<localleader>z` |
+| Description                           | Mapping                                  | Default          |
+| ------------------------------------- | ---------------------------------------- | ---------------- |
+| Toggle members list                   | `<Plug>NeomentInfoRoomToggleMembers`     | `<Tab>`          |
+| Toggle favorite status                | `<Plug>NeomentInfoRoomToggleFavorite`    | `<localleader>a` |
+| Toggle direct message status          | `<Plug>NeomentInfoRoomToggleDirect`      | `<localleader>d` |
+| Find room (open `vim.ui.select`)      | `<Plug>NeomentPickRooms`                 | `<localleader>f` |
+| Find open room (open `vim.ui.select`) | `<Plug>NeomentPickOpenRooms`             | `<localleader>F` |
+| Toggle low priority status            | `<Plug>NeomentInfoRoomToggleLowPriority` | `<localleader>l` |
+| Open avatar with attachment handler   | `<Plug>NeomentInfoRoomOpenAvatar`        | `<localleader>o` |
+| Quit info (close the buffer)          | `<Plug>NeomentInfoRoomQuit`              | `<localleader>q` |
+| Toggle zoom avatar                    | `<Plug>NeomentInfoRoomToggleZoomAvatar`  | `<localleader>z` |
 
 ## Inspiration
 
