@@ -527,12 +527,15 @@ M.handle = function(room_id, event, is_history)
 			event_id = nil,
 		}
 		local user_id = require("neoment.matrix").get_user_id()
+		-- A receipt set with the local clock is replaced by the server's one, whatever their timestamps
+		local newest_ts = last_user_receipt.is_local and -1 or last_user_receipt.ts
 
 		for event_id, receipt in pairs(event.content) do
 			for _, values in pairs(receipt) do
 				for user, data in pairs(values) do
 					if user == user_id then
-						if data.ts > last_user_receipt.ts then
+						if data.ts > newest_ts then
+							newest_ts = data.ts
 							last_user_receipt = {
 								ts = data.ts,
 								event_id = event_id,

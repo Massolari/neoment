@@ -114,6 +114,7 @@ M.client = nil
 --- @class neoment.matrix.client.ReadReceipt
 --- @field event_id string The ID of the event that was last read.
 --- @field ts integer The timestamp of the last read event.
+--- @field is_local? boolean Whether the receipt was set by this client with the local clock, until the server's one arrives.
 
 --- @alias neoment.matrix.client.MessageAttachment neoment.matrix.client.MessageImage|neoment.matrix.client.MessageFile|neoment.matrix.client.MessageAudio|neoment.matrix.client.MessageLocation|neoment.matrix.client.MessageVideo
 

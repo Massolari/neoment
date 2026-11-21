@@ -887,6 +887,7 @@ M.set_room_read_marker = function(room_id, markers, callback)
 		room.read_receipt = {
 			event_id = read_receipt,
 			ts = os.time() * 1000, -- Convert to milliseconds
+			is_local = true,
 		}
 	end
 
