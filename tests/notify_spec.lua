@@ -277,6 +277,21 @@ describe("notify desktop notifications", function()
 			}, sent)
 		end)
 
+		it("forgets the candidates when the client is replaced", function()
+			local matrix_client = require("neoment.matrix.client")
+			local original_client = matrix_client.client
+			matrix_client.client = {}
+			local room = make_room()
+			notify.desktop_message(room, make_message({ content = "other account" }))
+
+			-- A logout or a new login replaces the client
+			matrix_client.client = {}
+			notify.room_counts_changed(room, counts(0), counts(1))
+			matrix_client.client = original_client
+
+			assert.are.same({ { title = "Group", content = "New notification" } }, sent)
+		end)
+
 		it("shows the room name and a generic text without a message", function()
 			notify.room_counts_changed(make_room(), counts(0), counts(1))
 

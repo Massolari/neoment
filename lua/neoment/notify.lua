@@ -172,13 +172,24 @@ local function send_notification(level, handler, message, sender)
 	return false
 end
 
---- The newest incoming message of each room seen in the current sync, used by the server source
---- @type table<string, neoment.matrix.client.Message>
-local candidates = {}
+--- @class neoment.notify.ServerState
+--- @field client? neoment.matrix.client.Client The client the state belongs to
+--- @field candidates table<string, neoment.matrix.client.Message> The newest incoming message of each room seen in the current sync
+--- @field last_notified table<string, integer> The timestamp of the message shown by the last notification of each room
 
---- The timestamp of the message shown by the last server-source notification of each room
---- @type table<string, integer>
-local last_notified = {}
+--- The state of the server source
+--- @type neoment.notify.ServerState
+local server_state = { candidates = {}, last_notified = {} }
+
+--- Get the state of the server source, starting a fresh one when the client was replaced (logout, new login)
+--- @return neoment.notify.ServerState
+local function get_server_state()
+	local current_client = require("neoment.matrix.client").client
+	if server_state.client ~= current_client then
+		server_state = { client = current_client, candidates = {}, last_notified = {} }
+	end
+	return server_state
+end
 
 --- Check the conditions under which no desktop notification is sent, whatever the source
 --- @param room neoment.matrix.client.Room The room to notify about
@@ -269,6 +280,7 @@ M.desktop_message = function(room, message)
 	end
 
 	if config.get().desktop_notifications.source == "server" then
+		local candidates = get_server_state().candidates
 		local candidate = candidates[room.id]
 		if not candidate or message.timestamp >= candidate.timestamp then
 			candidates[room.id] = message
@@ -288,7 +300,8 @@ end
 --- @param room neoment.matrix.client.Room The room to search
 --- @return neoment.matrix.client.Message? The newest such message, if any
 local function newest_unread_incoming_message(room)
-	local after = math.max(room.read_receipt and room.read_receipt.ts or 0, last_notified[room.id] or 0)
+	local last_notified = get_server_state().last_notified[room.id]
+	local after = math.max(room.read_receipt and room.read_receipt.ts or 0, last_notified or 0)
 	local newest = nil
 	for _, message in pairs(room.messages) do
 		if
@@ -308,8 +321,9 @@ end
 --- @param old neoment.matrix.UnreadNotificationCounts The counts before the sync
 --- @param new neoment.matrix.UnreadNotificationCounts The counts reported by the sync
 M.room_counts_changed = function(room, old, new)
-	local candidate = candidates[room.id]
-	candidates[room.id] = nil
+	local state = get_server_state()
+	local candidate = state.candidates[room.id]
+	state.candidates[room.id] = nil
 
 	local notifications_config = config.get().desktop_notifications
 	if notifications_config.source ~= "server" then
@@ -324,7 +338,7 @@ M.room_counts_changed = function(room, old, new)
 
 	local message = candidate or newest_unread_incoming_message(room)
 	if message then
-		last_notified[room.id] = message.timestamp
+		state.last_notified[room.id] = message.timestamp
 		notifications_config.handler(format_title(room, message.sender), message.content)
 	else
 		notifications_config.handler(room.name, "New notification")
@@ -333,7 +347,7 @@ end
 
 --- Forget the messages kept for the notifications of the current sync
 M.clear_candidates = function()
-	candidates = {}
+	get_server_state().candidates = {}
 end
 
 return M

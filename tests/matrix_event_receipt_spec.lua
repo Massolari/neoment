@@ -120,16 +120,35 @@ describe("matrix receipt events", function()
 		assert.are.equal("$read", client.get_room_read_receipt(room_id).event_id)
 	end)
 
-	it("handles a receipt without a timestamp", function()
-		client.set_room_read_receipt(room_id, { event_id = "$old", ts = 5000, is_local = true })
+	--- A `m.receipt` event with the user's read receipt and no timestamp
+	--- @param event_id string The event the receipt points to
+	--- @return table The event
+	local function receipt_event_without_ts(event_id)
+		return { type = "m.receipt", content = { [event_id] = { ["m.read"] = { [user_id] = {} } } } }
+	end
+
+	it("moves to a receipt without a timestamp and keeps the previous timestamp", function()
+		client.set_room_read_receipt(room_id, { event_id = "$old", ts = 5000 })
 
 		assert.has_no.errors(function()
-			event.handle(room_id, {
-				type = "m.receipt",
-				content = { ["$read"] = { ["m.read"] = { [user_id] = {} } } },
-			})
+			event.handle(room_id, receipt_event_without_ts("$read"))
 		end)
 
-		assert.are.equal("$read", client.get_room_read_receipt(room_id).event_id)
+		assert.are.same({ event_id = "$read", ts = 5000 }, client.get_room_read_receipt(room_id))
+	end)
+
+	it("accepts a receipt without a timestamp when there is none yet", function()
+		event.handle(room_id, receipt_event_without_ts("$read"))
+
+		assert.are.same({ event_id = "$read", ts = 0 }, client.get_room_read_receipt(room_id))
+	end)
+
+	it("keeps the receipt when one without a timestamp points to the same event", function()
+		local receipt = { event_id = "$read", ts = 5000, is_local = true }
+		client.set_room_read_receipt(room_id, vim.deepcopy(receipt))
+
+		event.handle(room_id, receipt_event_without_ts("$read"))
+
+		assert.are.same(receipt, client.get_room_read_receipt(room_id))
 	end)
 end)
