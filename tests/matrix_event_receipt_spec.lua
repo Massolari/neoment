@@ -55,6 +55,31 @@ describe("matrix receipt events", function()
 		end
 	end)
 
+	describe("marking a room read", function()
+		before_each(function()
+			require("neoment.matrix.api").authed.post = function() end
+		end)
+
+		it("uses the server timestamp of the read message", function()
+			client.get_room(room_id).messages["$read"] = { id = "$read", timestamp = 1234 }
+
+			require("neoment.matrix").set_room_read_marker(room_id, { read_private = "$read" })
+
+			assert.are.same(
+				{ event_id = "$read", ts = 1234, is_local = true },
+				client.get_room_read_receipt(room_id)
+			)
+		end)
+
+		it("falls back to the local clock for a message it does not have", function()
+			require("neoment.matrix").set_room_read_marker(room_id, { read = "$unknown" })
+
+			local receipt = client.get_room_read_receipt(room_id)
+			assert.are.equal("$unknown", receipt.event_id)
+			assert.is_true(math.abs(receipt.ts - os.time() * 1000) < 5000)
+		end)
+	end)
+
 	it("keeps a newer receipt over an older one", function()
 		client.set_room_read_receipt(room_id, { event_id = "$new", ts = 2000 })
 

@@ -884,9 +884,11 @@ M.set_room_read_marker = function(room_id, markers, callback)
 
 	local read_receipt = markers.read or markers.read_private
 	if read_receipt then
+		-- Prefer the server timestamp of the read event, as the receipt is compared with message timestamps
+		local read_message = room.messages[read_receipt]
 		room.read_receipt = {
 			event_id = read_receipt,
-			ts = os.time() * 1000, -- Convert to milliseconds
+			ts = read_message and read_message.timestamp or os.time() * 1000, -- Convert to milliseconds
 			is_local = true,
 		}
 	end
