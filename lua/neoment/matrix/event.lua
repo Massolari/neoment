@@ -533,11 +533,14 @@ M.handle = function(room_id, event, is_history)
 		for event_id, receipt in pairs(event.content) do
 			for _, values in pairs(receipt) do
 				for user, data in pairs(values) do
-					if user == user_id then
-						if data.ts > newest_ts then
-							newest_ts = data.ts
+					-- Thread receipts are not the room's main receipt, and `ts` is optional in the spec
+					local is_main = data.thread_id == nil or data.thread_id == "main"
+					local ts = data.ts or 0
+					if user == user_id and is_main then
+						if ts > newest_ts then
+							newest_ts = ts
 							last_user_receipt = {
-								ts = data.ts,
+								ts = ts,
 								event_id = event_id,
 							}
 						end
