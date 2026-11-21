@@ -41,6 +41,9 @@ local CUSTOM_SOURCE_NOTICE =
 
 local namespace = vim.api.nvim_create_namespace("neoment_notification_settings")
 
+--- The tweak that makes a notification play the default sound
+local SOUND_TWEAK = { set_tweak = "sound", value = "default" }
+
 --- Find a rule by ID in one kind of the ruleset
 --- @param rules neoment.matrix.client.PushRuleset|nil
 --- @param kind neoment.matrix.client.PushRuleKind
@@ -149,7 +152,8 @@ local function run_steps(steps, callback)
 	next_step()
 end
 
---- Run the steps of a change, then re-fetch the push rules whatever the outcome, so they hold the server state
+--- Run the steps of a change, then re-fetch the push rules whatever the outcome, so they hold the server state.
+--- When only the re-fetch fails, the error has `saved = true`.
 --- @param steps table<fun(cb: fun(result: neoment.Error<any, neoment.matrix.api.Error>))>
 --- @param callback fun(result: neoment.Error<nil, neoment.matrix.api.Error>)
 local function apply_and_refresh(steps, callback)
@@ -159,9 +163,12 @@ local function apply_and_refresh(steps, callback)
 				callback(change_result)
 				return
 			end
-			callback(error.map(fetch_result, function()
-				return nil
-			end))
+			if error.is_error(fetch_result) then
+				-- The change was applied, only the reload failed
+				callback(error.err(vim.tbl_extend("force", fetch_result.error, { saved = true })))
+				return
+			end
+			callback(error.ok(nil))
 		end)
 	end)
 end
@@ -172,7 +179,11 @@ end
 --- @param callback fun(result: neoment.Error<nil, neoment.matrix.api.Error>)
 M.set_global_level = function(category, level, callback)
 	local rules = matrix.get_push_rules()
-	local actions = level == "all" and { "notify" } or {}
+	local actions = {}
+	if level == "all" then
+		-- One-to-one rooms keep the sound of the server defaults, as Element does
+		actions = category == "one_to_one" and { "notify", SOUND_TWEAK } or { "notify" }
+	end
 	local steps = {}
 
 	for _, rule_id in ipairs(CATEGORY_RULES[category]) do
@@ -199,17 +210,29 @@ M.set_room_level = function(room_id, level, callback)
 	local rules = matrix.get_push_rules()
 	local steps = {}
 
+	--- Create or replace a rule, and enable it: replacing a rule keeps its enabled flag
+	--- @param kind neoment.matrix.client.PushRuleKind
+	--- @param body table
+	local function put_rule(kind, body)
+		table.insert(steps, function(cb)
+			matrix.set_push_rule(kind, room_id, body, cb)
+		end)
+		local existing = find_rule(rules, kind, room_id)
+		if existing and existing.enabled == false then
+			table.insert(steps, function(cb)
+				matrix.set_push_rule_enabled(kind, room_id, true, cb)
+			end)
+		end
+	end
+
 	if level == "none" then
-		table.insert(steps, function(cb)
-			matrix.set_push_rule("override", room_id, {
-				conditions = { { kind = "event_match", key = "room_id", pattern = room_id } },
-				actions = {},
-			}, cb)
-		end)
+		put_rule("override", {
+			conditions = { { kind = "event_match", key = "room_id", pattern = room_id } },
+			actions = {},
+		})
 	elseif level == "all" or level == "mentions" then
-		table.insert(steps, function(cb)
-			matrix.set_push_rule("room", room_id, { actions = level == "all" and { "notify" } or {} }, cb)
-		end)
+		-- Element reads a room rule as "All messages" only when it has a sound
+		put_rule("room", { actions = level == "all" and { "notify", SOUND_TWEAK } or {} })
 	end
 
 	-- Only delete the rules that exist, to avoid errors for missing ones
@@ -381,9 +404,12 @@ local function open_window(title, build_lines)
 			vim.schedule(function()
 				state.saving = false
 				if error.is_error(result) then
-					notify.error(
-						"Could not change the notification settings: " .. (result.error.error or "unknown error")
-					)
+					local reason = result.error.error or "unknown error"
+					if result.error.saved then
+						notify.error("Saved, but could not reload the notification settings: " .. reason)
+					else
+						notify.error("Could not change the notification settings: " .. reason)
+					end
 				end
 				render(title)
 			end)

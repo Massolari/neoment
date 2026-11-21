@@ -176,6 +176,10 @@ end
 --- @type table<string, neoment.matrix.client.Message>
 local candidates = {}
 
+--- The timestamp of the message shown by the last server-source notification of each room
+--- @type table<string, integer>
+local last_notified = {}
+
 --- Check the conditions under which no desktop notification is sent, whatever the source
 --- @param room neoment.matrix.client.Room The room to notify about
 --- @return boolean True if the notification must be skipped
@@ -279,13 +283,19 @@ M.desktop_message = function(room, message)
 	desktop_message_custom(room, message)
 end
 
---- Find the newest stored message in a room that was not sent by the user
+--- Find the newest stored message in a room that was not sent by the user and may still be unread:
+--- newer than the user's read receipt and than the message of the room's last notification
 --- @param room neoment.matrix.client.Room The room to search
---- @return neoment.matrix.client.Message? The newest incoming message, if any
-local function newest_incoming_message(room)
+--- @return neoment.matrix.client.Message? The newest such message, if any
+local function newest_unread_incoming_message(room)
+	local after = math.max(room.read_receipt and room.read_receipt.ts or 0, last_notified[room.id] or 0)
 	local newest = nil
 	for _, message in pairs(room.messages) do
-		if is_incoming(message) and (not newest or message.timestamp > newest.timestamp) then
+		if
+			is_incoming(message)
+			and message.timestamp > after
+			and (not newest or message.timestamp > newest.timestamp)
+		then
 			newest = message
 		end
 	end
@@ -312,8 +322,9 @@ M.room_counts_changed = function(room, old, new)
 		return
 	end
 
-	local message = candidate or newest_incoming_message(room)
+	local message = candidate or newest_unread_incoming_message(room)
 	if message then
+		last_notified[room.id] = message.timestamp
 		notifications_config.handler(format_title(room, message.sender), message.content)
 	else
 		notifications_config.handler(room.name, "New notification")

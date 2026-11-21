@@ -2,6 +2,7 @@ local error = require("neoment.error")
 
 describe("notification settings", function()
 	local ROOM_ID = "!room:server"
+	local SOUND = { set_tweak = "sound", value = "default" }
 	local STUBBED_MODULES = { "neoment.matrix", "neoment.notify", "neoment.config", "neoment.notification_settings" }
 
 	local settings
@@ -174,11 +175,14 @@ describe("notification settings", function()
 			end,
 			set_push_rule = function(kind, rule_id, body, cb)
 				answer("PUT " .. kind .. " " .. rule_id .. " " .. vim.json.encode(body.actions), function()
-					local index = find_index(kind, rule_id) or (#server.rules.global[kind] + 1)
+					local index = find_index(kind, rule_id)
+					-- Replacing a rule keeps its enabled flag, as Synapse does
+					local enabled = not index or server.rules.global[kind][index].enabled
+					index = index or (#server.rules.global[kind] + 1)
 					server.rules.global[kind][index] = {
 						rule_id = rule_id,
 						default = false,
-						enabled = true,
+						enabled = enabled,
 						actions = body.actions,
 						conditions = body.conditions,
 					}
@@ -349,7 +353,7 @@ describe("notification settings", function()
 
 	describe("changing a room level", function()
 		local MUTE = "PUT override " .. ROOM_ID .. " []"
-		local ROOM_ALL = "PUT room " .. ROOM_ID .. ' ["notify"]'
+		local ROOM_ALL = "PUT room " .. ROOM_ID .. " " .. vim.json.encode({ "notify", SOUND })
 		local ROOM_MENTIONS = "PUT room " .. ROOM_ID .. " []"
 		local DELETE_OVERRIDE = "DELETE override " .. ROOM_ID
 		local DELETE_ROOM = "DELETE room " .. ROOM_ID
@@ -358,7 +362,7 @@ describe("notification settings", function()
 		--- @param level string
 		local function start_from(level)
 			if level == "all" then
-				table.insert(server.rules.global.room, room_rule(ROOM_ID, { "notify" }))
+				table.insert(server.rules.global.room, room_rule(ROOM_ID, { "notify", SOUND }))
 			elseif level == "mentions" then
 				table.insert(server.rules.global.room, room_rule(ROOM_ID, {}))
 			elseif level == "none" then
@@ -405,6 +409,38 @@ describe("notification settings", function()
 			end
 		end
 
+		it("enables a disabled room rule it replaces", function()
+			table.insert(server.rules.global.room, room_rule(ROOM_ID, {}, false))
+			require("neoment.matrix").set_local_rules(vim.deepcopy(server.rules))
+
+			local result = run(settings.set_room_level, ROOM_ID, "all")
+
+			assert.is_true(error.is_ok(result))
+			assert.are.same({ ROOM_ALL, "ENABLED room " .. ROOM_ID .. " true", "GET" }, requests)
+			assert.are.equal("all", settings.get_room_level(require("neoment.matrix").get_push_rules(), ROOM_ID))
+		end)
+
+		it("enables a disabled mute override it replaces", function()
+			local disabled = mute_rule(ROOM_ID)
+			disabled.enabled = false
+			table.insert(server.rules.global.override, disabled)
+			require("neoment.matrix").set_local_rules(vim.deepcopy(server.rules))
+
+			run(settings.set_room_level, ROOM_ID, "none")
+
+			assert.are.same({ MUTE, "ENABLED override " .. ROOM_ID .. " true", "GET" }, requests)
+			assert.are.equal("none", settings.get_room_level(require("neoment.matrix").get_push_rules(), ROOM_ID))
+		end)
+
+		it("marks the error as saved when only the re-fetch fails", function()
+			server.fetch_fails = true
+
+			local result = run(settings.set_room_level, ROOM_ID, "none")
+
+			assert.is_true(error.is_error(result))
+			assert.is_true(result.error.saved)
+		end)
+
 		it("re-fetches and reports the error when a request fails", function()
 			fail_next = true
 
@@ -430,16 +466,16 @@ describe("notification settings", function()
 			}, requests)
 		end)
 
-		it("enables both one-to-one rules with a notify action", function()
+		it("enables both one-to-one rules with a notify action and the default sound", function()
 			server.rules.global.underride[1].enabled = false
 			require("neoment.matrix").set_local_rules(vim.deepcopy(server.rules))
 
 			run(settings.set_global_level, "one_to_one", "all")
 
 			assert.are.same({
-				'ACTIONS underride .m.rule.room_one_to_one ["notify"]',
+				"ACTIONS underride .m.rule.room_one_to_one " .. vim.json.encode({ "notify", SOUND }),
 				"ENABLED underride .m.rule.room_one_to_one true",
-				'ACTIONS underride .m.rule.encrypted_room_one_to_one ["notify"]',
+				"ACTIONS underride .m.rule.encrypted_room_one_to_one " .. vim.json.encode({ "notify", SOUND }),
 				"ENABLED underride .m.rule.encrypted_room_one_to_one true",
 				"GET",
 			}, requests)
@@ -532,6 +568,20 @@ describe("notification settings", function()
 				"  ( ) All messages",
 				"  (•) Mentions and replies only",
 			}, current_lines())
+		end)
+
+		it("says the change was saved when only the reload fails", function()
+			settings.open_global()
+			server.fetch_fails = true
+
+			vim.api.nvim_win_set_cursor(0, { 7, 0 })
+			vim.api.nvim_feedkeys(vim.keycode("<CR>"), "x", false)
+			vim.wait(50, function()
+				return false
+			end)
+
+			assert.are.equal(1, #errors)
+			assert.matches("Saved, but could not reload", errors[1], 1, true)
 		end)
 
 		it("shows a room's settings with the applied global level", function()

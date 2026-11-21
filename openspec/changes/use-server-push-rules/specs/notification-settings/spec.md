@@ -100,7 +100,7 @@ Setting a global level SHALL update on the homeserver both the plain and the enc
 - **THEN** the one-to-one and encrypted one-to-one rules are enabled with a notify action
 
 ### Requirement: Changing a room level
-Setting a room level SHALL leave on the homeserver only the rules for that room that express the new level: no rule for "Global settings"; a room rule that notifies for "All messages"; a room rule that does not notify for "Mentions and replies only"; an override rule matching only that room, with no notify action, for "None".
+Setting a room level SHALL leave on the homeserver only the rules for that room that express the new level: no rule for "Global settings"; a room rule that notifies with the default sound for "All messages"; a room rule that does not notify for "Mentions and replies only"; an override rule matching only that room, with no notify action, for "None". The rule for the new level SHALL be enabled.
 
 #### Scenario: Mute a room
 - **WHEN** the user sets a room to "None"

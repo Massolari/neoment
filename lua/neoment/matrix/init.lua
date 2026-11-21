@@ -474,6 +474,9 @@ M.sync = function(options, callback)
 
 				local updated_rooms = {}
 
+				-- Only the messages of this sync can be notified, not the ones loaded by pagination since the last one
+				require("neoment.notify").clear_candidates()
+
 				if sync_data.rooms and sync_data.rooms.invite then
 					local new_updated_rooms = handle_sync_invited_rooms(sync_data.rooms.invite)
 					updated_rooms = vim.iter({ updated_rooms, new_updated_rooms }):flatten():totable()

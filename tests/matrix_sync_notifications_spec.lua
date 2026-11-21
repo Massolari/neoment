@@ -97,10 +97,10 @@ describe("matrix sync notification counts", function()
 		assert.are.equal(2, client.get_room(room_id).unread_notifications)
 	end)
 
-	it("clears the notification candidates at the end of each sync", function()
+	it("clears the notification candidates at the start and end of each sync", function()
 		run_sync(joined_sync({ unread_notifications = { notification_count = 3, highlight_count = 0 } }))
 
-		assert.are.equal(1, clear_calls)
+		assert.are.equal(2, clear_calls)
 	end)
 
 	it("stores the joined member count from the summary", function()

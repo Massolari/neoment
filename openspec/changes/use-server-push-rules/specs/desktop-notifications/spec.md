@@ -75,7 +75,7 @@ With the server source, the client SHALL send one desktop notification for a roo
 - **THEN** a desktop notification is sent
 
 ### Requirement: Server source notification content
-A server-source notification SHALL show the newest message in the room that was not sent by the current user, using the same title and body format as custom-source notifications. When the client has no such message, it SHALL show the room name as the title and "New notification" as the body.
+A server-source notification SHALL show the newest message in the room that was not sent by the current user, using the same title and body format as custom-source notifications. A message from before the sync SHALL only be shown when it is newer than the user's read receipt and than the message of the room's previous notification. When the client has no such message, it SHALL show the room name as the title and "New notification" as the body.
 
 #### Scenario: Newest message from another user
 - **GIVEN** a sync delivers messages from Alice then Bob in a group room
@@ -86,6 +86,12 @@ A server-source notification SHALL show the newest message in the room that was 
 - **GIVEN** a sync delivers a message from Alice followed by one from the current user
 - **WHEN** the room's notification count increases
 - **THEN** the notification shows Alice's message
+
+#### Scenario: Stored message already notified
+- **GIVEN** the last notification for a room showed Alice's message
+- **AND** the next sync raising the room's count delivers no message from another user
+- **WHEN** the room's notification count increases
+- **THEN** the notification shows the room name and the text "New notification"
 
 #### Scenario: No message available
 - **GIVEN** the client has no message from another user for the room

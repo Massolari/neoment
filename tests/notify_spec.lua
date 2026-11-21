@@ -251,6 +251,32 @@ describe("notify desktop notifications", function()
 			assert.are.same({ { title = "[Group] Alice", content = "old" } }, sent)
 		end)
 
+		it("does not fall back to a message older than the read receipt", function()
+			local room = make_room({
+				messages = { ["$1"] = make_message({ id = "$1", content = "read", timestamp = 1 }) },
+				read_receipt = { event_id = "$1", ts = 5 },
+			})
+
+			notify.room_counts_changed(room, counts(0), counts(1))
+
+			assert.are.same({ { title = "Group", content = "New notification" } }, sent)
+		end)
+
+		it("does not fall back to the message of an earlier notification", function()
+			local room = make_room({
+				messages = { ["$1"] = make_message({ id = "$1", content = "hello", timestamp = 1 }) },
+			})
+			notify.desktop_message(room, room.messages["$1"])
+			notify.room_counts_changed(room, counts(0), counts(1))
+
+			notify.room_counts_changed(room, counts(1), counts(2))
+
+			assert.are.same({
+				{ title = "[Group] Alice", content = "hello" },
+				{ title = "Group", content = "New notification" },
+			}, sent)
+		end)
+
 		it("shows the room name and a generic text without a message", function()
 			notify.room_counts_changed(make_room(), counts(0), counts(1))
 

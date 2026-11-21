@@ -30,7 +30,7 @@ In `handle_sync_joined_rooms`, read the room's previous `unread_notifications`/`
 - Counts from a sync that has no `unread_notifications` key are left unchanged, so they never look like an increase.
 
 ### 2. The notification shows the newest incoming message seen in this sync
-`notify.desktop_message` keeps its custom-source logic. With the server source, it records the message as the room's notification candidate when the sender is not the user and the message is not a state event (`candidates[room_id] = message`, newest timestamp wins), and sends nothing. `room_counts_changed` uses and clears the candidate. If there is none, it falls back to the newest stored message from another user, then to room name + "New notification". All candidates are cleared at the end of `matrix.sync`'s response handling, after the joined rooms are processed, so a stale message is never shown later.
+`notify.desktop_message` keeps its custom-source logic. With the server source, it records the message as the room's notification candidate when the sender is not the user and the message is not a state event (`candidates[room_id] = message`, newest timestamp wins), and sends nothing. `room_counts_changed` uses and clears the candidate. If there is none, it falls back to the newest stored message from another user that is newer than the user's read receipt and than the message of the room's last notification, then to room name + "New notification". All candidates are cleared at the start and at the end of `matrix.sync`'s response handling, so messages loaded by pagination are not candidates and a stale message is never shown later.
 - This works for untracked rooms, which keep only one message, because the candidate is captured as each message is added.
 - Title and body formatting are shared with the custom path (a `format_title(room, sender)` helper extracted from the current code).
 
@@ -43,12 +43,12 @@ Add `desktop_notifications.source` (`"server"|"custom"`, default `"server"`) to 
 - New functions in `matrix/init.lua`: `fetch_push_rules(cb)`, `set_push_rule(kind, rule_id, body, cb)`, `delete_push_rule(kind, rule_id, cb)`, `set_push_rule_actions(kind, rule_id, actions, cb)` and `set_push_rule_enabled(kind, rule_id, enabled, cb)`, on `api.authed`. Rule IDs are URL-encoded (room IDs contain `!` and `:`).
 
 ### 5. Level mapping (Element-compatible)
-"Notifies" means the rule's `actions` contains `"notify"`. Legacy `"dont_notify"` and `[]` both count as not notifying. Writes use `[]` (current spec form).
+"Notifies" means the rule's `actions` contains `"notify"`. Legacy `"dont_notify"` and `[]` both count as not notifying. Writes use `[]` (current spec form). Writes that notify keep the sound tweak Element and the server defaults use: room rules and the one-to-one rules get `["notify", {set_tweak: "sound", value: "default"}]`, the group rules get `["notify"]`.
 
 | Level | Push rules |
 |---|---|
 | Room: Global settings | no `override` or `room` rule with `rule_id == room_id` |
-| Room: All messages | `room` rule `room_id`, actions `["notify"]` |
+| Room: All messages | `room` rule `room_id`, actions `["notify", {set_tweak: "sound", value: "default"}]` (Element only shows a room rule as "All messages" when it has a sound) |
 | Room: Mentions and replies only | `room` rule `room_id`, actions `[]` |
 | Room: None | `override` rule `room_id`, conditions `[{kind="event_match", key="room_id", pattern=room_id}]`, actions `[]` |
 | Global one-to-one rooms | `.m.rule.room_one_to_one` + `.m.rule.encrypted_room_one_to_one` (underride) |
@@ -57,6 +57,7 @@ Add `desktop_notifications.source` (`"server"|"custom"`, default `"server"`) to 
 - Reading a room override as "None" requires it to be enabled, have that single `event_match room_id` condition, and not notify. Any other override with that ID is ignored, so other clients' rules are not misread.
 - Global writes use the `/actions` and `/enabled` endpoints, because server-default (`.`-prefixed) rules cannot be created or deleted. A rule missing from the current ruleset (e.g. an older server without the encrypted rule) is skipped.
 - "Mentions and replies only" relies on the server's mention rules: replies carry the replied-to sender in `m.mentions`, which `.m.rule.is_user_mention` matches.
+- Replacing an existing rule with `PUT` keeps its enabled flag, so a room write also enables the rule it replaces when the local ruleset has it disabled.
 - Room writes create the new rule first and then delete the obsolete ones, so a failure part-way leaves the room on a deliberate setting rather than briefly on "Global settings". Deletes are only sent for rules present in the local ruleset, to avoid 404s.
 - After the requests finish, successful or not, the module re-fetches the push rules and re-renders, so the window shows the real server state (spec: "Failed changes are reported").
 
