@@ -65,10 +65,7 @@ describe("matrix receipt events", function()
 
 			require("neoment.matrix").set_room_read_marker(room_id, { read_private = "$read" })
 
-			assert.are.same(
-				{ event_id = "$read", ts = 1234, is_local = true },
-				client.get_room_read_receipt(room_id)
-			)
+			assert.are.same({ event_id = "$read", ts = 1234, is_local = true }, client.get_room_read_receipt(room_id))
 		end)
 
 		it("falls back to the local clock for a message it does not have", function()
