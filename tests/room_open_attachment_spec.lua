@@ -111,7 +111,7 @@ describe("room open_attachment", function()
 		local message_attachment = {
 			type = "audio",
 			mimetype = "audio/ogg",
-			url = "https://example.org/_matrix/media/v3/download/example.org/voice",
+			url = "https://example.org/_matrix/client/v1/media/download/example.org/voice",
 			mxc_url = "mxc://example.org/voice",
 			filename = "voice.ogg",
 			duration = 1000,
@@ -136,9 +136,9 @@ describe("room open_attachment", function()
 	end)
 
 	it("removes the access token from message attachment URLs passed to the handler", function()
-		local url = "https://example.org/_matrix/media/v3/download/example.org/video?access_token=secret_token"
+		local url = "https://example.org/_matrix/client/v1/media/download/example.org/video?access_token=secret_token"
 		local thumbnail_url =
-			"https://example.org/_matrix/media/v3/download/example.org/thumb?access_token=secret_token"
+			"https://example.org/_matrix/client/v1/media/download/example.org/thumb?access_token=secret_token"
 		local message_attachment = {
 			type = "video",
 			mimetype = "video/mp4",
@@ -163,8 +163,11 @@ describe("room open_attachment", function()
 
 		assert.spy(handler_spy).was_called(1)
 		local attachment = handler_spy.calls[1].vals[2]
-		assert.equals("https://example.org/_matrix/media/v3/download/example.org/video", attachment.url)
-		assert.equals("https://example.org/_matrix/media/v3/download/example.org/thumb", attachment.thumbnail.url)
+		assert.equals("https://example.org/_matrix/client/v1/media/download/example.org/video", attachment.url)
+		assert.equals(
+			"https://example.org/_matrix/client/v1/media/download/example.org/thumb",
+			attachment.thumbnail.url
+		)
 		assert.equals(url, message_attachment.url)
 		assert.equals(thumbnail_url, message_attachment.thumbnail.url)
 	end)
@@ -223,6 +226,70 @@ describe("room open_attachment", function()
 		assert.equals(1, #fetches)
 		assert.equals("https://maps.google.com/?q=1,2", fetches[1].url)
 		assert.is_nil(fetches[1].headers)
+	end)
+
+	it("does not download an image whose source is not mxc://", function()
+		local notifications = {}
+		package.loaded["neoment.notify"].info = function(message)
+			table.insert(notifications, message)
+		end
+		-- An `m.image` event whose `content.url` is `https://attacker.example/x.png` has no URL
+		room._get_buffer_data(buf).line_to_message[1] = {
+			id = "$event",
+			content = "x.png",
+			attachment = { type = "image", mimetype = "image/png" },
+		}
+
+		room.open_attachment()
+		flush()
+
+		assert.equals(0, #fetches)
+		assert.spy(handler_spy).was_not_called()
+		assert.are.same({ "This attachment has no downloadable media" }, notifications)
+	end)
+
+	it("does not download a custom emoticon whose mxc URI is malformed", function()
+		seed_extmark({ emoticon_url = "mxc://example.org/../../v3/account/whoami", emoticon_title = "party" })
+
+		room.open_attachment()
+		flush()
+
+		assert.equals(0, #fetches)
+		assert.spy(handler_spy).was_not_called()
+	end)
+
+	it("does not download a cached attachment URL of another server", function()
+		local notifications = {}
+		package.loaded["neoment.notify"].info = function(message)
+			table.insert(notifications, message)
+		end
+		-- A URL an earlier version saved unchanged from an `m.image` event whose `content.url` was not mxc://
+		room._get_buffer_data(buf).line_to_message[1] = {
+			id = "$event",
+			content = "x.png",
+			attachment = {
+				type = "image",
+				mimetype = "image/png",
+				url = "https://attacker.example/x.png?access_token=old_token",
+			},
+		}
+
+		room.open_attachment()
+		flush()
+
+		assert.equals(0, #fetches)
+		assert.spy(handler_spy).was_not_called()
+		assert.are.same({ "This attachment has no downloadable media" }, notifications)
+	end)
+
+	it("does not download a custom reaction whose mxc URI is malformed", function()
+		seed_extmark({ reaction_mxc_url = "mxc://example.org/../../v3/account/whoami", reaction_label = "thumbs" })
+
+		room.open_attachment()
+		flush()
+
+		assert.equals(0, #fetches)
+		assert.spy(handler_spy).was_not_called()
 	end)
 
 	it("downloads a custom emoticon with the current token in a header, not in the URL", function()

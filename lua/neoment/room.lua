@@ -616,9 +616,9 @@ local function apply_highlights(buffer_id, room_id, lines)
 			local emoticon_start, emoticon_end, emoticon_title, emoticon_url =
 				line:find("%[img:%s*([^%]]+)%]%(([^%)]+)%)")
 			while emoticon_start and emoticon_end do
-				-- Only mxc:// URLs are emoticons, any other URL could be typed by anyone and fetching it
+				-- Only valid mxc:// URIs are emoticons, any other URL could be typed by anyone and fetching it
 				-- would send the access token to an arbitrary server
-				if emoticon_url:match("^mxc://") then
+				if util.parse_mxc(emoticon_url) then
 					local extmark_id =
 						vim.api.nvim_buf_set_extmark(buffer_id, EXTMARK_NAMESPACE, index - 1, emoticon_start - 1, {
 							end_col = emoticon_end,
@@ -697,9 +697,16 @@ local function apply_highlights(buffer_id, room_id, lines)
 
 				if message.attachment then
 					if Snacks then
-						local image_data = message.attachment.thumbnail or message.attachment
+						-- Only images and video thumbnails of the homeserver are drawn, anything else would be
+						-- fetched as soon as the message is shown
+						local image_data = nil
+						if message.attachment.type == "image" then
+							image_data = message.attachment
+						elseif message.attachment.type == "video" then
+							image_data = message.attachment.thumbnail
+						end
 						--- @type neoment.room.Image
-						if image_data then
+						if image_data and util.is_media_url(image_data.url) then
 							local image = {
 								line = index,
 								url = image_data.url,
@@ -805,9 +812,9 @@ local function apply_highlights(buffer_id, room_id, lines)
 
 						local emoji_label = reaction_emoji and reaction_emoji.label or content
 
-						-- Check if the reaction content is an mxc:// URL (custom emoticon reaction)
+						-- Check if the reaction content is a valid mxc:// URI (custom emoticon reaction)
 						local reaction_mxc_url = nil
-						if content:match("^mxc://") then
+						if util.parse_mxc(content) then
 							reaction_mxc_url = content
 						end
 
@@ -1485,8 +1492,9 @@ M.forward_message = function()
 			--- @type neoment.room.PromptMessageParams
 			local params = {}
 
-			-- If the original message has an attachment, include it in the forward
-			if message.attachment then
+			-- If the original message has media, include it in the forward.
+			-- An attachment without a valid mxc URI has no media to send, so only its body is forwarded.
+			if message.attachment and util.parse_mxc(message.attachment.mxc_url) then
 				params.attachment = {
 					filename = message.attachment.filename,
 					url = message.attachment.mxc_url,
@@ -1555,7 +1563,8 @@ M.handle_cursor_hold = function(buffer_id)
 		end
 
 		-- Handle emoticon links - show image in a float window
-		if data.emoticon_url and Snacks then
+		local emoticon_media_url = util.mxc_to_url(matrix.client.homeserver, data.emoticon_url)
+		if emoticon_media_url and Snacks then
 			local title = data.emoticon_title or "Emoticon"
 			local float_width = 20
 			local float_height = 10
@@ -1576,7 +1585,6 @@ M.handle_cursor_hold = function(buffer_id)
 			vim.hl.range(float_buf, EXTMARK_NAMESPACE, "Bold", { 0, 0 }, { 0, -1 })
 
 			-- Display the image in the float window using Snacks
-			local url = util.mxc_to_url(matrix.client.homeserver, data.emoticon_url)
 			require("snacks.image.terminal").detect(function()
 				--- @type snacks.image.Opts
 				local opts = {
@@ -1586,7 +1594,7 @@ M.handle_cursor_hold = function(buffer_id)
 					inline = true,
 					type = "image",
 				}
-				place_float_image(float_buf, float_win, url, opts)
+				place_float_image(float_buf, float_win, emoticon_media_url, opts)
 			end)
 			break
 		end
@@ -1605,8 +1613,9 @@ M.handle_cursor_hold = function(buffer_id)
 				max_length = math.max(max_length, vim.fn.strdisplaywidth(display_name))
 			end
 
-			-- If reaction is an mxc:// URL (custom emoticon), show the image
-			if data.reaction_mxc_url and Snacks then
+			-- If reaction is a valid mxc:// URI (custom emoticon), show the image
+			local reaction_media_url = util.mxc_to_url(matrix.client.homeserver, data.reaction_mxc_url)
+			if reaction_media_url and Snacks then
 				local float_width = math.max(20, max_length)
 				local float_height = 9 + #reaction_users + 1 -- Image height + users list + spacing
 
@@ -1627,7 +1636,6 @@ M.handle_cursor_hold = function(buffer_id)
 				vim.hl.range(float_buf, EXTMARK_NAMESPACE, "Bold", { 0, 0 }, { 0, -1 })
 
 				-- Display the image in the float window using Snacks
-				local url = util.mxc_to_url(matrix.client.homeserver, data.reaction_mxc_url)
 				require("snacks.image.terminal").detect(function()
 					--- @type snacks.image.Opts
 					local opts = {
@@ -1637,7 +1645,7 @@ M.handle_cursor_hold = function(buffer_id)
 						inline = true,
 						type = "image",
 					}
-					place_float_image(float_buf, float_win, url, opts)
+					place_float_image(float_buf, float_win, reaction_media_url, opts)
 				end)
 				break
 			end
@@ -1729,6 +1737,9 @@ M.open_attachment = function()
 			local title = mxc_data.emoticon_title or mxc_data.reaction_label or "image"
 			local filename = title:gsub("[^%w%.%-_]", "_") .. ".png"
 			local media_url = util.mxc_to_url(matrix.client.homeserver, mxc_url)
+			if not media_url then
+				return notify.info("This image has no downloadable media")
+			end
 
 			-- The mimetype is a guess, the file is always saved as PNG
 			--- @type neoment.matrix.client.MessageImage
@@ -1771,6 +1782,11 @@ M.open_attachment = function()
 			return notify.info("No URL for this location attachment")
 		end
 
+		-- A cached URL that is not a download URL of the homeserver, saved by an earlier version, is never fetched
+		if message.attachment.type ~= "location" and not util.is_media_url(message.attachment.url) then
+			return notify.info("This attachment has no downloadable media")
+		end
+
 		local filename = message.id .. (message.attachment.filename or message.content)
 
 		notify.info("Fetching attachment " .. filename .. "...")
@@ -1801,6 +1817,15 @@ M.save_attachment = function()
 		if not message.attachment then
 			notify.error("No attachment on this message")
 			return error.err("No attachment on this message") --[[@as neoment.Error<string, string>]]
+		end
+
+		-- A cached URL that is not a download URL of the homeserver, saved by an earlier version, is never fetched
+		if
+			not message.attachment.url
+			or (message.attachment.type ~= "location" and not util.is_media_url(message.attachment.url))
+		then
+			notify.info("This attachment has no downloadable media")
+			return error.err("This attachment has no downloadable media") --[[@as neoment.Error<string, string>]]
 		end
 
 		vim.ui.input({ prompt = "Save attachment to: ", completion = "file" }, function(user_input)
@@ -2280,5 +2305,6 @@ end
 -- Expose for testing
 M._update_buffer_lines_diff = update_buffer_lines_diff
 M._get_buffer_data = get_buffer_data
+M._apply_highlights = apply_highlights
 
 return M

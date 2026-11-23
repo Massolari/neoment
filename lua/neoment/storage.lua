@@ -363,7 +363,8 @@ local image_downloads = {}
 --- Get the source to give the image viewer for a media URL.
 --- Media of the user's homeserver is downloaded with the access token in a header and given as a local file:
 --- the viewer caches images by source, and a URL holding the token would change every time it is refreshed.
---- The file is named after the URL, so each image is downloaded once. Other URLs are given as they are.
+--- The file is named after the URL, so each image is downloaded once. Any other URL is an error: the viewer would
+--- fetch it itself, telling its server when the user reads the message.
 --- The images may come from private rooms, so they are kept in a directory only the user can read.
 --- @param url string The media URL
 --- @param callback fun(result: neoment.Error<string, string>) Called in the main loop with the source.
@@ -372,7 +373,7 @@ M.fetch_image_source = function(url, callback)
 	local bare_url = util.strip_access_token(url)
 	local headers = util.media_headers(bare_url)
 	if not headers then
-		callback(error.ok(url))
+		callback(error.err("Not homeserver media"))
 		return
 	end
 

@@ -88,8 +88,8 @@ local function render_avatar(buffer_id, room_id)
 
 	local avatar_url = matrix.get_room_avatar(room_id)
 
-	-- Only mxc:// avatars are fetched, any other URL would receive the access token
-	if not avatar_url or not avatar_url:match("^mxc://") then
+	-- Only valid mxc:// avatars are fetched, any other URL would receive the access token
+	if not util.parse_mxc(avatar_url) then
 		render_no_image(buffer_id)
 		return
 	end
@@ -505,8 +505,8 @@ M.open_avatar = function(buffer_id)
 		return
 	end
 	local avatar = room.avatar_url
-	-- Only mxc:// avatars are fetched, any other URL would receive the access token
-	if not avatar or not avatar:match("^mxc://") then
+	-- Only valid mxc:// avatars are fetched, any other URL would receive the access token
+	if not util.parse_mxc(avatar) then
 		notify.info("No avatar image to open")
 		return
 	end
