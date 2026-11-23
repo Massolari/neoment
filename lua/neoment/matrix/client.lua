@@ -125,8 +125,8 @@ M.client = nil
 --- @class neoment.matrix.client.BaseAttachment
 --- @field type neoment.matrix.client.MessageAttachmentType The type of the attachment.
 --- @field mimetype string The MIME type of the attachment.
---- @field url string The URL of the attachment.
---- @field mxc_url string The MXC URL of the attachment.
+--- @field url? string The URL of the attachment, nil when its source is not a valid mxc URI.
+--- @field mxc_url? string The MXC URL of the attachment, nil when it is not a valid mxc URI.
 --- @field filename string The name of the file.
 --- @field origin? neoment.matrix.client.MessageAttachmentOrigin Where the attachment was opened from, only set when passed to `room.on_open_attachment`.
 

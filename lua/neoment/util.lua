@@ -52,18 +52,46 @@ M.join = function(list, sep)
 	return result
 end
 
+--- The patterns a server name of an mxc URI can have: a hostname or a bracketed IPv6 address, each with an optional port
+--- The hostname starts with a letter or digit, so it can never be a `.` or `..` path segment
+local SERVER_NAME_PATTERNS = {
+	"%w[%w%.%-]*",
+	"%w[%w%.%-]*:%d+",
+	"%[[%x:%.]+%]",
+	"%[[%x:%.]+%]:%d+",
+}
+
+--- Path of the media download endpoint, after the homeserver URL
+local MEDIA_DOWNLOAD_PATH = "/_matrix/client/v1/media/download/"
+
+--- Parse an mxc URI of the form `mxc://<server-name>/<media-id>`
+--- The whole string must match, so nothing can come before the scheme or after the media ID.
+--- @param uri string|nil The mxc URI
+--- @return string|nil server_name The server name, nil if the URI is not valid
+--- @return string|nil media_id The media ID, nil if the URI is not valid
+M.parse_mxc = function(uri)
+	if type(uri) ~= "string" then
+		return nil, nil
+	end
+	for _, server_pattern in ipairs(SERVER_NAME_PATTERNS) do
+		local server_name, media_id = uri:match("^mxc://(" .. server_pattern .. ")/([%w_%-]+)$")
+		if server_name then
+			return server_name, media_id
+		end
+	end
+	return nil, nil
+end
+
 --- Convert mxc URI to a URL
 --- @param homeserver string The homeserver URL
---- @param mxc_uri string The mxc URI to convert
---- @return string The converted URL
+--- @param mxc_uri string|nil The mxc URI to convert
+--- @return string|nil The media download URL, nil if the URI is not a valid mxc URI
 M.mxc_to_url = function(homeserver, mxc_uri)
-	local mxc_prefix = "mxc://"
-	if not mxc_uri or not mxc_uri:find(mxc_prefix) then
-		return mxc_uri
+	local server_name, media_id = M.parse_mxc(mxc_uri)
+	if not server_name then
+		return nil
 	end
-
-	local mxc_id = mxc_uri:sub(#mxc_prefix + 1)
-	return string.format("%s/_matrix/client/v1/media/download/%s", homeserver, mxc_id)
+	return string.format("%s%s%s/%s", homeserver, MEDIA_DOWNLOAD_PATH, server_name, media_id)
 end
 
 --- Write to a non-modifiable buffer
@@ -282,16 +310,30 @@ M.set_common_mappings = function(buffer_id)
 	vim.keymap.set("n", "<localleader>l", "<Plug>NeomentToggleRoomsList", set_opts_desc("Toggle room [l]ist"))
 end
 
+--- Check if a URL is the user's homeserver download URL of a valid mxc URI, as built by `mxc_to_url`
+--- Any `access_token` query parameter is ignored, so URLs saved by an earlier version still qualify.
+--- @param url string|nil The URL to check
+--- @return boolean
+M.is_media_url = function(url)
+	local client = require("neoment.matrix").client
+	if type(url) ~= "string" or not client or not client.homeserver then
+		return false
+	end
+	local prefix = client.homeserver .. MEDIA_DOWNLOAD_PATH
+	local bare_url = M.strip_access_token(url)
+	if not vim.startswith(bare_url, prefix) then
+		return false
+	end
+	return M.parse_mxc("mxc://" .. bare_url:sub(#prefix + 1)) ~= nil
+end
+
 --- Get the current access token if a URL is a media URL of the user's homeserver.
 --- The token must not be sent anywhere else, so any other URL gets none.
 --- @param url string|nil The URL the token would be sent to
 --- @return string|nil The access token
 local function media_access_token(url)
 	local client = require("neoment.matrix").client
-	if not url or not client or not client.access_token or not client.homeserver then
-		return nil
-	end
-	if not vim.startswith(url, client.homeserver .. "/") then
+	if not client or not client.access_token or not M.is_media_url(url) then
 		return nil
 	end
 	return client.access_token

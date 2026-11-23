@@ -90,6 +90,73 @@ describe("media URLs", function()
 			assert.are.equal(MEDIA .. "clip_thumb", attachment.thumbnail.url)
 		end)
 
+		--- Assert that no field of an attachment, nor of its thumbnail, holds an access token
+		--- @param attachment table
+		local function assert_no_token(attachment)
+			for key, value in pairs(attachment) do
+				if type(value) == "table" then
+					assert_no_token(value)
+				elseif type(value) == "string" then
+					assert.is_nil(value:find("access_token", 1, true), key)
+				end
+			end
+		end
+
+		it("have no downloadable URL for an image whose URL is not mxc://", function()
+			event.handle(
+				room_id,
+				attachment_event("$image", {
+					msgtype = "m.image",
+					body = "x.png",
+					url = "https://attacker.example/x.png",
+					info = { mimetype = "image/png" },
+				})
+			)
+
+			local message = client.get_room_message(room_id, "$image")
+			assert.are.equal("x.png", message.content)
+			assert.is_nil(message.attachment.url)
+			assert.is_nil(message.attachment.mxc_url)
+			assert_no_token(message.attachment)
+		end)
+
+		it("have no downloadable URL for a file whose URL is not mxc://", function()
+			event.handle(
+				room_id,
+				attachment_event("$file", {
+					msgtype = "m.file",
+					body = "f.pdf",
+					url = "https://attacker.example/f.pdf",
+					info = { mimetype = "application/pdf" },
+				})
+			)
+
+			local attachment = client.get_room_message(room_id, "$file").attachment
+			assert.is_nil(attachment.url)
+			assert_no_token(attachment)
+		end)
+
+		it("have no thumbnail for a video whose thumbnail URL is not mxc://", function()
+			event.handle(
+				room_id,
+				attachment_event("$video", {
+					msgtype = "m.video",
+					body = "clip.mp4",
+					url = "mxc://example.org/clip",
+					info = {
+						mimetype = "video/mp4",
+						thumbnail_url = "https://attacker.example/t.png",
+						thumbnail_info = { h = 5, w = 5, mimetype = "image/png" },
+					},
+				})
+			)
+
+			local attachment = client.get_room_message(room_id, "$video").attachment
+			assert.are.equal(MEDIA .. "clip", attachment.url)
+			assert.is_nil(attachment.thumbnail)
+			assert_no_token(attachment)
+		end)
+
 		it("get the token current when they are fetched, not the one from when they were received", function()
 			event.handle(
 				room_id,
@@ -202,12 +269,92 @@ describe("media URLs", function()
 			assert.are.equal("/tmp/neoment/file", results[2].data)
 		end)
 
-		it("gives a URL of another server as it is", function()
-			local url = "https://maps.google.com/?q=1,2"
-			local result = fetch(url)
+		it("refuses a URL of another server", function()
+			local result = fetch("https://maps.google.com/?q=1,2")
 
 			assert.are.equal(0, #downloads)
-			assert.are.equal(url, result.data)
+			assert.is_true(result:is_error())
+		end)
+
+		it("refuses a cached URL of another server that holds an old token", function()
+			local result = fetch("https://attacker.example/x.png?access_token=old")
+
+			assert.are.equal(0, #downloads)
+			assert.is_true(result:is_error())
+		end)
+
+		it("downloads a cached homeserver URL without its old token, with the current token in a header", function()
+			client.client.access_token = "token-2"
+			fetch(MEDIA .. "abc?access_token=old", function()
+				downloads[1].callback(require("neoment.error").ok("/tmp/neoment/file"))
+			end)
+
+			assert.are.equal(1, #downloads)
+			assert.are.equal(MEDIA .. "abc", downloads[1].url)
+			assert.are.same({ Authorization = "Bearer token-2" }, downloads[1].headers)
+		end)
+	end)
+
+	--- URIs that are not well-formed `mxc://<server-name>/<media-id>` URIs
+	local INVALID_MXC = {
+		"https://attacker.example/x.png",
+		"https://attacker.example/mxc://example.org/abc",
+		"mxc://example.org/../../v3/account/whoami",
+		"mxc://../config",
+		"mxc://example.org",
+		"mxc://example.org/abc/def",
+		"mxc://example.org/abc?x=1",
+		"mxc://example.org:/abc",
+		"",
+	}
+
+	describe("parse_mxc", function()
+		it("gives the server name and media ID of a valid URI", function()
+			local server_name, media_id = util.parse_mxc("mxc://example.org/AbC_123-x")
+			assert.are.equal("example.org", server_name)
+			assert.are.equal("AbC_123-x", media_id)
+		end)
+
+		it("accepts a server name with a port", function()
+			local server_name, media_id = util.parse_mxc("mxc://example.org:8448/abc")
+			assert.are.equal("example.org:8448", server_name)
+			assert.are.equal("abc", media_id)
+		end)
+
+		it("accepts an IPv6 server name with a port", function()
+			local server_name, media_id = util.parse_mxc("mxc://[1234:5678::abcd]:8448/abc")
+			assert.are.equal("[1234:5678::abcd]:8448", server_name)
+			assert.are.equal("abc", media_id)
+		end)
+
+		it("rejects anything that is not a well-formed mxc URI", function()
+			for _, uri in ipairs(INVALID_MXC) do
+				local server_name, media_id = util.parse_mxc(uri)
+				assert.is_nil(server_name, uri)
+				assert.is_nil(media_id, uri)
+			end
+		end)
+
+		it("rejects nil", function()
+			local server_name, media_id = util.parse_mxc(nil)
+			assert.is_nil(server_name)
+			assert.is_nil(media_id)
+		end)
+	end)
+
+	describe("mxc_to_url", function()
+		it("resolves a valid URI to the media download endpoint of the homeserver", function()
+			assert.are.equal(
+				"https://hs.example/_matrix/client/v1/media/download/example.org/AbC_123-x",
+				util.mxc_to_url("https://hs.example", "mxc://example.org/AbC_123-x")
+			)
+		end)
+
+		it("resolves anything else to no URL", function()
+			for _, uri in ipairs(INVALID_MXC) do
+				assert.is_nil(util.mxc_to_url("https://hs.example", uri), uri)
+			end
+			assert.is_nil(util.mxc_to_url("https://hs.example", nil))
 		end)
 	end)
 
@@ -220,8 +367,26 @@ describe("media URLs", function()
 			assert.are.same({ Authorization = "Bearer token-2" }, util.media_headers(MEDIA .. "abc"))
 		end)
 
+		it("authenticates a URL resolved from an mxc URI, even with an old token in the query", function()
+			local url = util.mxc_to_url("https://example.org", "mxc://example.org/abc")
+
+			assert.are.same({ Authorization = "Bearer token-1" }, util.media_headers(url))
+			assert.are.same({ Authorization = "Bearer token-1" }, util.media_headers(url .. "?access_token=old"))
+		end)
+
 		it("sends nothing to another server", function()
 			assert.is_nil(util.media_headers("https://maps.google.com/?q=1,2"))
+		end)
+
+		it("sends nothing to another path of the homeserver", function()
+			assert.is_nil(util.media_headers("https://example.org/_matrix/client/v3/account/whoami"))
+			assert.is_nil(util.media_headers("https://example.org/_matrix/client/v1/media/download/a/../x"))
+		end)
+
+		it("sends nothing to a host that starts with the homeserver host", function()
+			assert.is_nil(
+				util.media_headers("https://example.org.evil.com/_matrix/client/v1/media/download/example.org/abc")
+			)
 		end)
 	end)
 

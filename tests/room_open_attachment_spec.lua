@@ -225,6 +225,36 @@ describe("room open_attachment", function()
 		assert.is_nil(fetches[1].headers)
 	end)
 
+	it("does not download an image whose source is not mxc://", function()
+		local notifications = {}
+		package.loaded["neoment.notify"].info = function(message)
+			table.insert(notifications, message)
+		end
+		-- An `m.image` event whose `content.url` is `https://attacker.example/x.png` has no URL
+		room._get_buffer_data(buf).line_to_message[1] = {
+			id = "$event",
+			content = "x.png",
+			attachment = { type = "image", mimetype = "image/png" },
+		}
+
+		room.open_attachment()
+		flush()
+
+		assert.equals(0, #fetches)
+		assert.spy(handler_spy).was_not_called()
+		assert.are.same({ "This attachment has no downloadable media" }, notifications)
+	end)
+
+	it("does not download a custom emoticon whose mxc URI is malformed", function()
+		seed_extmark({ emoticon_url = "mxc://example.org/../../v3/account/whoami", emoticon_title = "party" })
+
+		room.open_attachment()
+		flush()
+
+		assert.equals(0, #fetches)
+		assert.spy(handler_spy).was_not_called()
+	end)
+
 	it("downloads a custom emoticon with the current token in a header, not in the URL", function()
 		seed_extmark({ emoticon_url = "mxc://example.org/emote", emoticon_title = "party" })
 

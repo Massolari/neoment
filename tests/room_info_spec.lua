@@ -101,10 +101,9 @@ local function setup_mocks(room, matrix_opts)
 			vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 			vim.bo[buf].modifiable = false
 		end,
-		mxc_to_url = function(homeserver, mxc)
-			local path = mxc:match("^mxc://[^/]+/(.+)$")
-			return homeserver .. "/_matrix/media/v3/download/" .. path
-		end,
+		-- Resolves to nil for anything that is not a valid mxc URI
+		mxc_to_url = real_util.mxc_to_url,
+		parse_mxc = real_util.parse_mxc,
 	}
 
 	package.loaded["neoment.notify"] = {
@@ -586,6 +585,37 @@ describe("room_info", function()
 			assert.spy(notify_mock.info).was_called_with("No avatar image to open")
 		end)
 
+		it("neither fetches nor opens an avatar whose mxc URI is malformed", function()
+			local room = make_room({ avatar_url = "mxc://example.org/../../v3/account/whoami" })
+			local notify_mock = { info = spy.new(function() end), error = function() end }
+			local fetch_image_spy = spy.new(function() end)
+			local fetch_spy = spy.new(function() end)
+			local original_snacks = _G.Snacks
+			setup_mocks(room)
+			package.loaded["neoment.notify"] = notify_mock
+			package.loaded["neoment.storage"] = {
+				fetch_image_source = fetch_image_spy,
+				fetch_to_temp = fetch_spy,
+			}
+			package.loaded["snacks.image.terminal"] = {
+				detect = function(callback)
+					callback()
+				end,
+			}
+			_G.Snacks = { image = { placement = {} } }
+			room_info = require("neoment.room_info")
+
+			vim.b[buf].room_id = room.id
+			room_info.update_buffer(buf)
+			room_info.open_avatar(buf)
+
+			_G.Snacks = original_snacks
+			package.loaded["snacks.image.terminal"] = nil
+			assert.spy(fetch_image_spy).was_not_called()
+			assert.spy(fetch_spy).was_not_called()
+			assert.spy(notify_mock.info).was_called_with("No avatar image to open")
+		end)
+
 		it("fetches avatar and passes it to the attachment handler when avatar_url is present", function()
 			local room = make_room({ avatar_url = "mxc://example.org/abc123" })
 			-- Async fetch_to_temp: invoke the callback synchronously to simulate
@@ -637,7 +667,7 @@ describe("room_info", function()
 			assert.equals("image", attachment.type)
 			assert.equals("avatar", attachment.origin)
 			assert.equals("mxc://example.org/abc123", attachment.mxc_url)
-			assert.equals("https://example.org/_matrix/media/v3/download/abc123", attachment.url)
+			assert.equals("https://example.org/_matrix/client/v1/media/download/example.org/abc123", attachment.url)
 			assert.is_nil(attachment.url:find("access_token", 1, true))
 			assert.spy(open_spy).was_not_called()
 		end)

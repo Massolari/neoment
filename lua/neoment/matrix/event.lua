@@ -17,13 +17,17 @@ local attachment_types = {
 
 --- Get the thumbnail from an event
 --- @param event neoment.matrix.ClientEventWithoutRoomID The event to get the thumbnail from
---- @return neoment.matrix.client.MessageImage|nil The thumbnail object
+--- @return neoment.matrix.client.MessageImage|nil The thumbnail object, nil if the thumbnail is not a valid mxc URI
 local function get_thumbnail(event)
-	if event.content.info and event.content.info.thumbnail_url and event.content.info.thumbnail_info then
+	if event.content.info and event.content.info.thumbnail_info then
+		local url = util.mxc_to_url(client.client.homeserver, event.content.info.thumbnail_url)
+		if not url then
+			return nil
+		end
 		return {
 			type = "image",
 			filename = "thumbnail",
-			url = util.mxc_to_url(client.client.homeserver, event.content.info.thumbnail_url),
+			url = url,
 			height = event.content.info.thumbnail_info.h,
 			width = event.content.info.thumbnail_info.w,
 			mimetype = event.content.info.thumbnail_info.mimetype,
@@ -58,13 +62,16 @@ local function get_attachment(event, attachment_type)
 		}
 	end
 
+	-- Media is only fetched from a valid mxc URI, any other URL is chosen by the sender and has no downloadable media
+	local url = util.mxc_to_url(client.client.homeserver, event.content.url)
+
 	-- Create a partial attachment object with the base fields
 	--- @type neoment.matrix.client.MessageAttachment
 	local attachment = {
 		type = attachment_type,
 		mimetype = event.content.info and event.content.info.mimetype,
-		mxc_url = event.content.url,
-		url = util.mxc_to_url(client.client.homeserver, event.content.url),
+		mxc_url = url and event.content.url,
+		url = url,
 		filename = event.content.filename,
 	}
 
