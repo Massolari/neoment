@@ -169,4 +169,20 @@ describe("room save_attachment", function()
 		assert.spy(fetch_spy).was_not_called()
 		assert.are.same({ "This attachment has no downloadable media" }, notifications)
 	end)
+
+	it("neither prompts nor downloads a cached attachment URL of another server", function()
+		local input_spy = spy.new(function() end)
+		local fetch_spy = spy.new(function() end)
+		vim.ui.input = input_spy
+		package.loaded["neoment.storage"].fetch_to_temp = fetch_spy
+		-- A URL an earlier version saved unchanged from an `m.file` event whose `content.url` was not mxc://
+		room._get_buffer_data(buf).line_to_message[1].attachment.url =
+			"https://attacker.example/report.txt?access_token=old_token"
+
+		room.save_attachment()
+
+		assert.spy(input_spy).was_not_called()
+		assert.spy(fetch_spy).was_not_called()
+		assert.are.same({ "This attachment has no downloadable media" }, notifications)
+	end)
 end)

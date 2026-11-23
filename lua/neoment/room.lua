@@ -1492,8 +1492,9 @@ M.forward_message = function()
 			--- @type neoment.room.PromptMessageParams
 			local params = {}
 
-			-- If the original message has an attachment, include it in the forward
-			if message.attachment then
+			-- If the original message has media, include it in the forward.
+			-- An attachment without a valid mxc URI has no media to send, so only its body is forwarded.
+			if message.attachment and util.parse_mxc(message.attachment.mxc_url) then
 				params.attachment = {
 					filename = message.attachment.filename,
 					url = message.attachment.mxc_url,
@@ -1781,7 +1782,8 @@ M.open_attachment = function()
 			return notify.info("No URL for this location attachment")
 		end
 
-		if not message.attachment.url then
+		-- A cached URL that is not a download URL of the homeserver, saved by an earlier version, is never fetched
+		if message.attachment.type ~= "location" and not util.is_media_url(message.attachment.url) then
 			return notify.info("This attachment has no downloadable media")
 		end
 
@@ -1817,7 +1819,11 @@ M.save_attachment = function()
 			return error.err("No attachment on this message") --[[@as neoment.Error<string, string>]]
 		end
 
-		if not message.attachment.url then
+		-- A cached URL that is not a download URL of the homeserver, saved by an earlier version, is never fetched
+		if
+			not message.attachment.url
+			or (message.attachment.type ~= "location" and not util.is_media_url(message.attachment.url))
+		then
 			notify.info("This attachment has no downloadable media")
 			return error.err("This attachment has no downloadable media") --[[@as neoment.Error<string, string>]]
 		end

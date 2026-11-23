@@ -136,6 +136,25 @@ describe("media URLs", function()
 			assert_no_token(attachment)
 		end)
 
+		it("have no downloadable URL for a sticker whose URL is not mxc://", function()
+			event.handle(room_id, {
+				event_id = "$sticker",
+				type = "m.sticker",
+				sender = "@alice:example.org",
+				origin_server_ts = 1000,
+				content = {
+					body = "wave",
+					url = "https://attacker.example/wave.png",
+					info = { mimetype = "image/png" },
+				},
+			})
+
+			local attachment = client.get_room_message(room_id, "$sticker").attachment
+			assert.is_nil(attachment.url)
+			assert.is_nil(attachment.mxc_url)
+			assert_no_token(attachment)
+		end)
+
 		it("have no thumbnail for a video whose thumbnail URL is not mxc://", function()
 			event.handle(
 				room_id,
