@@ -115,7 +115,25 @@ The client SHALL NOT fetch a media URL restored from a session saved by an earli
 - **WHEN** the room buffer renders that message
 - **THEN** no request is made to `attacker.example`
 
+#### Scenario: Opening or saving a cached URL of another host
+- **GIVEN** a restored session whose cached last message has a file URL `https://attacker.example/f.pdf?access_token=old`
+- **WHEN** the user opens or saves that attachment
+- **THEN** no request is made to `attacker.example`, no save path is asked for, and the user is told the attachment has no downloadable media
+
 #### Scenario: Cached homeserver media URL with an old token
 - **GIVEN** a restored session whose cached image URL is homeserver media with `?access_token=old`
 - **WHEN** the image is fetched
 - **THEN** the request URL has no `access_token` parameter and the current token is sent in a header
+
+### Requirement: Forwarding only carries valid media
+When a message is forwarded, its attachment SHALL be included only if it has a well-formed `mxc://` source. Otherwise only the message body SHALL be forwarded.
+
+#### Scenario: Forwarding an image with a valid mxc URI
+- **GIVEN** a message with an `m.image` whose source is `mxc://example.org/x`
+- **WHEN** the user forwards it to another room
+- **THEN** the sent event references `mxc://example.org/x`
+
+#### Scenario: Forwarding an image with a non-mxc URL
+- **GIVEN** a message with an `m.image` whose `content.url` is `https://attacker.example/x.png`
+- **WHEN** the user forwards it to another room
+- **THEN** only its body is sent, with no attachment

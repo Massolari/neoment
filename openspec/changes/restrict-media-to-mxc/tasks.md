@@ -17,8 +17,9 @@
 
 ## 4. Open and save
 
-- [x] 4.1 In `room.open_attachment`, notify "This attachment has no downloadable media" and return without calling `fetch_to_temp` or the handler when a non-location attachment has no `url` (D5). Verify with a `room_open_attachment_spec.lua` case for an `m.image` with an `https://` source: `fetch_to_temp` and the handler are not called, and the notification is emitted
-- [x] 4.2 Apply the same guard in `room.save_attachment`, before the save-path prompt. Verify with a `room_save_attachment_spec.lua` case: `vim.ui.input` and `fetch_to_temp` are not called for an attachment with no `url`
+- [x] 4.1 In `room.open_attachment`, notify "This attachment has no downloadable media" and return without calling `fetch_to_temp` or the handler when a non-location attachment has no homeserver media `url` per `util.is_media_url` (D5). Verify with `room_open_attachment_spec.lua` cases for an `m.image` with an `https://` source and for a cached `https://attacker.example/x.png?access_token=old` URL: `fetch_to_temp` and the handler are not called, and the notification is emitted
+- [x] 4.2 Apply the same guard in `room.save_attachment`, before the save-path prompt. Verify with a `room_save_attachment_spec.lua` case: `vim.ui.input` and `fetch_to_temp` are not called for an attachment with no `url` nor for a cached non-homeserver URL
+- [x] 4.3 In `room.forward_message`, include the attachment only when `util.parse_mxc(attachment.mxc_url)` succeeds, otherwise forward the body only (D5). Verify with `room_forward_message_spec.lua`: a valid-mxc attachment is forwarded with its mxc URL; an attachment without one sends no `attachment` param
 
 ## 5. Emoticons, reactions and avatars
 

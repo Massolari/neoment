@@ -49,7 +49,9 @@ In `event.lua`, `mxc_url` is set only when `parse_mxc(content.url)` succeeds, an
 In `room.lua` render, pick the image source as `attachment` when `type == "image"`, `attachment.thumbnail` when `type == "video"`, and nothing otherwise. Add it to `images` only if `util.is_media_url(source.url)`. In `storage.fetch_image_source`, a non-media URL returns `error.err("Not homeserver media")` instead of `error.ok(url)`. This second check catches every other caller (hover previews, room_info) and cached URLs.
 
 ### D5. Open and save refuse when there's nothing to fetch
-`open_attachment` and `save_attachment` check `message.attachment.url` before calling `fetch_to_temp`. For non-location types with no `url`, they notify "This attachment has no downloadable media" and return. `save_attachment` checks before prompting for a path. The location branch stays as it is. `fetch_to_temp` sends no token for non-media URLs (D2).
+`open_attachment` and `save_attachment` check `message.attachment.url` with `util.is_media_url` before calling `fetch_to_temp`. For non-location types whose `url` is not homeserver media (no `url`, or a URL cached by an earlier version that points elsewhere), they notify "This attachment has no downloadable media" and return. `save_attachment` checks before prompting for a path. The location branch stays as it is: its URL is built only from the numeric coordinates of `geo_uri`. `fetch_to_temp` sends no token for non-media URLs (D2).
+
+`forward_message` includes the attachment only when its `mxc_url` passes `util.parse_mxc`. Otherwise only the body is forwarded, so no media event without a `url` (or with a cached non-mxc one) is sent.
 
 ### D6. Emoticons, reactions and avatars
 Swap the inline `match("^mxc://")` gates in `room.lua` (emoticon extmarks, reaction extmarks) and `room_info.lua` (render and open) for `util.parse_mxc`. Hover previews and `open_attachment`'s mxc branch then call the now-nil-safe `mxc_to_url` and bail on `nil`.

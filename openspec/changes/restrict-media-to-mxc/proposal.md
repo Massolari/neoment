@@ -16,7 +16,8 @@ Issue #50 reports that message attachments whose `url` or `thumbnail_url` is not
 - The access token is only attached to URLs built from a valid `mxc://` URI, never to arbitrary URLs on the homeserver.
 - Inline images are only drawn for image attachments and for video thumbnails, and only when the media resolves to the user's homeserver. Nothing else is ever handed to the image viewer.
 - Emoticon and reaction previews, emoticon and reaction opens, and room avatar render and open all go through the same validated resolution.
-- Media URLs stored in the session cache by earlier versions are never fetched as-is. Only media that re-resolves from its `mxc://` source is fetched.
+- Media URLs stored in the session cache by earlier versions are never fetched as-is, automatically or when opening or saving. Only media that re-resolves from its `mxc://` source is fetched.
+- Forwarding a message only carries its attachment when it has a valid `mxc://` source; otherwise only the body is forwarded.
 
 ## Capabilities
 
@@ -31,8 +32,8 @@ Issue #50 reports that message attachments whose `url` or `thumbnail_url` is not
 - `lua/neoment/util.lua`: `mxc_to_url` gains anchored, validated parsing; the media-token check becomes mxc-based.
 - `lua/neoment/matrix/event.lua`: `get_attachment` / `get_thumbnail` produce no `url` for invalid sources.
 - `lua/neoment/storage.lua`: `fetch_image_source` stops handing non-homeserver URLs to the viewer.
-- `lua/neoment/room.lua`: inline image collection, hover previews, `open_attachment`, `save_attachment`.
+- `lua/neoment/room.lua`: inline image collection, hover previews, `open_attachment`, `save_attachment`, `forward_message`.
 - `lua/neoment/room_info.lua`: avatar render and open use the shared resolver.
 - `lua/neoment/matrix/client.lua`: attachment `url` becomes optional in type annotations.
-- Tests: `tests/media_url_spec.lua`, `tests/room_open_attachment_spec.lua`, `tests/room_save_attachment_spec.lua`, `tests/room_info_spec.lua`.
+- Tests: `tests/media_url_spec.lua`, `tests/room_open_attachment_spec.lua`, `tests/room_save_attachment_spec.lua`, `tests/room_forward_message_spec.lua`, `tests/room_info_spec.lua`, `tests/room_spec.lua`.
 - No new dependencies. No change to the session file format.
